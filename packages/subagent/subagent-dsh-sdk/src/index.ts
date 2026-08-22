@@ -101,7 +101,7 @@ class SdkSubagentProvider implements SubagentProvider {
     const spec: SdkRunSpec = {
       command: this.config.command,
       args: this.config.args,
-      cwd: resolveChildCwd('subagent-dsh-sdk', this.config.cwd, request.parent.session.header.cwd),
+      cwd: resolveChildCwd('subagent-dsh-sdk', request.workspaceCwd ?? this.config.cwd, request.parent.session.header.cwd),
       provider: this.config.provider,
       model: this.config.model,
       ...this.config.maxTokens === undefined ? {} : { maxTokens: this.config.maxTokens },

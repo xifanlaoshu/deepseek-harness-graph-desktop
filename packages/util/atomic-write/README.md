@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Zero-dependency atomic file replacement shared by file-backed stores that must never leave partial, symlink-hijacked, or wider-than-intended content on disk — the user-settings document (`dsh-settings-file`) and the credentials store (`dsh-credentials-local`).
+Zero-dependency atomic file replacement shared by file-backed stores that must never leave partial, symlink-hijacked, or wider-than-intended content on disk, including settings, credentials, and Graph artifact blobs.
 
 ## Surface
 
@@ -20,7 +20,7 @@ await withFileLock('/home/u/.dsh/settings.yaml', async () => {
 })
 ```
 
-`writeFileAtomic` commits one already-rendered string. The contract, in the order failures would exploit it:
+`writeFileAtomic` commits one complete string or `Uint8Array`. The contract, in the order failures would exploit it:
 
 - **Exclusive-create temp** (`wx`, random suffix): the open refuses to follow a symlink planted at a guessable temp path.
 - **The fresh inode carries `mode` through the rename**: replacing a wider-permission file narrows it without a chmod race. `mode` is required so the permission decision stays visible at every call site (subject to the process umask, like every fresh inode).
@@ -43,5 +43,5 @@ None; nothing here enters a request prefix.
 ## Known Limitations and Deferred Work
 
 - **Atomic, not durable** — no `fsync` of the file or its directory, so after a crash the rename may be observed unwound. The file-backed stores here re-read and republish on boot, keeping durability the caller's policy.
-- **String content only** — no `Buffer` or stream form until a consumer needs one.
+- **Whole-value writes only** — strings and `Uint8Array` values are accepted; streams remain the caller's responsibility.
 - **Orphaned locks require operator recovery** — a process that exits while holding the lock can leave the sibling behind. Later writers time out without deleting it; an operator removes it only after verifying that no writer still owns it. File age alone is not safe evidence of abandonment.

@@ -1,8 +1,9 @@
+import { resolve } from 'node:path'
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { type Agent } from '@deepseek-ai/dsh-agent'
 
-import { HarnessError } from '@deepseek-ai/dsh-llm'
+import { HarnessError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf } from '@deepseek-ai/dsh-scope'
 import SubagentRuntime, {
   foldSubagentDescriptor,
@@ -125,6 +126,20 @@ describe('SubagentRuntime', () => {
     expectTypeOf<Parameters<SubagentRuntime['start']>[1]>().toExtend<SubagentStartRequest>()
     expect('resume' in subagents).toBe(false)
     expect('resume' in provider).toBe(false)
+  })
+
+  it('forwards an absolute activation workspace and rejects relative values before startup', async () => {
+    const { subagents } = await service()
+    const provider = new StubProvider('workspace')
+    subagents.registerProvider(provider)
+    const workspaceCwd = resolve('isolated-workspace')
+
+    await subagents.start('workspace', baseRequest({ workspaceCwd }))
+    expect(provider.lastRequest?.workspaceCwd).toBe(workspaceCwd)
+
+    await expect(subagents.start('workspace', baseRequest({ workspaceCwd: 'relative/workspace' })))
+      .rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+    expect(provider.startCount).toBe(1)
   })
 
   it('does not expose manager teardown and treats public drains as no-ops when no manager was bound', async () => {
@@ -348,6 +363,7 @@ describe('subagent descriptors', () => {
       label: 'complete child',
       agentProvider: 'deepseek',
       agentModel: 'chat',
+      reasoningEffort: ReasoningEffortId('high'),
       persona: 'reviewer',
       toolFilter: { allow: ['read'], deny: ['bash'] },
     }
@@ -357,6 +373,7 @@ describe('subagent descriptors', () => {
       label: complete.label,
       agentProvider: complete.agentProvider,
       agentModel: complete.agentModel,
+      reasoningEffort: complete.reasoningEffort,
       persona: complete.persona,
       toolFilter: complete.toolFilter,
     })).toEqual(complete)
@@ -448,6 +465,13 @@ describe('subagent descriptors', () => {
       label: 'l',
       agentModel: [],
     }, 'agentModel must be a string'],
+    ['invalid reasoning effort', {
+      version: SUBAGENT_DESCRIPTOR_VERSION,
+      mode: 'continuable',
+      provider: 'spawn',
+      label: 'l',
+      reasoningEffort: [],
+    }, 'reasoningEffort must be a string'],
     ['invalid persona', {
       version: SUBAGENT_DESCRIPTOR_VERSION,
       mode: 'continuable',

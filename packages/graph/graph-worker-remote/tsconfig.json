@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cosmokit" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../graph-artifacts" },
+    { "path": "../graph-resources" },
+    { "path": "../graph-scheduler" },
+    { "path": "../graph-worker" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../host/webserver" },
+    { "path": "../../util/brand" },
+    { "path": "../../credentials/credentials" },
+    { "path": "../../llm/llm" },
+    { "path": "../../subagent/subagent" },
+    { "path": "../../core/tools" },
+    { "path": "../../util/atomic-write" },
+    { "path": "../../runtime-diagnostics/invariants" }
+  ]
+}

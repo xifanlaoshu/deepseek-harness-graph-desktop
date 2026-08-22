@@ -49,6 +49,8 @@ const ralphConfigPath = fileURLToPath(new URL('../ralph.cordis.snapshot.yml', im
 const settlementScenarioDir = join(snapshotsDir, 'subagent-settlement')
 const settlementConfigPath = fileURLToPath(new URL('../subagent-settlement.cordis.snapshot.yml', import.meta.url))
 const teamConfigPath = fileURLToPath(new URL('../team.cordis.snapshot.yml', import.meta.url))
+const graphScenarioDir = join(snapshotsDir, 'graph-mode')
+const graphConfigPath = fileURLToPath(new URL('../graph-mode.cordis.snapshot.yml', import.meta.url))
 const startupFailureConfigPath = fileURLToPath(new URL('./fixtures/startup-activation-error/cordis.yml', import.meta.url))
 const startupFailureExpected = join(snapshotsDir, 'startup-activation-error', 'stderr.expected.txt')
 const binScript = fileURLToPath(new URL('./fixtures/headless-driver.ts', import.meta.url))
@@ -199,6 +201,42 @@ function normalizeGoalTimestamps(value: unknown): unknown {
 function normalizeGoalStream(rawStdout: string, cwd: string): string {
   return parseJsonl(normalizeHeadlessStream(rawStdout, cwd))
     .map(record => JSON.stringify(normalizeGoalTimestamps(record)))
+    .join('\n') + '\n'
+}
+
+const GRAPH_DERIVED_ID = /(work|generation|operation|settlement|checkpoint|reservation):[0-9a-f]{64}/g
+
+/** Normalize volatile scheduler fields carried inside Graph run snapshots. */
+function normalizeGraphFields(value: unknown, ids: Map<string, string>, counts: Map<string, number>): unknown {
+  if (typeof value === 'string') {
+    return value.replace(GRAPH_DERIVED_ID, (derivedId, prefix: string) => {
+      const known = ids.get(derivedId)
+      if (known !== undefined) return known
+      const next = (counts.get(prefix) ?? 0) + 1
+      counts.set(prefix, next)
+      const normalized = `{{graph-${prefix}-${String(next)}}}`
+      ids.set(derivedId, normalized)
+      return normalized
+    })
+  }
+  if (Array.isArray(value)) return value.map(item => normalizeGraphFields(item, ids, counts))
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      key,
+      (key === 'at' || key.endsWith('At')) && typeof item === 'number'
+        ? 0
+        : normalizeGraphFields(item, ids, counts),
+    ]))
+  }
+  return value
+}
+
+/** Normalize one Graph Mode stream after applying the shared transcript scrubbers. */
+function normalizeGraphStream(rawStdout: string, cwd: string): string {
+  const ids = new Map<string, string>()
+  const counts = new Map<string, number>()
+  return parseJsonl(normalizeHeadlessStream(rawStdout, cwd))
+    .map(record => JSON.stringify(normalizeGraphFields(record, ids, counts)))
     .join('\n') + '\n'
 }
 
@@ -950,6 +988,63 @@ describe('headless stream-json snapshots', () => {
       output: 'PARENT_RECEIVED_CHILD_RESULT',
     })
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
+    if (refreshing) await writeFile(streamExpected, normalized)
+    expect(normalized).toBe(await readFile(streamExpected, 'utf8'))
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
+  it('runs one delegated Graph Mode node and persists its terminal DAG state', async () => {
+    const parentReplay = join(graphScenarioDir, 'parent.replay.jsonl')
+    const parentOverride = join(graphScenarioDir, 'parent.override.json')
+    const childReplay = join(graphScenarioDir, 'child.replay.jsonl')
+    const streamExpected = join(graphScenarioDir, 'stream-json.expected.jsonl')
+    const task = 'Execute one graph worker and synthesize its result.'
+    let runCwd = ''
+    const result = await runLoaderSmoke({
+      label: 'graph mode headless stream-json snapshot',
+      tempDirPrefix: 'headless-snapshot-graph-mode-',
+      binScript,
+      libBinScript: binScript,
+      configPath: graphConfigPath,
+      binArgs: [graphConfigPath, task],
+      tsconfigPath,
+      env: {
+        DSH_SNAPSHOT: 'replay',
+        DSH_SNAPSHOT_FILE: parentReplay,
+        DSH_SNAPSHOT_OVERRIDE: parentOverride,
+        DSH_SNAPSHOT_CHILD_FILES: childReplay,
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+      },
+      prepare: (cwd) => { runCwd = cwd },
+      inspect: async (cwd) => {
+        const logs = await persistedLogs(cwd)
+        const parent = logs.find(log => typeof log.header.parentSession !== 'string')
+        if (parent === undefined) throw new Error('missing persisted graph parent log')
+        const parentRecords = parseJsonl(parent.content)
+        const graphRuns = parentRecords.filter(record => record.type === 'graph/run')
+        const terminal = graphRuns.at(-1)?.data as JsonObject | undefined
+        if (terminal?.phase === 'failed') throw new Error(`Graph snapshot run failed: ${JSON.stringify(terminal)}`)
+        expect(logs).toHaveLength(2)
+        const child = logs.find(log => typeof log.header.parentSession === 'string')
+        if (child === undefined) throw new Error('missing persisted graph child log')
+
+        expect(graphRuns.length).toBeGreaterThan(2)
+        expect(terminal).toMatchObject({
+          graphId: 'prove-one-complete-graph-mode-worker-run-7934e3266c98',
+          phase: 'succeeded',
+          nodes: { implement: { phase: 'succeeded', output: { summary: 'GRAPH_CHILD_OK', data: { passed: true } } } },
+        })
+        expect(parentRecords.filter(record => record.type === 'tool/call')
+          .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['graph_submit', 'graph_submit'])
+        expect(parent.content).toContain('nodes[0].workspace.readRoots[0]: use \\".\\" for the whole workspace')
+        expect(parent.content).toContain("Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies")
+        expect(parseJsonl(child.content).filter(record => record.type === 'tool/call')
+          .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['structured_output'])
+      },
+    })
+
+    expect(result.stderr).toBe('')
+    expect(parseJsonl(result.stdout).at(-1)).toMatchObject({ type: 'result', output: 'GRAPH_SNAPSHOT_OK' })
+    const normalized = normalizeGraphStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     expect(normalized).toBe(await readFile(streamExpected, 'utf8'))
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)

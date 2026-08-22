@@ -78,7 +78,7 @@ class ClaudeCodeProvider implements SubagentProvider {
   ) {}
 
   async start(request: ResolvedSubagentStartRequest) {
-    const parentCwd = request.parent.session.header.cwd
+    const parentCwd = request.workspaceCwd ?? request.parent.session.header.cwd
     if (parentCwd === undefined) {
       throw new Error(
         'subagent-claude-code: no working directory for the child — delegate from a parent session that has one',
@@ -88,7 +88,7 @@ class ClaudeCodeProvider implements SubagentProvider {
     try {
       cwd = resolveChildCwd(
         'subagent-claude-code',
-        undefined,
+        request.workspaceCwd,
         parentCwd,
       )
     } catch (error: unknown) {

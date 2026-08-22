@@ -881,6 +881,233 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'graphArtifacts',
+    summary: 'Registry, validation, and dispatch for Graph artifact Providers.',
+    description: 'Registry, validation, and dispatch for Graph artifact Providers.',
+    methods: [
+      {
+        signature: 'register(provider: GraphArtifactProvider): () => void',
+        description: 'Register one unique artifact Provider.',
+        parameters: [{ name: 'provider', description: 'authenticated storage or transport implementation.' }],
+        returns: 'disposer for only this registration.',
+      },
+      {
+        signature: 'list(): readonly { readonly name: string; readonly persistent: boolean; readonly remote: boolean }[]',
+        description: 'Inspect the registered artifact routes without exposing mutable Provider objects.',
+        parameters: [],
+        returns: 'detached Provider deployment facts.',
+      },
+      {
+        signature: 'async capture(providerName: string, request: GraphArtifactCaptureRequest): Promise<GraphArtifactManifest>',
+        description: 'Capture and validate files produced by one fenced Worker attempt.',
+        parameters: [{ name: 'providerName', description: 'registered transport route.' }, { name: 'request', description: 'exact attribution, source, selection, and bounds.' }],
+        returns: 'immutable manifest owned by the selected Provider.',
+      },
+      {
+        signature: 'async materialize(providerName: string, request: GraphArtifactMaterializeRequest): Promise<GraphArtifactMaterializeResult>',
+        description: 'Materialize a validated immutable manifest into one explicit workspace.',
+        parameters: [{ name: 'providerName', description: 'registered transport route.' }, { name: 'request', description: 'manifest, target, and overwrite policy.' }],
+        returns: 'paths and byte count written from the complete manifest.',
+      },
+      {
+        signature: 'async reconcile(providerName: string, request: GraphArtifactReconcileRequest): Promise<GraphArtifactReconcileResult>',
+        description: 'Reconcile one abandoned provider reference without guessing ownership.',
+        parameters: [{ name: 'providerName', description: 'registered transport route.' }, { name: 'request', description: 'exact manifest reference and deletion authority.' }],
+        returns: 'auditable Provider disposition.',
+      },
+    ],
+  },
+  {
+    key: 'graphCoordination',
+    summary: 'Provider-neutral external coordination seam.',
+    description: 'Provider-neutral external coordination seam.',
+    methods: [
+      {
+        signature: 'abstract prepare(graph: GraphRevision, roles: readonly GraphRole[], cwd: string, signal: AbortSignal): Promise<void>',
+        description: 'Validate external coordination identity for one immutable revision.',
+        parameters: [{ name: 'graph', description: 'immutable revision being admitted.' }, { name: 'roles', description: 'configured roles available to its nodes.' }, { name: 'cwd', description: 'session working directory used by the provider.' }, { name: 'signal', description: 'caller cancellation.' }],
+      },
+      {
+        signature: 'abstract claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim>',
+        description: 'Claim a ready node and return a compact fresh observation.',
+        parameters: [{ name: 'request', description: 'graph, run, node, role, and working-directory identity.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'provider claim and bounded observation for the worker.',
+      },
+      {
+        signature: 'abstract heartbeat(request: GraphCoordinationHeartbeat, signal: AbortSignal): Promise<GraphCoordinationHeartbeatResult>',
+        description: 'Renew one exact live lease and return its fresh cursor.',
+        parameters: [{ name: 'request', description: 'fenced claim and monotonic progress sequence.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'renewed lease, fencing, progress, and cancellation state.',
+      },
+      {
+        signature: 'abstract observe(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation>',
+        description: 'Read a consistent public-safe snapshot without taking ownership.',
+        parameters: [{ name: 'request', description: 'stable work identity and optional event cursor.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'current claim state and ordered event suffix.',
+      },
+      {
+        signature: 'abstract watch(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation>',
+        description: 'Wait for or poll ordered public-safe changes after a durable cursor.',
+        parameters: [{ name: 'request', description: 'stable work identity and optional event cursor.' }, { name: 'signal', description: 'caller cancellation or wait deadline.' }],
+        returns: 'current claim state and ordered event suffix.',
+      },
+      {
+        signature: 'abstract publishProgress(request: GraphCoordinationProgress, signal: AbortSignal): Promise<{ readonly cursor: string }>',
+        description: 'Append one idempotent bounded progress record.',
+        parameters: [{ name: 'request', description: 'fenced claim, sequence, and public-safe evidence.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'durable cursor assigned to the progress record.',
+      },
+      {
+        signature: 'abstract settle(request: GraphCoordinationSettlement, signal: AbortSignal): Promise<void>',
+        description: 'Write terminal progress and public-safe evidence.',
+        parameters: [{ name: 'request', description: 'claim identity, terminal outcome, and public-safe evidence.' }, { name: 'signal', description: 'settlement cancellation; Consumers must not reuse a canceled worker signal.' }],
+      },
+      {
+        signature: 'abstract cancel(request: GraphCoordinationCancellation, signal: AbortSignal): Promise<void>',
+        description: 'Request cooperative cancellation without accepting a terminal result.',
+        parameters: [{ name: 'request', description: 'fenced live claim and public-safe reason.' }, { name: 'signal', description: 'caller cancellation.' }],
+      },
+      {
+        signature: 'abstract reconcile(request: GraphCoordinationReconcileRequest, signal: AbortSignal): Promise<GraphCoordinationReconcileResult>',
+        description: 'Compare exact Graph references with provider-owned durable evidence.',
+        parameters: [{ name: 'request', description: 'stable work identity and optional claim, lease, fencing, and outcome expectations.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'confirmed, absent, conflicting, or unknown provider evidence.',
+      },
+    ],
+  },
+  {
+    key: 'graphMode',
+    summary: '`ctx.graphMode`: owns graph configuration, controller submission, and background runs.',
+    description: '`ctx.graphMode`: owns graph configuration, controller submission, and background runs.',
+    methods: [
+      {
+        signature: 'state(agent: Agent): GraphProjection',
+        description: 'Return replayed state for one live agent.',
+        parameters: [{ name: 'agent', description: 'session owner whose graph events are folded.' }],
+        returns: 'current graph-mode projection.',
+      },
+      {
+        signature: 'async recover(agent: Agent, requestedRunId?: GraphRunId): Promise<void>',
+        description: 'Reconcile and resume durable nonterminal work after an Agent is restored.',
+        parameters: [{ name: 'agent', description: 'restored session owner whose nonterminal runs are recovered.' }, { name: 'requestedRunId', description: 'optional exact run selected for manual reconciliation.' }],
+      },
+      {
+        signature: 'setConfig(agent: Agent, config: GraphModeConfig): void',
+        description: 'Validate and durably replace one session\'s graph-mode settings.',
+        parameters: [{ name: 'agent', description: 'session owner receiving the configuration event.' }, { name: 'config', description: 'complete replacement configuration.' }],
+      },
+      {
+        signature: 'async control( agent: Agent, request: GraphControlRequest, authority: GraphControlAuthority = { actor: { kind: \'system\', id: \'graph-mode\' }, source: \'host-api\' }, ): Promise<import(\'@deepseek-ai/dsh-graph\').GraphControlRecord>',
+        description: 'Execute one idempotent human or controller operation over a durable run.',
+        parameters: [{ name: 'agent', description: 'session owner receiving the addressed operation.' }, { name: 'request', description: 'stable operation id, action, target, and reason.' }, { name: 'authority', description: 'host-authenticated principal and ingress.' }],
+        returns: 'durable accepted control record, or its existing duplicate.',
+      },
+      {
+        signature: 'async submit( agent: Agent, submission: GraphSubmission, signal: AbortSignal = new AbortController().signal, ): Promise<{ accepted: true; intent: ControllerIntent; graphId?: string; runId?: string }>',
+        description: 'Accept one controller decision and start background work when needed.',
+        parameters: [{ name: 'agent', description: 'controller agent and durable session owner.' }, { name: 'submission', description: 'classified input plus an optional complete graph revision.' }, { name: 'signal', description: 'cancellation for validation and external preparation.' }],
+        returns: 'accepted classification and identities for any started graph run.',
+      },
+    ],
+  },
+  {
+    key: 'graphResources',
+    summary: 'Named registry that validates every observation, reservation, and outcome.',
+    description: 'Named registry that validates every observation, reservation, and outcome.',
+    methods: [
+      {
+        signature: 'register(provider: GraphResourceProvider): () => void',
+        description: 'Register one unique resource Provider until disposal.',
+        parameters: [{ name: 'provider', description: 'named observation and reservation authority.' }],
+        returns: 'disposer that removes only this registration.',
+      },
+      {
+        signature: 'async observe(name: string, route: GraphResourceRoute, signal: AbortSignal): Promise<GraphResourceSnapshot>',
+        description: 'Observe one exact route without reserving it.',
+        parameters: [{ name: 'name', description: 'registered resource Provider name.' }, { name: 'route', description: 'exact provider and model route.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'validated expiring route observation.',
+      },
+      {
+        signature: 'async reserve(name: string, request: GraphResourceReservationRequest, signal: AbortSignal): Promise<GraphResourceDecision>',
+        description: 'Ask one Provider for capacity beneath the request\'s hard configured ceilings.',
+        parameters: [{ name: 'name', description: 'registered resource Provider name.' }, { name: 'request', description: 'fenced work identity, route, weight, ceilings, and deadline.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'granted reservation, typed wait, or terminal rejection.',
+      },
+      {
+        signature: 'async report(outcome: GraphResourceOutcome, signal: AbortSignal): Promise<void>',
+        description: 'Report one fenced release or resource signal idempotently to its Provider.',
+        parameters: [{ name: 'outcome', description: 'exact reservation identity and terminal resource classification.' }, { name: 'signal', description: 'caller cancellation independent from the worker signal.' }],
+      },
+      {
+        signature: 'async reconcile(request: GraphResourceReconcileRequest, signal: AbortSignal): Promise<GraphResourceReconcileResult>',
+        description: 'Reconcile and release one exact prior reservation after scheduler recovery.',
+        parameters: [{ name: 'request', description: 'fenced reservation identity and public-safe evidence.' }, { name: 'signal', description: 'caller cancellation independent from the abandoned Worker.' }],
+        returns: 'provider-confirmed release, absence, or conflict.',
+      },
+    ],
+  },
+  {
+    key: 'graphScheduler',
+    summary: '`ctx.graphScheduler`: validates and routes fenced ownership operations.',
+    description: '`ctx.graphScheduler`: validates and routes fenced ownership operations.',
+    methods: [
+      {
+        signature: 'register(provider: GraphSchedulerProvider): () => void',
+        description: 'Register one named ownership Provider for its Cordis lifetime.',
+        parameters: [{ name: 'provider', description: 'named Provider to expose.' }],
+        returns: 'disposer that removes this exact registration.',
+      },
+      {
+        signature: 'async acquire(providerId: string, request: GraphSchedulerAcquireRequest, signal: AbortSignal): Promise<GraphSchedulerDecision>',
+        description: 'Atomically acquire or renew ownership of one run.',
+        parameters: [{ name: 'providerId', description: 'registered Provider name.' }, { name: 'request', description: 'exact run and Host identity.' }, { name: 'signal', description: 'cancellation for this Provider operation.' }],
+        returns: 'granted lease or bounded busy decision.',
+      },
+      {
+        signature: 'async heartbeat(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<GraphSchedulerLease>',
+        description: 'Renew one exact lease; stale identities fail instead of silently reacquiring.',
+        parameters: [{ name: 'request', description: 'exact current lease identity.' }, { name: 'signal', description: 'cancellation for this Provider operation.' }],
+        returns: 'renewed lease with unchanged fencing identity.',
+      },
+      {
+        signature: 'async release(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<void>',
+        description: 'Release one exact lease idempotently; a fenced identity is rejected.',
+        parameters: [{ name: 'request', description: 'exact current lease identity.' }, { name: 'signal', description: 'cancellation for this Provider operation.' }],
+      },
+    ],
+  },
+  {
+    key: 'graphWorkers',
+    summary: 'Provider registry and capability-validating assignment Consumer API.',
+    description: 'Provider registry and capability-validating assignment Consumer API.',
+    methods: [
+      {
+        signature: 'register(provider: GraphWorkerProvider): () => void',
+        description: 'Register one unique provider until the returned disposer runs.',
+        parameters: [{ name: 'provider', description: 'named Worker implementation and advertised capabilities.' }],
+        returns: 'disposer that removes only this registration.',
+      },
+      {
+        signature: 'list(): readonly { readonly name: string; readonly capabilities: GraphWorkerCapabilities }[]',
+        description: 'Return detached descriptors for deployment inspection and scheduler selection.',
+        parameters: [],
+        returns: 'registered provider names and copied capability declarations.',
+      },
+      {
+        signature: 'async start(name: string, assignment: GraphWorkerAssignment): Promise<GraphWorkerRun>',
+        description: 'Validate requirements and assign work to one exact provider.',
+        parameters: [{ name: 'name', description: 'registered Worker Provider name.' }, { name: 'assignment', description: 'frozen fenced node attempt.' }],
+        returns: 'published worker, workspace, result, and cancellation handle.',
+      },
+      {
+        signature: 'async reconcile(name: string, request: GraphWorkerReconcileRequest, signal: AbortSignal): Promise<GraphWorkerReconcileResult>',
+        description: 'Reconcile one provider-owned Worker and workspace after scheduler recovery.',
+        parameters: [{ name: 'name', description: 'registered Worker Provider name.' }, { name: 'request', description: 'exact prior work and allocation references plus deletion authority.' }, { name: 'signal', description: 'caller cancellation independent from the abandoned Worker signal.' }],
+        returns: 'validated provider disposition and bounded evidence.',
+      },
+    ],
+  },
+  {
     key: 'invariants',
     summary: 'Package-owned invariant registry with global and regex-based selection.',
     description: 'Package-owned invariant registry with global and regex-based selection.',
@@ -2863,7 +3090,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentOptions',
-    declaration: 'export interface AgentOptions {\n    provider?: string;\n    model?: string;\n    maxTokens?: number;\n}',
+    declaration: 'export interface AgentOptions {\n    provider?: string;\n    model?: string;\n    reasoningEffort?: ReasoningEffortId;\n    maxTokens?: number;\n}',
   },
   {
     name: 'AgentPreset',
@@ -3151,7 +3378,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ContinuableSubagentDescriptorData',
-    declaration: 'export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly agentProvider?: string;\n    readonly agentModel?: string;\n    readonly persona?: string;\n    readonly toolFilter?: ToolRestriction;\n}',
+    declaration: 'export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly agentProvider?: string;\n    readonly agentModel?: string;\n    readonly reasoningEffort?: ReasoningEffortId;\n    readonly persona?: string;\n    readonly toolFilter?: ToolRestriction;\n}',
   },
   {
     name: 'CordisDynamicPackageId',
@@ -3444,6 +3671,478 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'GraphActivationId',
+    declaration: 'export type GraphActivationId = Branded<\'GraphActivationId\'>;',
+  },
+  {
+    name: 'GraphArtifactAttribution',
+    declaration: 'export interface GraphArtifactAttribution {\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly attemptId: GraphAttemptId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n}',
+  },
+  {
+    name: 'GraphArtifactCaptureRequest',
+    declaration: 'export interface GraphArtifactCaptureRequest extends GraphArtifactAttribution {\n    readonly workspaceId: GraphWorkspaceAllocationId;\n    readonly sourceRoot: string;\n    readonly workspaceReference: string;\n    readonly paths: readonly string[];\n    readonly baseContentHashes?: Readonly<Record<string, string | null>>;\n    readonly maxFiles: number;\n    readonly maxBytes: number;\n    readonly deadline: number;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
+    name: 'GraphArtifactEntry',
+    declaration: 'export interface GraphArtifactEntry {\n    readonly path: string;\n    readonly sha256: string;\n    readonly baseSha256?: string | null;\n    readonly size: number;\n    readonly mode: number;\n    readonly kind: \'file\' | \'symlink\';\n}',
+  },
+  {
+    name: 'GraphArtifactManifest',
+    declaration: 'export interface GraphArtifactManifest extends GraphArtifactAttribution {\n    readonly id: GraphArtifactManifestId;\n    readonly algorithm: \'sha256\';\n    readonly provider: string;\n    readonly createdAt: number;\n    readonly totalBytes: number;\n    readonly entries: readonly GraphArtifactEntry[];\n    readonly providerReference: string;\n}',
+  },
+  {
+    name: 'GraphArtifactManifestId',
+    declaration: 'export type GraphArtifactManifestId = Branded<\'GraphArtifactManifestId\'>;',
+  },
+  {
+    name: 'GraphArtifactMaterializeRequest',
+    declaration: 'export interface GraphArtifactMaterializeRequest {\n    readonly manifest: GraphArtifactManifest;\n    readonly targetRoot: string;\n    readonly overwrite: \'forbid\' | \'replace\';\n    readonly signal: AbortSignal;\n}',
+  },
+  {
+    name: 'GraphArtifactMaterializeResult',
+    declaration: 'export interface GraphArtifactMaterializeResult {\n    readonly paths: readonly string[];\n    readonly totalBytes: number;\n}',
+  },
+  {
+    name: 'GraphArtifactProvider',
+    declaration: 'export interface GraphArtifactProvider {\n    readonly name: string;\n    readonly persistent: boolean;\n    readonly remote: boolean;\n    capture(request: GraphArtifactCaptureRequest): Promise<GraphArtifactManifest>;\n    materialize(request: GraphArtifactMaterializeRequest): Promise<GraphArtifactMaterializeResult>;\n    reconcile(request: GraphArtifactReconcileRequest): Promise<GraphArtifactReconcileResult>;\n}',
+  },
+  {
+    name: 'GraphArtifactReconcileRequest',
+    declaration: 'export interface GraphArtifactReconcileRequest {\n    readonly manifestId: GraphArtifactManifestId;\n    readonly providerReference: string;\n    readonly safeToDelete: boolean;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
+    name: 'GraphArtifactReconcileResult',
+    declaration: 'export interface GraphArtifactReconcileResult {\n    readonly status: \'deleted\' | \'retained\' | \'absent\' | \'quarantined\';\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphAttempt',
+    declaration: 'export interface GraphAttempt {\n    readonly id: GraphAttemptId;\n    readonly number: number;\n    readonly startedAt: number;\n    readonly finishedAt?: number;\n    readonly childSessionId?: string;\n    readonly continuationSessionIds?: readonly string[];\n    readonly childRunId?: GraphRunId;\n    readonly loopxClaimId?: string;\n    readonly health?: GraphExecutionHealth;\n    readonly executionBudget?: GraphNodeExecutionBudget;\n    readonly modelProfile?: GraphModelExecutionProfile;\n    readonly checkpoints?: readonly GraphExecutionCheckpoint[];\n    readonly artifactManifest?: GraphAttemptArtifactManifest;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+  },
+  {
+    name: 'GraphAttemptArtifactManifest',
+    declaration: 'export interface GraphAttemptArtifactManifest {\n    readonly id: string;\n    readonly algorithm: \'sha256\';\n    readonly provider: string;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly attemptId: GraphAttemptId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly createdAt: number;\n    readonly totalBytes: number;\n    readonly entries: readonly {\n        readonly path: string;\n        readonly sha256: string;\n        readonly baseSha256?: string | null;\n        readonly size: number;\n        readonly mode: number;\n        readonly kind: \'file\' | \'symlink\';\n    }[];\n    readonly providerReference: string;\n}',
+  },
+  {
+    name: 'GraphAttemptId',
+    declaration: 'export type GraphAttemptId = Branded<\'GraphAttemptId\'>;',
+  },
+  {
+    name: 'GraphBranchEvaluation',
+    declaration: 'export interface GraphBranchEvaluation {\n    readonly evaluatedAt: number;\n    readonly decision: \'active\' | \'inactive\' | \'ambiguous\';\n    readonly groups: readonly {\n        readonly id: GraphBranchGroupId;\n        readonly mode: GraphBranchMode;\n        readonly matched: number;\n        readonly considered: number;\n        readonly active: boolean;\n        readonly members: readonly GraphBranchMemberEvaluation[];\n    }[];\n}',
+  },
+  {
+    name: 'GraphBranchGroup',
+    declaration: 'export interface GraphBranchGroup {\n    readonly id: GraphBranchGroupId;\n    readonly to: GraphNodeId;\n    readonly mode: GraphBranchMode;\n}',
+  },
+  {
+    name: 'GraphBranchGroupId',
+    declaration: 'export type GraphBranchGroupId = Branded<\'GraphBranchGroupId\'>;',
+  },
+  {
+    name: 'GraphBranchMemberEvaluation',
+    declaration: 'export interface GraphBranchMemberEvaluation {\n    readonly from: GraphNodeId;\n    readonly matched: boolean;\n    readonly predecessorPhase: GraphNodePhase;\n}',
+  },
+  {
+    name: 'GraphBranchMode',
+    declaration: 'export type GraphBranchMode = \'all\' | \'any\' | \'exactly-one\' | \'activated\';',
+  },
+  {
+    name: 'GraphCheckpoint',
+    declaration: 'export interface GraphCheckpoint {\n    readonly id: GraphCheckpointId;\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly runId: GraphRunId;\n    readonly nodeId: GraphNodeId;\n    readonly kind: \'expansion\' | \'repair\' | \'planning\' | \'awaiting_user\';\n    readonly status: \'pending\' | \'resolved\' | \'superseded\' | \'canceled\';\n    readonly createdAt: number;\n    readonly iteration: number;\n    readonly reason: string;\n    readonly proposal?: GraphExpansionProposal;\n    readonly issues?: readonly GraphReviewIssue[];\n    readonly resolvedAt?: number;\n    readonly replacementRevision?: number;\n}',
+  },
+  {
+    name: 'GraphCheckpointId',
+    declaration: 'export type GraphCheckpointId = Branded<\'GraphCheckpointId\'>;',
+  },
+  {
+    name: 'GraphCondition',
+    declaration: 'export interface GraphCondition {\n    readonly path: readonly string[];\n    readonly operator: \'exists\' | \'truthy\' | \'equals\' | \'not-equals\';\n    readonly value?: null | boolean | number | string;\n}',
+  },
+  {
+    name: 'GraphControlActor',
+    declaration: 'export interface GraphControlActor {\n    readonly kind: \'human\' | \'controller\' | \'system\';\n    readonly id: string;\n}',
+  },
+  {
+    name: 'GraphControlAuthority',
+    declaration: 'export interface GraphControlAuthority {\n    readonly actor: GraphControlActor;\n    readonly source: import(\'@deepseek-ai/dsh-graph\').GraphControlRecord[\'source\'];\n}',
+  },
+  {
+    name: 'GraphControlOperationId',
+    declaration: 'export type GraphControlOperationId = Branded<\'GraphControlOperationId\'>;',
+  },
+  {
+    name: 'GraphControlRecord',
+    declaration: 'export interface GraphControlRecord {\n    readonly version: 2;\n    readonly id: GraphControlOperationId;\n    readonly action: \'pause-run\' | \'modify-task\' | \'cancel-run\' | \'cancel-node\' | \'skip-node\' | \'retry-node\' | \'resume-from-node\' | \'override-node\' | \'supply-output\' | \'rollback\' | \'approve-checkpoint\' | \'reject-checkpoint\' | \'reconcile-run\';\n    readonly graphId: GraphId;\n    readonly runId: GraphRunId;\n    readonly expectedRevision: number;\n    readonly expectedGeneration: number;\n    readonly expectedAttemptId?: GraphAttemptId;\n    readonly nodeId?: GraphNodeId;\n    readonly checkpointId?: GraphCheckpointId;\n    readonly targetRevision?: number;\n    readonly override?: GraphNodeExecutionOverride;\n    readonly suppliedOutput?: GraphNodeOutput;\n    readonly actor: GraphControlActor;\n    readonly source: \'command\' | \'host-api\' | \'recovery\';\n    readonly requestedAt: number;\n    readonly completedAt: number;\n    readonly reason: string;\n    readonly result: {\n        readonly outcome: \'applied\' | \'no-op\';\n        readonly detail?: string;\n    };\n    readonly impact: {\n        readonly invalidatedNodeIds: readonly GraphNodeId[];\n        readonly reusedNodeIds: readonly GraphNodeId[];\n    };\n    readonly resultingGeneration?: number;\n    readonly resultingRevision?: number;\n}',
+  },
+  {
+    name: 'GraphControlRequest',
+    declaration: 'export interface GraphControlRequest {\n    readonly operationId: GraphControlOperationId;\n    readonly action: import(\'@deepseek-ai/dsh-graph\').GraphControlRecord[\'action\'];\n    readonly graphId: GraphId;\n    readonly runId: GraphRunId;\n    readonly expectedRevision: number;\n    readonly expectedGeneration: number;\n    readonly expectedAttemptId?: GraphAttemptId;\n    readonly reason: string;\n    readonly nodeId?: GraphNodeId;\n    readonly checkpointId?: GraphCheckpointId;\n    readonly targetRevision?: number;\n    readonly override?: GraphNodeExecutionOverride;\n    readonly output?: GraphNodeOutput;\n}',
+  },
+  {
+    name: 'GraphCoordinationCancellation',
+    declaration: 'export interface GraphCoordinationCancellation extends GraphCoordinationHeartbeat {\n    readonly reason: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationClaim',
+    declaration: 'export interface GraphCoordinationClaim {\n    readonly claimId: string;\n    readonly todoId: string;\n    readonly leaseId: string;\n    readonly expiresAt: number;\n    readonly fencingToken: number;\n    readonly observation: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationEvent',
+    declaration: 'export interface GraphCoordinationEvent {\n    readonly id: string;\n    readonly cursor: string;\n    readonly kind: \'claimed\' | \'heartbeat\' | \'progress\' | \'cancel-requested\' | \'terminal\';\n    readonly at: number;\n    readonly sequence?: number;\n    readonly evidence?: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationHeartbeat',
+    declaration: 'export interface GraphCoordinationHeartbeat extends GraphCoordinationRequest {\n    readonly claimId: string;\n    readonly leaseId: string;\n    readonly fencingToken: number;\n    readonly progressSequence: number;\n}',
+  },
+  {
+    name: 'GraphCoordinationHeartbeatResult',
+    declaration: 'export interface GraphCoordinationHeartbeatResult {\n    readonly leaseId: string;\n    readonly expiresAt: number;\n    readonly fencingToken: number;\n    readonly progressCursor: string;\n    readonly cancelRequested: boolean;\n}',
+  },
+  {
+    name: 'GraphCoordinationObservation',
+    declaration: 'export interface GraphCoordinationObservation {\n    readonly status: \'absent\' | \'open\' | \'claimed\' | \'cancel-requested\' | \'terminal\' | \'unknown\';\n    readonly cursor: string;\n    readonly events: readonly GraphCoordinationEvent[];\n    readonly compacted: boolean;\n    readonly claim?: GraphCoordinationClaim;\n    readonly terminal?: {\n        readonly outcome: GraphCoordinationSettlement[\'outcome\'];\n        readonly evidence: string;\n    };\n}',
+  },
+  {
+    name: 'GraphCoordinationObserveRequest',
+    declaration: 'export interface GraphCoordinationObserveRequest {\n    readonly protocolVersion: 3;\n    readonly workId: GraphWorkId;\n    readonly activationId: GraphActivationId;\n    readonly cwd: string;\n    readonly callerId: string;\n    readonly afterCursor?: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationProgress',
+    declaration: 'export interface GraphCoordinationProgress extends GraphCoordinationHeartbeat {\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationReconcileRequest',
+    declaration: 'export interface GraphCoordinationReconcileRequest extends GraphCoordinationObserveRequest {\n    readonly claimId?: string;\n    readonly leaseId?: string;\n    readonly fencingToken?: number;\n    readonly expectedOutcome?: GraphCoordinationSettlement[\'outcome\'];\n}',
+  },
+  {
+    name: 'GraphCoordinationReconcileResult',
+    declaration: 'export interface GraphCoordinationReconcileResult {\n    readonly status: \'confirmed-running\' | \'confirmed-terminal\' | \'absent\' | \'conflict\' | \'unknown\';\n    readonly observation: GraphCoordinationObservation;\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationRequest',
+    declaration: 'export interface GraphCoordinationRequest {\n    readonly protocolVersion: 3;\n    readonly graph: GraphRevision;\n    readonly node: GraphNode;\n    readonly role: GraphRole;\n    readonly runId: GraphRunId;\n    readonly cwd: string;\n    readonly workId: GraphWorkId;\n    readonly activationId: GraphActivationId;\n    readonly ownerEpoch: number;\n    readonly operationId: GraphControlOperationId;\n    readonly callerId: string;\n}',
+  },
+  {
+    name: 'GraphCoordinationSettlement',
+    declaration: 'export interface GraphCoordinationSettlement extends GraphCoordinationRequest {\n    readonly claimId: string;\n    readonly leaseId: string;\n    readonly fencingToken: number;\n    readonly settlementId: GraphSettlementId;\n    readonly outcome: \'succeeded\' | \'failed\' | \'blocked\' | \'skipped\' | \'canceled\' | \'exhausted\' | \'uncertain\';\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphEdge',
+    declaration: 'export interface GraphEdge {\n    readonly from: GraphNodeId;\n    readonly to: GraphNodeId;\n    readonly kind: \'control\' | \'data\' | \'conditional\';\n    readonly condition?: GraphCondition;\n    readonly branchGroupId?: GraphBranchGroupId;\n}',
+  },
+  {
+    name: 'GraphExecutionCheckpoint',
+    declaration: 'export interface GraphExecutionCheckpoint {\n    readonly workId: GraphWorkId;\n    readonly attemptId: GraphAttemptId;\n    readonly activation: number;\n    readonly sequence: number;\n    readonly createdAt: number;\n    readonly completedCriteria: readonly string[];\n    readonly changedFiles: readonly {\n        readonly path: string;\n        readonly contentHash: string;\n    }[];\n    readonly verification: readonly {\n        readonly command: string;\n        readonly exitCode: number;\n        readonly summary: string;\n    }[];\n    readonly remainingWork: readonly string[];\n    readonly nextAction: string;\n}',
+  },
+  {
+    name: 'GraphExecutionHealth',
+    declaration: 'export interface GraphExecutionHealth {\n    readonly status: \'starting\' | \'reasoning\' | \'active\' | \'checkpointed\' | \'stalled\';\n    readonly startedAt: number;\n    readonly lastModelActivityAt?: number;\n    readonly lastDurableProgressAt?: number;\n    readonly estimatedReasoningTokens: number;\n    readonly reasoningCharacters: number;\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly providerReasoningTokens: number;\n    readonly contextWindow?: number;\n    readonly maxOutputTokens?: number;\n    readonly toolCalls: number;\n    readonly durableActions: number;\n    readonly changedFileCount: number;\n    readonly checkpointCount: number;\n    readonly stalledReason?: \'first-durable-action-timeout\' | \'reasoning-budget\' | \'checkpoint-timeout\' | \'no-durable-progress-timeout\' | \'max-wall-time\' | \'max-tokens-without-progress\';\n}',
+  },
+  {
+    name: 'GraphExecutionPolicy',
+    declaration: 'export interface GraphExecutionPolicy {\n    readonly maxNodesPerRevision: number;\n    readonly maxAttemptsPerNode: number;\n    readonly maxGraphRevisions: number;\n    readonly maxRepairRevisions: number;\n    readonly maxDynamicExpansions: number;\n    readonly maxSubgraphDepth: number;\n    readonly maxRuntimeContinuations: number;\n    readonly maxOutputTokens: number;\n    readonly maxReasoningOnlyTokens: number;\n    readonly firstDurableActionMs: number;\n    readonly maxNoDurableProgressMs: number;\n    readonly checkpointIntervalMs: number;\n    readonly maxWallTimeMs: number;\n    readonly maxOutputBytes: number;\n    readonly noProgressLimit: number;\n}',
+  },
+  {
+    name: 'GraphExpansionProposal',
+    declaration: 'export interface GraphExpansionProposal {\n    readonly baseRevision: number;\n    readonly nodes: readonly GraphNode[];\n    readonly edges: readonly GraphEdge[];\n    readonly branchGroups: readonly GraphBranchGroup[];\n    readonly changedNodeIds: readonly GraphNodeId[];\n    readonly mapKeys?: readonly (string | number)[];\n}',
+  },
+  {
+    name: 'GraphExpansionSpec',
+    declaration: 'export interface GraphExpansionSpec {\n    readonly mode: \'controller\' | \'map\';\n    readonly maxNodes: number;\n    readonly itemPath?: readonly string[];\n    readonly itemKeyPath?: readonly string[];\n}',
+  },
+  {
+    name: 'GraphExternalReference',
+    declaration: 'export interface GraphExternalReference {\n    readonly kind: \'coordination\' | \'worker\' | \'workspace\' | \'model\' | \'child-session\' | \'artifact\';\n    readonly provider: string;\n    readonly id: string;\n    readonly fencingToken?: number;\n}',
+  },
+  {
+    name: 'GraphId',
+    declaration: 'export type GraphId = Branded<\'GraphId\'>;',
+  },
+  {
+    name: 'GraphJsonValue',
+    declaration: 'export type GraphJsonValue = null | boolean | number | string | readonly GraphJsonValue[] | {\n    readonly [key: string]: GraphJsonValue;\n};',
+  },
+  {
+    name: 'GraphModeConfig',
+    declaration: 'export interface GraphModeConfig {\n    readonly version: 2;\n    readonly active: boolean;\n    readonly roles: readonly GraphRole[];\n    readonly limits: GraphSchedulerLimits;\n    readonly executionPolicy: GraphExecutionPolicy;\n}',
+  },
+  {
+    name: 'GraphModelExecutionProfile',
+    declaration: 'export interface GraphModelExecutionProfile {\n    readonly provider: string;\n    readonly model: string;\n    readonly contextWindow?: number;\n    readonly maxOutputTokens?: number;\n    readonly reasoningEfforts?: readonly string[];\n    readonly selectedReasoningEffort?: string;\n    readonly concurrencyLimit: number;\n    readonly weightLimit?: number;\n    readonly memoryClass?: string;\n    readonly availableDeviceBytes?: number;\n}',
+  },
+  {
+    name: 'GraphModelLimit',
+    declaration: 'export interface GraphModelLimit {\n    readonly provider?: string;\n    readonly model: string;\n    readonly maxParallel: number;\n    readonly maxWeight?: number;\n}',
+  },
+  {
+    name: 'GraphModelSelection',
+    declaration: 'export interface GraphModelSelection {\n    readonly provider?: string;\n    readonly model?: string;\n    readonly reasoningEffort?: string;\n}',
+  },
+  {
+    name: 'GraphNode',
+    declaration: 'export interface GraphNode {\n    readonly id: GraphNodeId;\n    readonly title: string;\n    readonly objective: string;\n    readonly kind: GraphTaskKind;\n    readonly roleId: GraphRoleId;\n    readonly acceptanceCriteria: readonly string[];\n    readonly outputSchema: GraphOutputSchema;\n    readonly maxAttempts: number;\n    readonly weight: number;\n    readonly executionBudget: GraphNodeExecutionBudget;\n    readonly expansion?: GraphExpansionSpec;\n    readonly subgraph?: GraphSubgraphSpec;\n    readonly workspace?: GraphNodeWorkspacePolicy;\n    readonly skippable: boolean;\n    readonly effectPolicy: \'idempotent\' | \'reconcile\' | \'manual\';\n}',
+  },
+  {
+    name: 'GraphNodeDraft',
+    declaration: 'export interface GraphNodeDraft extends Omit<GraphNode, \'outputSchema\' | \'maxAttempts\' | \'weight\' | \'executionBudget\' | \'workspace\' | \'skippable\'> {\n    readonly outputSchema?: GraphNode[\'outputSchema\'];\n    readonly maxAttempts?: number;\n    readonly weight?: number;\n    readonly executionBudget?: GraphNode[\'executionBudget\'];\n    readonly workspace?: GraphNodeWorkspaceDraft;\n    readonly skippable?: boolean;\n}',
+  },
+  {
+    name: 'GraphNodeExecutionBudget',
+    declaration: 'export interface GraphNodeExecutionBudget {\n    readonly maxOutputTokens: number;\n    readonly maxReasoningOnlyTokens: number;\n    readonly firstDurableActionMs: number;\n    readonly maxNoDurableProgressMs: number;\n    readonly checkpointIntervalMs: number;\n    readonly maxWallTimeMs: number;\n    readonly maxContinuations: number;\n}',
+  },
+  {
+    name: 'GraphNodeExecutionOverride',
+    declaration: 'export interface GraphNodeExecutionOverride {\n    readonly roleId?: GraphRoleId;\n    readonly model?: GraphModelSelection;\n    readonly workerProvider?: string;\n    readonly executionBudget?: GraphNodeExecutionBudget;\n}',
+  },
+  {
+    name: 'GraphNodeId',
+    declaration: 'export type GraphNodeId = Branded<\'GraphNodeId\'>;',
+  },
+  {
+    name: 'GraphNodeOutput',
+    declaration: 'export interface GraphNodeOutput {\n    readonly summary: string;\n    readonly coordinationSummary?: string;\n    readonly data?: GraphJsonValue;\n    readonly artifacts: readonly string[];\n}',
+  },
+  {
+    name: 'GraphNodePhase',
+    declaration: 'export type GraphNodePhase = \'pending\' | \'ready\' | \'running\' | \'awaiting_user\' | \'succeeded\' | \'failed\' | \'skipped\' | \'blocked\' | \'stale\' | \'canceled\' | \'exhausted\';',
+  },
+  {
+    name: 'GraphNodeRun',
+    declaration: 'export interface GraphNodeRun {\n    readonly workId: GraphWorkId;\n    readonly nodeId: GraphNodeId;\n    readonly phase: GraphNodePhase;\n    readonly attempts: readonly GraphAttempt[];\n    readonly resourceWait?: {\n        readonly providerId: string;\n        readonly model: string;\n        readonly reason: \'provider-degraded\' | \'queue\' | \'concurrency\' | \'weight\' | \'memory\' | \'oom-backoff\' | \'rate-limit\' | \'unknown\';\n        readonly observedAt: number;\n        readonly retryAt: number;\n    };\n    readonly output?: GraphNodeOutput;\n    readonly suppliedByControlId?: GraphControlOperationId;\n    readonly branchEvaluation?: GraphBranchEvaluation;\n    readonly invalidatedBy?: readonly GraphNodeId[];\n    readonly reusedFrom?: {\n        readonly runId: GraphRunId;\n        readonly generationId: GraphRunGenerationId;\n        readonly nodeId: GraphNodeId;\n    };\n}',
+  },
+  {
+    name: 'GraphNodeWorkspaceDraft',
+    declaration: 'export interface GraphNodeWorkspaceDraft extends Omit<GraphNodeWorkspacePolicy, \'readRoots\' | \'cleanup\'> {\n    readonly readRoots?: readonly string[];\n    readonly cleanup?: GraphNodeWorkspacePolicy[\'cleanup\'];\n}',
+  },
+  {
+    name: 'GraphNodeWorkspacePolicy',
+    declaration: 'export interface GraphNodeWorkspacePolicy {\n    readonly mode: \'read-only-snapshot\' | \'isolated-copy\' | \'git-worktree\' | \'sandbox-mount\' | \'shared\';\n    readonly readRoots: readonly string[];\n    readonly writeRoots: readonly string[];\n    readonly cleanup: \'delete-on-settlement\' | \'retain-on-failure\' | \'retain\';\n}',
+  },
+  {
+    name: 'GraphOperationEventId',
+    declaration: 'export type GraphOperationEventId = Branded<\'GraphOperationEventId\'>;',
+  },
+  {
+    name: 'GraphOperationStage',
+    declaration: 'export type GraphOperationStage = \'planned\' | \'admitted\' | \'claimed\' | \'started\' | \'progress\' | \'output-staged\' | \'settlement-pending\' | \'reconciled\' | \'terminal\';',
+  },
+  {
+    name: 'GraphOperationTransition',
+    declaration: 'export interface GraphOperationTransition {\n    readonly version: 1;\n    readonly eventId: GraphOperationEventId;\n    readonly operationId: GraphControlOperationId;\n    readonly workId: GraphWorkId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly nodeId: GraphNodeId;\n    readonly ownerEpoch: number;\n    readonly stage: GraphOperationStage;\n    readonly expectedPrevious?: GraphOperationStage;\n    readonly at: number;\n    readonly externalReferences: readonly GraphExternalReference[];\n    readonly outputHash?: string;\n    readonly terminalOutcome?: \'succeeded\' | \'failed\' | \'skipped\' | \'canceled\' | \'exhausted\' | \'uncertain\';\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'GraphOutputSchema',
+    declaration: 'export interface GraphOutputSchema {\n    readonly id: string;\n    readonly version: number;\n    readonly maxBytes: number;\n    readonly schema: ObjectJsonSchema;\n}',
+  },
+  {
+    name: 'GraphProjection',
+    declaration: 'export interface GraphProjection {\n    readonly config: GraphModeConfig;\n    readonly graphs: Readonly<Record<string, readonly GraphRevision[]>>;\n    readonly runs: Readonly<Record<string, GraphRun>>;\n    readonly operations: Readonly<Record<string, readonly GraphOperationTransition[]>>;\n    readonly settlements: Readonly<Record<string, readonly GraphSettlementRecord[]>>;\n    readonly submissions: Readonly<Record<string, GraphRevisionSubmissionRecord>>;\n    readonly checkpoints: Readonly<Record<string, GraphCheckpoint>>;\n    readonly controls: Readonly<Record<string, GraphControlRecord>>;\n    readonly currentGraphId?: GraphId;\n}',
+  },
+  {
+    name: 'GraphResourceDecision',
+    declaration: 'export type GraphResourceDecision = {\n    readonly status: \'granted\';\n    readonly reservation: GraphResourceReservation;\n} | {\n    readonly status: \'wait\';\n    readonly reason: \'provider-degraded\' | \'queue\' | \'concurrency\' | \'weight\' | \'memory\' | \'oom-backoff\' | \'rate-limit\' | \'unknown\';\n    readonly retryAt: number;\n    readonly snapshot: GraphResourceSnapshot;\n} | {\n    readonly status: \'rejected\';\n    readonly reason: \'route-unavailable\' | \'request-impossible\';\n    readonly snapshot: GraphResourceSnapshot;\n};',
+  },
+  {
+    name: 'GraphResourceOutcome',
+    declaration: 'export interface GraphResourceOutcome {\n    readonly reservationId: GraphResourceReservationId;\n    readonly providerId: string;\n    readonly workId: GraphWorkId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly outcome: \'released\' | \'completed\' | \'capacity\' | \'oom\' | \'rate-limited\' | \'worker-lost\';\n    readonly at: number;\n    readonly retryAfterMs?: number;\n    readonly evidence?: string;\n}',
+  },
+  {
+    name: 'GraphResourceProvider',
+    declaration: 'export interface GraphResourceProvider {\n    readonly name: string;\n    readonly protocolVersion: 1;\n    observe(route: GraphResourceRoute, signal: AbortSignal): Promise<GraphResourceSnapshot>;\n    reserve(request: GraphResourceReservationRequest, signal: AbortSignal): Promise<GraphResourceDecision>;\n    report(outcome: GraphResourceOutcome, signal: AbortSignal): Promise<void>;\n    reconcile(request: GraphResourceReconcileRequest, signal: AbortSignal): Promise<GraphResourceReconcileResult>;\n}',
+  },
+  {
+    name: 'GraphResourceReconcileRequest',
+    declaration: 'export interface GraphResourceReconcileRequest {\n    readonly protocolVersion: 1;\n    readonly reservationId: GraphResourceReservationId;\n    readonly providerId: string;\n    readonly workId: GraphWorkId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly at: number;\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphResourceReconcileResult',
+    declaration: 'export interface GraphResourceReconcileResult {\n    readonly status: \'released\' | \'already-released\' | \'absent\' | \'conflict\';\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphResourceReservation',
+    declaration: 'export interface GraphResourceReservation extends GraphResourceRoute {\n    readonly id: GraphResourceReservationId;\n    readonly providerId: string;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly ownerEpoch: number;\n    readonly weight: number;\n    readonly fencingToken: number;\n    readonly acquiredAt: number;\n    readonly expiresAt: number;\n    readonly snapshot: GraphResourceSnapshot;\n}',
+  },
+  {
+    name: 'GraphResourceReservationId',
+    declaration: 'export type GraphResourceReservationId = Branded<\'GraphResourceReservationId\'>;',
+  },
+  {
+    name: 'GraphResourceReservationRequest',
+    declaration: 'export interface GraphResourceReservationRequest extends GraphResourceRoute {\n    readonly protocolVersion: 1;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly ownerEpoch: number;\n    readonly weight: number;\n    readonly hardMaxParallel: number;\n    readonly hardMaxWeight?: number;\n    readonly requestedAt: number;\n    readonly deadline: number;\n}',
+  },
+  {
+    name: 'GraphResourceRoute',
+    declaration: 'export interface GraphResourceRoute {\n    readonly provider?: string;\n    readonly model: string;\n}',
+  },
+  {
+    name: 'GraphResourceSnapshot',
+    declaration: 'export interface GraphResourceSnapshot extends GraphResourceRoute {\n    readonly providerId: string;\n    readonly observedAt: number;\n    readonly expiresAt: number;\n    readonly status: \'available\' | \'degraded\' | \'unavailable\' | \'unknown\';\n    readonly activeRequests?: number;\n    readonly queueDepth?: number;\n    readonly concurrencyLimit?: number;\n    readonly activeWeight?: number;\n    readonly weightLimit?: number;\n    readonly contextWindow?: number;\n    readonly maxOutputTokens?: number;\n    readonly memoryClass?: string;\n    readonly availableDeviceBytes?: number;\n    readonly recentOomAt?: number;\n    readonly rateLimitedUntil?: number;\n}',
+  },
+  {
+    name: 'GraphReviewIssue',
+    declaration: 'export interface GraphReviewIssue {\n    readonly id: string;\n    readonly severity: \'blocking\' | \'non-blocking\';\n    readonly summary: string;\n    readonly evidence: readonly string[];\n    readonly ownerNodeIds: readonly GraphNodeId[];\n}',
+  },
+  {
+    name: 'GraphRevision',
+    declaration: 'export interface GraphRevision {\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly objective: string;\n    readonly createdAt: number;\n    readonly parentRevision?: number;\n    readonly userInput: string;\n    readonly nodes: readonly GraphNode[];\n    readonly edges: readonly GraphEdge[];\n    readonly branchGroups: readonly GraphBranchGroup[];\n    readonly terminationPolicy: GraphTerminationPolicy;\n}',
+  },
+  {
+    name: 'GraphRevisionDraft',
+    declaration: 'export interface GraphRevisionDraft extends Omit<GraphRevision, \'createdAt\' | \'nodes\' | \'edges\' | \'branchGroups\' | \'terminationPolicy\'> {\n    readonly createdAt?: number;\n    readonly nodes: readonly GraphNodeDraft[];\n    readonly edges?: GraphRevision[\'edges\'];\n    readonly branchGroups?: GraphRevision[\'branchGroups\'];\n    readonly terminationPolicy?: Partial<GraphTerminationPolicy>;\n}',
+  },
+  {
+    name: 'GraphRevisionSubmissionRecord',
+    declaration: 'export interface GraphRevisionSubmissionRecord {\n    readonly version: 1;\n    readonly id: GraphSubmissionId;\n    readonly intent: \'new\' | \'revise\';\n    readonly graph: GraphRevision;\n    readonly run: GraphRun;\n    readonly changedNodeIds: readonly GraphNodeId[];\n    readonly outcome: \'pending\' | \'accepted\' | \'failed\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+  },
+  {
+    name: 'GraphRole',
+    declaration: 'export interface GraphRole {\n    readonly id: GraphRoleId;\n    readonly label: string;\n    readonly description: string;\n    readonly controller: boolean;\n    readonly enabled: boolean;\n    readonly model: GraphModelSelection;\n    readonly prompt: string;\n    readonly workerProvider?: string;\n    readonly maxParallel: number;\n}',
+  },
+  {
+    name: 'GraphRoleId',
+    declaration: 'export type GraphRoleId = Branded<\'GraphRoleId\'>;',
+  },
+  {
+    name: 'GraphRun',
+    declaration: 'export interface GraphRun {\n    readonly id: GraphRunId;\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly generation: number;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly configSnapshot: GraphModeConfig;\n    readonly overrides: Readonly<Record<string, GraphNodeExecutionOverride>>;\n    readonly phase: GraphRunPhase;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly nodes: Readonly<Record<string, GraphNodeRun>>;\n    readonly terminal?: GraphTerminalEvidence;\n    readonly error?: GraphRunError;\n}',
+  },
+  {
+    name: 'GraphRunError',
+    declaration: 'export interface GraphRunError {\n    readonly code: string;\n    readonly message: string;\n    readonly nodeId?: GraphNodeId;\n}',
+  },
+  {
+    name: 'GraphRunGenerationId',
+    declaration: 'export type GraphRunGenerationId = Branded<\'GraphRunGenerationId\'>;',
+  },
+  {
+    name: 'GraphRunId',
+    declaration: 'export type GraphRunId = Branded<\'GraphRunId\'>;',
+  },
+  {
+    name: 'GraphRunPhase',
+    declaration: 'export type GraphRunPhase = \'queued\' | \'running\' | \'paused\' | \'awaiting_user\' | \'succeeded\' | \'failed\' | \'canceled\' | \'exhausted\';',
+  },
+  {
+    name: 'GraphSchedulerAcquireRequest',
+    declaration: 'export interface GraphSchedulerAcquireRequest {\n    readonly protocolVersion: 1;\n    readonly sessionId: string;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerId: GraphSchedulerOwnerId;\n    readonly minimumOwnerEpoch: number;\n    readonly requestedAt: number;\n}',
+  },
+  {
+    name: 'GraphSchedulerDecision',
+    declaration: 'export type GraphSchedulerDecision = {\n    readonly status: \'granted\';\n    readonly lease: GraphSchedulerLease;\n} | {\n    readonly status: \'busy\';\n    readonly retryAt: number;\n    readonly evidence: string;\n};',
+  },
+  {
+    name: 'GraphSchedulerLease',
+    declaration: 'export interface GraphSchedulerLease {\n    readonly id: GraphSchedulerLeaseId;\n    readonly providerId: string;\n    readonly sessionId: string;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerId: GraphSchedulerOwnerId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly acquiredAt: number;\n    readonly expiresAt: number;\n}',
+  },
+  {
+    name: 'GraphSchedulerLeaseId',
+    declaration: 'export type GraphSchedulerLeaseId = Branded<\'GraphSchedulerLeaseId\'>;',
+  },
+  {
+    name: 'GraphSchedulerLeaseRequest',
+    declaration: 'export interface GraphSchedulerLeaseRequest {\n    readonly protocolVersion: 1;\n    readonly providerId: string;\n    readonly leaseId: GraphSchedulerLeaseId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerId: GraphSchedulerOwnerId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly at: number;\n}',
+  },
+  {
+    name: 'GraphSchedulerLimits',
+    declaration: 'export interface GraphSchedulerLimits {\n    readonly globalMaxParallel: number;\n    readonly controllerReserve: number;\n    readonly models: readonly GraphModelLimit[];\n}',
+  },
+  {
+    name: 'GraphSchedulerOwnerId',
+    declaration: 'export type GraphSchedulerOwnerId = Branded<\'GraphSchedulerOwnerId\'>;',
+  },
+  {
+    name: 'GraphSchedulerProvider',
+    declaration: 'export interface GraphSchedulerProvider {\n    readonly protocolVersion: 1;\n    readonly name: string;\n    acquire(request: GraphSchedulerAcquireRequest, signal: AbortSignal): Promise<GraphSchedulerDecision>;\n    heartbeat(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<GraphSchedulerLease>;\n    release(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<void>;\n}',
+  },
+  {
+    name: 'GraphSettlementId',
+    declaration: 'export type GraphSettlementId = Branded<\'GraphSettlementId\'>;',
+  },
+  {
+    name: 'GraphSettlementRecord',
+    declaration: 'export interface GraphSettlementRecord {\n    readonly version: 2;\n    readonly id: GraphSettlementId;\n    readonly attempt: number;\n    readonly operationId: GraphControlOperationId;\n    readonly workId: GraphWorkId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly kind: \'coordination\' | \'resource-release\' | \'artifact\' | \'cancellation\' | \'compensation\';\n    readonly outcome: \'pending\' | \'confirmed\' | \'failed\' | \'conflict\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly externalReference?: GraphExternalReference;\n    readonly evidence?: string;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+  },
+  {
+    name: 'GraphSubgraphSpec',
+    declaration: 'export interface GraphSubgraphSpec {\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly input: Readonly<Record<string, readonly string[]>>;\n    readonly output: Readonly<Record<string, readonly string[]>>;\n}',
+  },
+  {
+    name: 'GraphSubmission',
+    declaration: 'export interface GraphSubmission {\n    readonly intent: ControllerIntent;\n    readonly reason: string;\n    readonly graph?: GraphRevisionDraft;\n    readonly changedNodeIds?: readonly GraphNodeId[];\n}',
+  },
+  {
+    name: 'GraphSubmissionId',
+    declaration: 'export type GraphSubmissionId = Branded<\'GraphSubmissionId\'>;',
+  },
+  {
+    name: 'GraphTaskKind',
+    declaration: 'export type GraphTaskKind = \'analysis\' | \'design\' | \'implementation\' | \'review\' | \'verification\' | \'documentation\' | \'integration\' | \'specialist\' | \'expansion\' | \'subgraph\';',
+  },
+  {
+    name: 'GraphTerminalEvidence',
+    declaration: 'export interface GraphTerminalEvidence {\n    readonly outcome: \'succeeded\' | \'failed\' | \'canceled\' | \'exhausted\';\n    readonly rule: string;\n    readonly acceptedAt: number;\n}',
+  },
+  {
+    name: 'GraphTerminationPolicy',
+    declaration: 'export interface GraphTerminationPolicy extends GraphExecutionPolicy {\n    readonly onExhausted: \'failed\' | \'awaiting_user\';\n}',
+  },
+  {
+    name: 'GraphWorkerAssignment',
+    declaration: 'export interface GraphWorkerAssignment {\n    readonly protocolVersion: 1;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly attemptId: GraphAttemptId;\n    readonly activation: number;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly parent: Agent;\n    readonly node: GraphNode;\n    readonly role: GraphRole;\n    readonly prompt: readonly ContentBlock[];\n    readonly outputSchema: ObjectJsonSchema;\n    readonly budget: GraphNodeExecutionBudget;\n    readonly workspace: GraphWorkspaceRequest;\n    readonly deadline: number;\n    readonly signal: AbortSignal;\n    readonly toolFilter?: ToolRestriction;\n}',
+  },
+  {
+    name: 'GraphWorkerCapabilities',
+    declaration: 'export interface GraphWorkerCapabilities {\n    readonly protocolVersion: 1;\n    readonly remote: boolean;\n    readonly workspaceModes: readonly GraphWorkspaceMode[];\n    readonly structuredOutput: boolean;\n    readonly toolFilter: boolean;\n    readonly artifactManifest: boolean;\n    readonly progress: boolean;\n    readonly cancellation: boolean;\n}',
+  },
+  {
+    name: 'GraphWorkerId',
+    declaration: 'export type GraphWorkerId = Branded<\'GraphWorkerId\'>;',
+  },
+  {
+    name: 'GraphWorkerOutcome',
+    declaration: 'export type GraphWorkerOutcome = \'completed\' | \'aborted\' | \'error\' | \'max-tokens\' | \'stalled\' | \'capacity\' | \'oom\' | \'unavailable\';',
+  },
+  {
+    name: 'GraphWorkerProvider',
+    declaration: 'export interface GraphWorkerProvider {\n    readonly name: string;\n    readonly capabilities: GraphWorkerCapabilities;\n    start(assignment: GraphWorkerAssignment): Promise<GraphWorkerRun>;\n    reconcile(request: GraphWorkerReconcileRequest, signal: AbortSignal): Promise<GraphWorkerReconcileResult>;\n}',
+  },
+  {
+    name: 'GraphWorkerReconcileRequest',
+    declaration: 'export interface GraphWorkerReconcileRequest {\n    readonly protocolVersion: 1;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly workerId: GraphWorkerId;\n    readonly workspaceId: GraphWorkspaceAllocationId;\n    readonly workspaceMode: GraphWorkspaceMode;\n    readonly cleanup: GraphWorkspaceRequest[\'cleanup\'];\n    readonly safeToDelete: boolean;\n}',
+  },
+  {
+    name: 'GraphWorkerReconcileResult',
+    declaration: 'export interface GraphWorkerReconcileResult {\n    readonly status: \'canceled\' | \'deleted\' | \'retained\' | \'absent\' | \'quarantined\';\n    readonly evidence: string;\n}',
+  },
+  {
+    name: 'GraphWorkerResult',
+    declaration: 'export interface GraphWorkerResult {\n    readonly outcome: GraphWorkerOutcome;\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly childSessionId?: string;\n    readonly artifactManifest?: GraphArtifactManifest;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n        readonly retryAfterMs?: number;\n    };\n}',
+  },
+  {
+    name: 'GraphWorkerRun',
+    declaration: 'export interface GraphWorkerRun {\n    readonly id: GraphWorkerId;\n    readonly provider: string;\n    readonly workspace: GraphWorkspaceAllocation;\n    readonly childSessionId?: string;\n    readonly result: Promise<GraphWorkerResult>;\n    cancel(reason: string, signal: AbortSignal): Promise<void>;\n}',
+  },
+  {
+    name: 'GraphWorkId',
+    declaration: 'export type GraphWorkId = Branded<\'GraphWorkId\'>;',
+  },
+  {
+    name: 'GraphWorkspaceAllocation',
+    declaration: 'export interface GraphWorkspaceAllocation {\n    readonly id: GraphWorkspaceAllocationId;\n    readonly mode: GraphWorkspaceMode;\n    readonly root: string;\n    readonly providerReference: string;\n    readonly createdAt: number;\n    readonly sourceRevision?: string;\n    readonly baseContentHash?: string;\n}',
+  },
+  {
+    name: 'GraphWorkspaceAllocationId',
+    declaration: 'export type GraphWorkspaceAllocationId = Branded<\'GraphWorkspaceAllocationId\'>;',
+  },
+  {
+    name: 'GraphWorkspaceMode',
+    declaration: 'export type GraphWorkspaceMode = \'read-only-snapshot\' | \'isolated-copy\' | \'git-worktree\' | \'sandbox-mount\' | \'shared\';',
+  },
+  {
+    name: 'GraphWorkspaceRequest',
+    declaration: 'export interface GraphWorkspaceRequest {\n    readonly mode: GraphWorkspaceMode;\n    readonly sourceRoot: string;\n    readonly readRoots: readonly string[];\n    readonly writeRoots: readonly string[];\n    readonly cleanup: \'delete-on-settlement\' | \'retain-on-failure\' | \'retain\';\n    readonly sourceRevision?: string;\n    readonly baseContentHash?: string;\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -4519,7 +5218,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly workspaceCwd?: string;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
   },
   {
     name: 'SubagentStopReason',

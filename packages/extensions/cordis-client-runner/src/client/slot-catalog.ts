@@ -1003,6 +1003,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'conversation.session.header\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
       'client-ui-agent-preset AgentPresetLabel id \'agent-preset\'',
+      'client-ui-graph GraphAction id \'graph-mode\'',
+      'client-ui-graph GraphChildAction id \'graph-child\'',
       'client-ui-jobs JobListAction id \'job-list\'',
     ],
     replaceRisk: 'none',
@@ -1466,6 +1468,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'settings.section\' (client-ui-settings-plugins), so it exists while that entry is mounted',
     occupants: [
+      'client-ui-graph GraphTemplateSettingsTab id \'graph-templates\'',
       'client-ui-settings-plugin-inventory PluginInventorySettingsTab id \'all\'',
       'client-ui-settings-plugins ConfigurablePluginsTab id \'configurable\'',
     ],

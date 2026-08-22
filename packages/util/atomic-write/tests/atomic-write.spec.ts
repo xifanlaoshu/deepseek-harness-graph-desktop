@@ -41,6 +41,13 @@ async function waitForLock(lockPath: string): Promise<void> {
 }
 
 describe('writeFileAtomic', () => {
+  it('preserves arbitrary binary bytes', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-atomic-write-'))
+    const target = join(directory, 'binary')
+    const bytes = Uint8Array.from([0, 255, 128, 10])
+    await writeFileAtomic(target, bytes, { mode: 0o600 })
+    await expect(readFile(target)).resolves.toEqual(Buffer.from(bytes))
+  })
   it('creates the file and its parents with exactly the stated mode', async () => {
     const dir = await scratch()
     const target = join(dir, 'nested', 'deep', 'doc.yaml')

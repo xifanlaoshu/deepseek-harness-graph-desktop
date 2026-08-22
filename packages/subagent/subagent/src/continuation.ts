@@ -419,12 +419,14 @@ export class SubagentContinuationManager {
     // before a child exists, and the detached value is what reaches the log.
     const agentProvider = request.agentOptions?.provider ?? parent.options.provider
     const agentModel = request.agentOptions?.model ?? parent.options.model
+    const reasoningEffort = request.agentOptions?.reasoningEffort ?? parent.options.reasoningEffort
     const descriptor = snapshotSubagentDescriptor({
       mode: 'continuable',
       provider: spec.provider,
       label: spec.label,
       ...agentProvider !== undefined ? { agentProvider } : {},
       ...agentModel !== undefined ? { agentModel } : {},
+      ...reasoningEffort !== undefined ? { reasoningEffort } : {},
       ...request.persona !== undefined ? { persona: request.persona } : {},
       ...request.toolFilter !== undefined ? { toolFilter: request.toolFilter } : {},
     })
@@ -981,6 +983,7 @@ export class SubagentContinuationManager {
         agentOptions: {
           ...descriptor.agentProvider !== undefined ? { provider: descriptor.agentProvider } : {},
           ...descriptor.agentModel !== undefined ? { model: descriptor.agentModel } : {},
+          ...descriptor.reasoningEffort !== undefined ? { reasoningEffort: descriptor.reasoningEffort } : {},
         },
         composition: { persona: descriptor.persona, toolFilter: descriptor.toolFilter },
         signal: options.signal,

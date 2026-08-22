@@ -750,6 +750,388 @@ export interface Config {
 
 Source: [`packages/goal/goal/src/index.ts:116`](../packages/goal/goal/src/index.ts)
 
+<a id="deepseek-aidsh-graph-artifacts-fs"></a>
+
+## `@deepseek-ai/dsh-graph-artifacts-fs`
+
+Requires: `graphArtifacts`
+
+```ts config-catalog
+/** Filesystem storage and admission settings. */
+export interface Config {
+  /** Provider name selected by Worker adapters. */
+  readonly providerName: string
+  /** Private filesystem root for immutable blobs and manifests. */
+  readonly storeRoot: string
+  /** Optional absolute roots allowed as capture sources; empty trusts Graph deployment workspace policy. */
+  readonly allowedWorkspaceRoots: string[]
+  /** Provider hard ceiling for files in one manifest. */
+  readonly maxFiles: number
+  /** Provider hard ceiling for bytes in one manifest. */
+  readonly maxBytes: number
+}
+```
+
+Source: [`packages/graph/graph-artifacts-fs/src/index.ts:27`](../packages/graph/graph-artifacts-fs/src/index.ts)
+
+<a id="deepseek-aidsh-graph-coordination-loopx"></a>
+
+## `@deepseek-ai/dsh-graph-coordination-loopx`
+
+Requires: `subprocess`
+
+```ts config-catalog
+/** Deployment binding to one existing LoopX goal and its registered peer ids. */
+export interface Config {
+  /** Existing LoopX guided-goal identity that owns graph todos. */
+  readonly goalId: string
+  /** Graph role id to pre-registered LoopX peer-agent id mapping. */
+  readonly roleAgents: Record<string, string>
+  /** LoopX CLI command or executable path. */
+  readonly executable?: string
+  /** Arguments inserted after the executable and before LoopX CLI arguments. */
+  readonly executableArgs?: string[]
+  /** Path syntax expected by the LoopX process. */
+  readonly pathStyle?: 'native' | 'wsl'
+  /** Optional LoopX registry path passed to every CLI invocation. */
+  readonly registry?: string
+  /** Subprocess termination grace period in milliseconds. */
+  readonly graceMs?: number
+  /** Maximum wall time for one LoopX CLI operation. */
+  readonly operationTimeoutMs?: number
+  /** LoopX hard-lease duration in seconds. */
+  readonly leaseTtlSeconds?: number
+  /** Fallback relative workspace scopes for nodes without precise write ownership. */
+  readonly writeScopes?: string[]
+  /** Durable local event-projection database or `:memory:` for an ephemeral deployment. */
+  readonly journalPath?: string
+  /** Maximum time the event journal waits for a competing transaction. */
+  readonly journalBusyTimeoutMs?: number
+  /** SQLite journal mode for the local event projection. */
+  readonly journalMode?: 'wal' | 'delete' | 'truncate'
+  /** Maximum recent event suffix retained in memory per work id. */
+  readonly journalEventWindow?: number
+  /** Additional bounded LoopX reads attempted by `watch` after transport failure. */
+  readonly watchReconnectAttempts?: number
+  /** Delay between bounded `watch` reconnect attempts. */
+  readonly watchReconnectDelayMs?: number
+}
+```
+
+Source: [`packages/graph/graph-coordination-loopx/src/index.ts:26`](../packages/graph/graph-coordination-loopx/src/index.ts)
+
+<a id="deepseek-aidsh-graph-mode"></a>
+
+## `@deepseek-ai/dsh-graph-mode`
+
+Requires: `graphWorkers` · `llm` · `sessions` · `systemPrompt` · `tools`
+
+```ts config-catalog
+/** Deployment choices for graph worker dispatch. */
+export interface Config {
+  /** Registered Graph Worker Provider used unless a later role override selects another. */
+  workerProvider?: string
+  /** Default workspace guarantee resolved for nodes without an explicit policy. */
+  workspaceMode?: GraphWorkspaceMode
+  /** Optional live model-resource Provider used below static hard ceilings. */
+  resourceProvider?: string
+  /** Maximum interval between coordination lease heartbeats. */
+  coordinationHeartbeatMs?: number
+  /** Optional cross-process authority that owns each whole Graph run. */
+  schedulerProvider?: string
+  /** Maximum interval between whole-run scheduler lease heartbeats. */
+  schedulerHeartbeatMs?: number
+  /** Deadline for one external cleanup, settlement, or reconciliation operation. */
+  externalOperationTimeoutMs?: number
+}
+```
+
+Depends on: [`GraphWorkspaceMode`](../packages/graph/graph-worker/src/index.ts)
+
+Source: [`packages/graph/graph-mode/src/index.ts:107`](../packages/graph/graph-mode/src/index.ts)
+
+<a id="deepseek-aidsh-graph-resources-local"></a>
+
+## `@deepseek-ai/dsh-graph-resources-local`
+
+Requires: `graphResources`
+
+```ts config-catalog
+/** Local resource-provider deployment configuration. */
+export interface Config {
+  /** Registered Graph resource Provider name. */
+  readonly providerName: string
+  /** Exact routes eligible for local reservation. */
+  readonly routes: RouteConfig[]
+  /** Lifetime of one published observation. */
+  readonly observationTtlMs: number
+  /** Maximum reservation lease duration. */
+  readonly leaseMs: number
+  /** Delay before a capacity waiter may ask again. */
+  readonly retryMs: number
+  /** Route backoff after a worker reports OOM. */
+  readonly oomBackoffMs: number
+}
+
+/** Hard deployment facts for one exact model route. */
+export interface RouteConfig {
+  /** Optional model Provider id; omission addresses the default Provider. */
+  readonly provider?: string
+  /** Exact model id. */
+  readonly model: string
+  /** Maximum simultaneous reservations for this route. */
+  readonly concurrencyLimit: number
+  /** Optional total weight across simultaneous reservations. */
+  readonly weightLimit?: number
+  /** Optional model context capacity exposed to planning. */
+  readonly contextWindow?: number
+  /** Optional maximum model output exposed to planning. */
+  readonly maxOutputTokens?: number
+  /** Optional deployment-defined memory class without device identity. */
+  readonly memoryClass?: string
+}
+```
+
+Source: [`packages/graph/graph-resources-local/src/index.ts:41`](../packages/graph/graph-resources-local/src/index.ts)
+
+<a id="deepseek-aidsh-graph-resources-sqlite"></a>
+
+## `@deepseek-ai/dsh-graph-resources-sqlite`
+
+Requires: `graphResources`
+
+```ts config-catalog
+/** Persistent resource-authority configuration. */
+export interface Config {
+  /** Registered Graph resource Provider name. */
+  readonly providerName: string
+  /** SQLite file path, resolved from the Host working directory. */
+  readonly path: string
+  /** Optional exact-route lower ceilings and planning facts. */
+  readonly routes: RouteConfig[]
+  /** Lifetime of one published capacity observation. */
+  readonly observationTtlMs: number
+  /** Maximum lifetime of one durable reservation. */
+  readonly leaseMs: number
+  /** Delay before a capacity waiter may ask again. */
+  readonly retryMs: number
+  /** Route backoff after a Worker reports OOM. */
+  readonly oomBackoffMs: number
+  /** Maximum time SQLite waits for a competing transaction. */
+  readonly busyTimeoutMs: number
+  /** Maximum bytes accepted from one telemetry snapshot file. */
+  readonly telemetryMaxBytes: number
+  /** SQLite journal mode selected after database identity validation. */
+  readonly journalMode: 'wal' | 'delete' | 'truncate'
+}
+
+/** Optional deployment facts and lower ceilings for one exact model route. */
+export interface RouteConfig {
+  /** Optional model Provider id; omission addresses the default Provider. */
+  readonly provider?: string
+  /** Exact model id. */
+  readonly model: string
+  /** Optional deployment ceiling below every Graph request ceiling. */
+  readonly concurrencyLimit?: number
+  /** Optional deployment weight ceiling below every Graph request ceiling. */
+  readonly weightLimit?: number
+  /** Optional model context capacity exposed to planning snapshots. */
+  readonly contextWindow?: number
+  /** Optional maximum model output exposed to planning snapshots. */
+  readonly maxOutputTokens?: number
+  /** Optional deployment-defined memory class without device identity. */
+  readonly memoryClass?: string
+  /** Optional JSON telemetry file refreshed atomically by the model runtime or a trusted sidecar. */
+  readonly telemetryPath?: string
+  /** Available device bytes required for one unit of Graph request weight. */
+  readonly minimumAvailableDeviceBytesPerWeight?: number
+  /** Queue depth at which new work waits instead of entering the model server. */
+  readonly maxQueueDepth?: number
+}
+```
+
+Source: [`packages/graph/graph-resources-sqlite/src/index.ts:54`](../packages/graph/graph-resources-sqlite/src/index.ts)
+
+<a id="deepseek-aidsh-graph-scheduler-sqlite"></a>
+
+## `@deepseek-ai/dsh-graph-scheduler-sqlite`
+
+Requires: `graphScheduler`
+
+```ts config-catalog
+/** Persistent scheduler ownership configuration. */
+export interface Config {
+  /** Registered Graph scheduler Provider name. */
+  readonly providerName: string
+  /** SQLite file path resolved from the Host working directory. */
+  readonly path: string
+  /** Lifetime renewed by each successful scheduler heartbeat. */
+  readonly leaseMs: number
+  /** Delay suggested to a competing scheduler while a run remains owned. */
+  readonly retryMs: number
+  /** Maximum time SQLite waits for a competing transaction. */
+  readonly busyTimeoutMs: number
+  /** SQLite journal mode selected after database identity validation. */
+  readonly journalMode: 'wal' | 'delete' | 'truncate'
+}
+```
+
+Source: [`packages/graph/graph-scheduler-sqlite/src/index.ts:24`](../packages/graph/graph-scheduler-sqlite/src/index.ts)
+
+<a id="deepseek-aidsh-graph-worker-local"></a>
+
+## `@deepseek-ai/dsh-graph-worker-local`
+
+Requires: `graphWorkers` · `subagents`
+
+```ts config-catalog
+/** Deployment settings for local workspace copying and artifact bounds. */
+export interface Config {
+  /** Provider name selected by Graph roles. */
+  providerName: string
+  /** Registered subagent provider used inside the allocation. */
+  subagentProvider: string
+  /** Parent directory for isolated allocations; omission uses the operating-system temp directory. */
+  isolationRoot?: string
+  /** Source-relative names omitted from isolated copies and mutation scans. */
+  exclude: string[]
+  /** Maximum changed files retained in one artifact manifest. */
+  maxArtifactFiles: number
+  /** Maximum changed bytes retained in one artifact manifest. */
+  maxArtifactBytes: number
+  /** Durable artifact transport; omission keeps only the Provider-owned allocation reference. */
+  artifactProvider?: string
+}
+```
+
+Source: [`packages/graph/graph-worker-local/src/index.ts:32`](../packages/graph/graph-worker-local/src/index.ts)
+
+<a id="deepseek-aidsh-graph-worker-remote"></a>
+
+## `@deepseek-ai/dsh-graph-worker-remote`
+
+Requires: `graphWorkers`
+
+```ts config-catalog
+/** Deployment binding from a Graph Worker route to a remote subagent backend. */
+export interface Config {
+  /** Which outbound and/or inbound HTTP role this plugin instance mounts. */
+  readonly mode?: 'client' | 'server' | 'both'
+  /** Registered Graph Worker route name. */
+  readonly providerName: string
+  /** Existing out-of-process subagent Provider used for remote execution. */
+  readonly subagentProvider: string
+  /** Absolute working directory in the remote provider's execution world. */
+  readonly cwd?: string
+  /** Artifact transport used to capture structured output paths. */
+  readonly artifactProvider?: string
+  /** Maximum files accepted from one remote structured result. */
+  readonly maxArtifactFiles: number
+  /** Maximum bytes captured from one remote structured result. */
+  readonly maxArtifactBytes: number
+  /** Authenticated HTTP route; omission retains the out-of-process subagent adapter. */
+  readonly http?: HttpConfig
+  /** Authenticated inbound Worker service; required in server and both modes. */
+  readonly server?: HttpServerConfig
+}
+
+/** Authenticated HTTP Worker route configuration. */
+export interface HttpConfig {
+  /** HTTPS service prefix; loopback HTTP requires explicit development opt-in. */
+  readonly endpoint: string
+  /** Authenticated caller identity configured by the Worker service. */
+  readonly principal: string
+  /** Authenticated service identity expected by the caller. */
+  readonly audience: string
+  /** Credential reference resolving the shared request-signing secret. */
+  readonly credentialRef: string
+  /** Workspace modes advertised by this remote route. */
+  readonly workspaceModes: Array<typeof WORKSPACE_MODES[number]>
+  /** Delay between terminal-state observations and idempotent start retries. */
+  readonly pollIntervalMs: number
+  /** Maximum total attempts for one idempotent start request. */
+  readonly startAttempts: number
+  /** Consecutive retryable observation failures tolerated before terminal failure. */
+  readonly maxPollFailures: number
+  /** Per-operation HTTP deadline in milliseconds. */
+  readonly requestTimeoutMs: number
+  /** Maximum successful or error response bytes retained by the Client. */
+  readonly maxResponseBytes: number
+  /** Permit cleartext HTTP only when the endpoint resolves to loopback. */
+  readonly allowInsecureLoopback: boolean
+  /** Optional Graph Resource route registered over the same authenticated service. */
+  readonly resourceProviderName: string
+  /** Optional authenticated Graph Scheduler route registered over the same service. */
+  readonly schedulerProviderName: string
+  /** Optional authenticated Graph Artifact route registered over the same service. */
+  readonly artifactProviderName: string
+  /** Absolute local roots from which the HTTP Artifact route may upload files. */
+  readonly artifactAllowedCaptureRoots: string[]
+  /** Absolute local roots into which the HTTP Artifact route may download files. */
+  readonly artifactAllowedMaterializeRoots: string[]
+  /** Local ceiling for files in one HTTP Artifact transfer. */
+  readonly artifactMaxFiles: number
+  /** Local ceiling for decoded bytes in one HTTP Artifact transfer. */
+  readonly artifactMaxBytes: number
+}
+
+/** Durable authenticated HTTP Worker service configuration. */
+export interface HttpServerConfig {
+  /** Service identity that every accepted signature must address. */
+  readonly audience: string
+  /** Prefix owning the versioned authenticated Worker, Resource, Scheduler, and Artifact operations. */
+  readonly basePath: string
+  /** SQLite path retaining accepted jobs and terminal evidence. */
+  readonly journalPath: string
+  /** Same-process Graph Worker Provider executing accepted assignments. */
+  readonly workerProvider: string
+  /** Live service-owned Agent used as the delegation parent. */
+  readonly parentSessionId: string
+  /** Non-empty unique authenticated caller allowlist. */
+  readonly principals: HttpServerPrincipalConfig[]
+  /** Maximum accepted absolute caller/server clock difference. */
+  readonly maxClockSkewMs: number
+  /** Maximum authenticated request-body bytes. */
+  readonly maxRequestBytes: number
+  /** Maximum persisted and returned terminal-result bytes. */
+  readonly maxResultBytes: number
+  /** Maximum unexpired caller/nonce pairs retained for replay rejection. */
+  readonly maxReplayEntries: number
+  /** Maximum SQLite lock wait in milliseconds. */
+  readonly busyTimeoutMs: number
+  /** Deadline for one delegated Worker, Resource, Scheduler, or Artifact operation. */
+  readonly operationTimeoutMs: number
+  /** Public Graph Resource route identity exposed to authenticated callers. */
+  readonly resourceRouteName: string
+  /** Same-process Graph Resource Provider delegated by the public route. */
+  readonly resourceProvider: string
+  /** Public Graph Scheduler route identity exposed to authenticated callers. */
+  readonly schedulerRouteName: string
+  /** Same-process durable Graph Scheduler Provider delegated by the public route. */
+  readonly schedulerProvider: string
+  /** Public Graph Artifact route identity exposed to authenticated callers. */
+  readonly artifactRouteName: string
+  /** Same-process persistent Graph Artifact Provider delegated by the public route. */
+  readonly artifactProvider: string
+  /** Absolute private directory used only for bounded Artifact transfer staging. */
+  readonly artifactTempRoot: string
+  /** Service ceiling for files in one Artifact transfer. */
+  readonly artifactMaxFiles: number
+  /** Service ceiling for decoded bytes in one Artifact transfer. */
+  readonly artifactMaxBytes: number
+}
+
+/** One authenticated caller allowed to submit jobs to the HTTP Worker service. */
+export interface HttpServerPrincipalConfig {
+  /** Authenticated caller identity. */
+  readonly principal: string
+  /** Credential reference resolving this caller's shared signing secret. */
+  readonly credentialRef: string
+}
+```
+
+Source: [`packages/graph/graph-worker-remote/src/index.ts:143`](../packages/graph/graph-worker-remote/src/index.ts)
+
 <a id="deepseek-aidsh-headless"></a>
 
 ## `@deepseek-ai/dsh-headless`
@@ -3279,6 +3661,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-goal` ([`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-graph` ([`packages/client/ui-graph/src/index.ts`](../packages/client/ui-graph/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-input-trigger` ([`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-jobs` ([`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-layout` ([`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts))
@@ -3310,6 +3693,11 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-fs-e2b` — requires `e2b` ([`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts))
 - `@deepseek-ai/dsh-fs-observation-policy` ([`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts))
 - `@deepseek-ai/dsh-goal-round-driver` — requires `agents` · `goals` · `sessions` ([`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts))
+- `@deepseek-ai/dsh-graph` ([`packages/graph/graph/src/index.ts`](../packages/graph/graph/src/index.ts))
+- `@deepseek-ai/dsh-graph-artifacts` ([`packages/graph/graph-artifacts/src/index.ts`](../packages/graph/graph-artifacts/src/index.ts))
+- `@deepseek-ai/dsh-graph-resources` ([`packages/graph/graph-resources/src/index.ts`](../packages/graph/graph-resources/src/index.ts))
+- `@deepseek-ai/dsh-graph-scheduler` ([`packages/graph/graph-scheduler/src/index.ts`](../packages/graph/graph-scheduler/src/index.ts))
+- `@deepseek-ai/dsh-graph-worker` ([`packages/graph/graph-worker/src/index.ts`](../packages/graph/graph-worker/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker-auto` — requires `webServer` · `loader` ([`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker-native` ([`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts))
 - `@deepseek-ai/dsh-host-plugin-inventory` — requires `loader` ([`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts))
@@ -3343,6 +3731,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@deepseek-ai/dsh-credentials` — abstract `CredentialProvider` ([`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts))
 - `@deepseek-ai/dsh-file-reference` — abstract `FileReferenceService` ([`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts))
 - `@deepseek-ai/dsh-fs` — abstract `FileSystem` ([`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts))
+- `@deepseek-ai/dsh-graph-coordination` — abstract `GraphCoordination` ([`packages/graph/graph-coordination/src/index.ts`](../packages/graph/graph-coordination/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))
 - `@deepseek-ai/dsh-jobs` — abstract `JobRegistry` ([`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts))
 - `@deepseek-ai/dsh-sandbox` — abstract `SandboxProvider` ([`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts))

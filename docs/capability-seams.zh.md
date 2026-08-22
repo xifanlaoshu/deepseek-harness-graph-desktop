@@ -195,6 +195,26 @@ flowchart LR
   svc_workflowEngine["ctx.workflowEngine<br/>Workflow script engine"]
   pkg_workflow_worker_thread["workflow-worker-thread"]
   pkg_tool_workflow["tool-workflow"]
+  pkg_graph_coordination["graph-coordination"]
+  svc_graphCoordination["ctx.graphCoordination<br/>External graph-worker coordination seam"]
+  pkg_graph_coordination_loopx["graph-coordination-loopx"]
+  pkg_graph_mode["graph-mode"]
+  pkg_graph_artifacts["graph-artifacts"]
+  svc_graphArtifacts["ctx.graphArtifacts<br/>Content-addressed Graph artifact transport seam"]
+  pkg_graph_artifacts_fs["graph-artifacts-fs"]
+  pkg_graph_worker_local["graph-worker-local"]
+  pkg_graph_worker_remote["graph-worker-remote"]
+  pkg_graph_worker["graph-worker"]
+  svc_graphWorkers["ctx.graphWorkers<br/>Fenced Graph Worker assignment seam"]
+  pkg_graph_resources["graph-resources"]
+  svc_graphResources["ctx.graphResources<br/>Graph model-resource reservation seam"]
+  pkg_graph_resources_local["graph-resources-local"]
+  pkg_graph_resources_sqlite["graph-resources-sqlite"]
+  pkg_graph_scheduler["graph-scheduler"]
+  svc_graphScheduler["ctx.graphScheduler<br/>Fenced whole-run Graph scheduler ownership seam"]
+  pkg_graph_scheduler_sqlite["graph-scheduler-sqlite"]
+  svc_graphMode["ctx.graphMode<br/>Session graph controller and scheduler"]
+  pkg_ui_graph["ui-graph"]
   pkg_lsp["lsp"]
   svc_lsp["ctx.lsp<br/>Language-server navigation seam"]
   pkg_lsp_local["lsp-local"]
@@ -238,6 +258,19 @@ flowchart LR
   pkg_fs_local --> svc_fs
   pkg_fs_sandbox --> svc_fs
   pkg_goal --> svc_goals
+  pkg_graph_artifacts --> svc_graphArtifacts
+  pkg_graph_artifacts_fs --> svc_graphArtifacts
+  pkg_graph_coordination --> svc_graphCoordination
+  pkg_graph_coordination_loopx --> svc_graphCoordination
+  pkg_graph_mode --> svc_graphMode
+  pkg_graph_resources --> svc_graphResources
+  pkg_graph_resources_local --> svc_graphResources
+  pkg_graph_resources_sqlite --> svc_graphResources
+  pkg_graph_scheduler --> svc_graphScheduler
+  pkg_graph_scheduler_sqlite --> svc_graphScheduler
+  pkg_graph_worker --> svc_graphWorkers
+  pkg_graph_worker_local --> svc_graphWorkers
+  pkg_graph_worker_remote --> svc_graphWorkers
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
@@ -333,6 +366,13 @@ flowchart LR
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
   svc_fs --> pkg_tool_fs
+  svc_graphArtifacts --> pkg_graph_worker_local
+  svc_graphArtifacts --> pkg_graph_worker_remote
+  svc_graphCoordination --> pkg_graph_mode
+  svc_graphMode --> pkg_ui_graph
+  svc_graphResources --> pkg_graph_mode
+  svc_graphScheduler --> pkg_graph_mode
+  svc_graphWorkers --> pkg_graph_mode
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -482,6 +522,12 @@ flowchart LR
 | `ctx.webServer` | `core` | `webserver` | - | `connection`, `modules`, `hmr` | - | 普通的 node:http 载体：具名路由注册表、索引转换 tap，以及静态 dist 回退；Web 传输插件注册自己的路由。 |
 | `ctx.clientModules` | `core` | `modules` | - | `hmr` | - | 通过增量 `dsh.client` 扫描组合 __DSH_BOOT__ 入口图，提供插件组合包，并通知重建／图变更订阅方。 |
 | `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/workflow/tool-ralph) | - | 每个上下文使用一个引擎，与 bash 相同，且没有具名提供方注册表；通用工作流与固定 Ralph 消费方启动运行，其中的 agent() 调用通过 ctx.subagents 扇出。 |
+| `ctx.graphCoordination` | `seam` | [`graph-coordination`](../packages/graph/graph-coordination) | [`graph-coordination-loopx`](../packages/graph/graph-coordination-loopx) | [`graph-mode`](../packages/graph/graph-mode) | - | 提供方准备外部工作、使用有界观察认领节点并提交可公开的执行证据；图调度器保留 DAG 与子代理执行的所有权。 |
+| `ctx.graphArtifacts` | `seam` | [`graph-artifacts`](../packages/graph/graph-artifacts) | [`graph-artifacts-fs`](../packages/graph/graph-artifacts-fs) | [`graph-worker-local`](../packages/graph/graph-worker-local), [`graph-worker-remote`](../packages/graph/graph-worker-remote) | - | Provider 捕获带 Attempt 归属的不可变 Manifest、验证存储字节、只物化到显式目标，并对账孤儿引用。 |
+| `ctx.graphWorkers` | `seam` | [`graph-worker`](../packages/graph/graph-worker) | [`graph-worker-local`](../packages/graph/graph-worker-local), [`graph-worker-remote`](../packages/graph/graph-worker-remote) | [`graph-mode`](../packages/graph/graph-mode) | - | 具名 Provider 在带围栏的 Assignment 下负责本地或远程执行、工作区分配、结构化输出、制品和协作式取消。 |
+| `ctx.graphResources` | `seam` | [`graph-resources`](../packages/graph/graph-resources) | [`graph-resources-local`](../packages/graph/graph-resources-local), [`graph-resources-sqlite`](../packages/graph/graph-resources-sqlite) | [`graph-mode`](../packages/graph/graph-mode) | - | Provider 在 Graph 静态硬上限之下发布会过期的路由观测和带围栏的预留；运行时 OOM 和限流结果会降低后续可用性。 |
+| `ctx.graphScheduler` | `seam` | [`graph-scheduler`](../packages/graph/graph-scheduler) | [`graph-scheduler-sqlite`](../packages/graph/graph-scheduler-sqlite) | [`graph-mode`](../packages/graph/graph-mode) | - | Provider 授予一个可过期的整图运行租约，在接管后保留单调递增的 fencing token，并拒绝陈旧的心跳或释放身份。 |
+| `ctx.graphMode` | `core` | [`graph-mode`](../packages/graph/graph-mode) | - | `ui-graph` | - | 负责主控分类、不可变修订准入、下游重跑、有界工作节点分派和持久化运行快照。 |
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | `lsp-local` | [`tool-lsp`](../packages/lsp/tool-lsp) | - | 提供方注册与选择，加上恰好四种操作的标准化查询执行；该 seam 不提供协议逃生口，后端必须转换为标准化请求和结果。 |
 | `ctx.apiProxy` | `core` | `apiproxy` | - | `connection` | - | 与传输无关的 Host 网关接口：它分派浏览器 API 调用，每条打开的 Host 流自行订阅转发事件，而不是由广播方法向其推送。 |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。 |

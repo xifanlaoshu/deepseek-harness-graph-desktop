@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cosmokit" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../graph-artifacts" },
+    { "path": "../graph-worker" },
+    { "path": "../../llm/llm" },
+    { "path": "../../subagent/subagent" },
+    { "path": "../../runtime-diagnostics/invariants" }
+  ]
+}

@@ -193,6 +193,26 @@ flowchart LR
   svc_workflowEngine["ctx.workflowEngine<br/>Workflow script engine"]
   pkg_workflow_worker_thread["workflow-worker-thread"]
   pkg_tool_workflow["tool-workflow"]
+  pkg_graph_coordination["graph-coordination"]
+  svc_graphCoordination["ctx.graphCoordination<br/>External graph-worker coordination seam"]
+  pkg_graph_coordination_loopx["graph-coordination-loopx"]
+  pkg_graph_mode["graph-mode"]
+  pkg_graph_artifacts["graph-artifacts"]
+  svc_graphArtifacts["ctx.graphArtifacts<br/>Content-addressed Graph artifact transport seam"]
+  pkg_graph_artifacts_fs["graph-artifacts-fs"]
+  pkg_graph_worker_local["graph-worker-local"]
+  pkg_graph_worker_remote["graph-worker-remote"]
+  pkg_graph_worker["graph-worker"]
+  svc_graphWorkers["ctx.graphWorkers<br/>Fenced Graph Worker assignment seam"]
+  pkg_graph_resources["graph-resources"]
+  svc_graphResources["ctx.graphResources<br/>Graph model-resource reservation seam"]
+  pkg_graph_resources_local["graph-resources-local"]
+  pkg_graph_resources_sqlite["graph-resources-sqlite"]
+  pkg_graph_scheduler["graph-scheduler"]
+  svc_graphScheduler["ctx.graphScheduler<br/>Fenced whole-run Graph scheduler ownership seam"]
+  pkg_graph_scheduler_sqlite["graph-scheduler-sqlite"]
+  svc_graphMode["ctx.graphMode<br/>Session graph controller and scheduler"]
+  pkg_ui_graph["ui-graph"]
   pkg_lsp["lsp"]
   svc_lsp["ctx.lsp<br/>Language-server navigation seam"]
   pkg_lsp_local["lsp-local"]
@@ -236,6 +256,19 @@ flowchart LR
   pkg_fs_local --> svc_fs
   pkg_fs_sandbox --> svc_fs
   pkg_goal --> svc_goals
+  pkg_graph_artifacts --> svc_graphArtifacts
+  pkg_graph_artifacts_fs --> svc_graphArtifacts
+  pkg_graph_coordination --> svc_graphCoordination
+  pkg_graph_coordination_loopx --> svc_graphCoordination
+  pkg_graph_mode --> svc_graphMode
+  pkg_graph_resources --> svc_graphResources
+  pkg_graph_resources_local --> svc_graphResources
+  pkg_graph_resources_sqlite --> svc_graphResources
+  pkg_graph_scheduler --> svc_graphScheduler
+  pkg_graph_scheduler_sqlite --> svc_graphScheduler
+  pkg_graph_worker --> svc_graphWorkers
+  pkg_graph_worker_local --> svc_graphWorkers
+  pkg_graph_worker_remote --> svc_graphWorkers
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
@@ -331,6 +364,13 @@ flowchart LR
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
   svc_fs --> pkg_tool_fs
+  svc_graphArtifacts --> pkg_graph_worker_local
+  svc_graphArtifacts --> pkg_graph_worker_remote
+  svc_graphCoordination --> pkg_graph_mode
+  svc_graphMode --> pkg_ui_graph
+  svc_graphResources --> pkg_graph_mode
+  svc_graphScheduler --> pkg_graph_mode
+  svc_graphWorkers --> pkg_graph_mode
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -480,6 +520,12 @@ flowchart LR
 | `ctx.webServer` | `core` | `webserver` | - | `connection`, `modules`, `hmr` | - | Plain node:http carrier: named-route registry, index transform taps, and the static dist fallback; web-transport plugins register their own routes. |
 | `ctx.clientModules` | `core` | `modules` | - | `hmr` | - | Composes the __DSH_BOOT__ entry graph from an incremental dsh.client scan, serves plugin bundles, and notifies rebuilt/graph-changed subscribers. |
 | `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/workflow/tool-ralph) | - | One engine per context, as in bash, with no named-provider registry; the general workflow and fixed Ralph consumers start runs whose agent() calls fan out through ctx.subagents. |
+| `ctx.graphCoordination` | `seam` | [`graph-coordination`](../packages/graph/graph-coordination) | [`graph-coordination-loopx`](../packages/graph/graph-coordination-loopx) | [`graph-mode`](../packages/graph/graph-mode) | - | Providers prepare external work, lease claims, publish bounded progress, settle public-safe evidence, and reconcile durable ledgers; the graph scheduler retains DAG and worker ownership. |
+| `ctx.graphArtifacts` | `seam` | [`graph-artifacts`](../packages/graph/graph-artifacts) | [`graph-artifacts-fs`](../packages/graph/graph-artifacts-fs) | [`graph-worker-local`](../packages/graph/graph-worker-local), [`graph-worker-remote`](../packages/graph/graph-worker-remote) | - | Providers capture attempt-attributed immutable manifests, verify stored bytes, materialize only into explicit targets, and reconcile orphan references. |
+| `ctx.graphWorkers` | `seam` | [`graph-worker`](../packages/graph/graph-worker) | [`graph-worker-local`](../packages/graph/graph-worker-local), [`graph-worker-remote`](../packages/graph/graph-worker-remote) | [`graph-mode`](../packages/graph/graph-mode) | - | Named Providers own local or remote execution, workspace allocation, structured output, artifacts, and cooperative cancellation under one fenced assignment. |
+| `ctx.graphResources` | `seam` | [`graph-resources`](../packages/graph/graph-resources) | [`graph-resources-local`](../packages/graph/graph-resources-local), [`graph-resources-sqlite`](../packages/graph/graph-resources-sqlite) | [`graph-mode`](../packages/graph/graph-mode) | - | Providers publish expiring route observations and fenced reservations below Graph static ceilings; runtime OOM and rate-limit outcomes reduce later eligibility. |
+| `ctx.graphScheduler` | `seam` | [`graph-scheduler`](../packages/graph/graph-scheduler) | [`graph-scheduler-sqlite`](../packages/graph/graph-scheduler-sqlite) | [`graph-mode`](../packages/graph/graph-mode) | - | Providers grant one expiring run lease, preserve monotonic fencing tokens across takeover, and reject stale heartbeat or release identities. |
+| `ctx.graphMode` | `core` | [`graph-mode`](../packages/graph/graph-mode) | - | `ui-graph` | - | Owns controller classification, immutable revision admission, downstream reruns, bounded worker dispatch, and durable run snapshots. |
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | `lsp-local` | [`tool-lsp`](../packages/lsp/tool-lsp) | - | Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result. |
 | `ctx.apiProxy` | `core` | `apiproxy` | - | `connection` | - | The transport-agnostic host gateway face: it dispatches browser API calls, and each open host stream subscribes to the events it forwards rather than being pushed to through a broadcast verb. |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |

@@ -26,6 +26,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-tool/`](ui-tool/README.md) | Composes Tool call trees and keyed per-Tool views. |
 | [`ui-workflow-run/`](ui-workflow-run/README.md) | Replays durable workflow runs as nested Chat disclosures with live-only child navigation. |
 | [`ui-goal/`](ui-goal/README.md) | Presents and manages the current goal. |
+| [`ui-graph/`](ui-graph/README.md) | Presents Graph Mode DAGs, node evidence, and role/model scheduler settings. |
 | [`ui-trajectory/`](ui-trajectory/README.md) | Presents alternate views of agent activity. |
 | [`ui-commands/`](ui-commands/README.md) | Provides session-aware command discovery and dispatch. |
 | [`ui-input-trigger/`](ui-input-trigger/README.md) | Coordinates inline command and reference suggestions. |

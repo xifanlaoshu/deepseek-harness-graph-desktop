@@ -31,6 +31,7 @@
  * @module @deepseek-ai/dsh-subagent
  */
 
+import { isAbsolute } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { scopeTarget } from '@deepseek-ai/dsh-scope'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
@@ -431,6 +432,9 @@ export class SubagentRuntime extends Service {
     const provider = this.expectProvider(name)
     this.assertCapabilities(provider, request)
     assertSubagentMaxDepth(request.maxDepth)
+    if (request.workspaceCwd !== undefined && (!request.workspaceCwd.trim() || !isAbsolute(request.workspaceCwd))) {
+      throw new SubagentError('subagent workspaceCwd must be a non-empty absolute path', 'INVALID_REQUEST')
+    }
     if (request.outputSchema !== undefined) assertObjectJsonSchema(request.outputSchema)
     const descriptor = snapshotSubagentDescriptor({
       mode: 'one-shot',

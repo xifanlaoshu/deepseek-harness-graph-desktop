@@ -7,10 +7,11 @@
 
 import { EventEmitter } from 'node:events'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
@@ -95,6 +96,24 @@ interface BashContribution {
 }
 
 describe('web-app runtime glue', () => {
+  it('places Graph Providers before Graph Mode for reverse-order teardown', () => {
+    const patch = readFileSync(fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)), 'utf8')
+    expect(patch.indexOf('id: graph-coordination-loopx')).toBeGreaterThan(-1)
+    expect(patch.indexOf('id: graph-coordination-loopx')).toBeLessThan(patch.indexOf('id: graph-mode'))
+    expect(patch.indexOf('id: graph-worker')).toBeLessThan(patch.indexOf('id: graph-worker-local'))
+    expect(patch.indexOf('id: graph-artifacts')).toBeLessThan(patch.indexOf('id: graph-artifacts-fs'))
+    expect(patch.indexOf('id: graph-artifacts-fs')).toBeLessThan(patch.indexOf('id: graph-worker-local'))
+    expect(patch.indexOf('id: graph-worker-local')).toBeLessThan(patch.indexOf('id: graph-mode'))
+    expect(patch.indexOf('id: graph-resources')).toBeLessThan(patch.indexOf('id: graph-mode'))
+    expect(patch.indexOf('id: graph-resources')).toBeLessThan(patch.indexOf('id: graph-resources-sqlite'))
+    expect(patch.indexOf('id: graph-resources-sqlite')).toBeLessThan(patch.indexOf('id: graph-mode'))
+    expect(patch.indexOf('id: graph-scheduler')).toBeLessThan(patch.indexOf('id: graph-scheduler-sqlite'))
+    expect(patch.indexOf('id: graph-scheduler-sqlite')).toBeLessThan(patch.indexOf('id: graph-mode'))
+    expect(patch).toContain('schedulerProvider: sqlite-scheduler')
+    expect(patch).toContain('resourceProvider: sqlite-resources')
+    expect(patch).toContain('artifactProvider: fs-artifacts')
+  })
+
   it('mounts dist serving, prompt section, bash variables, and publishes the URL with the LAN snapshot', async () => {
     stageDist()
     const ctx = new Context()

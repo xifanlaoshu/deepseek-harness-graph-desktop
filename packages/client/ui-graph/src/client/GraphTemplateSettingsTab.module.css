@@ -1,0 +1,67 @@
+.page {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.header {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.header h2,
+.header p {
+  margin: 0;
+}
+
+.header p {
+  color: var(--dsw-alias-label-tertiary);
+  margin-top: 6px;
+  max-width: 720px;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.actions button {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 7px 13px;
+}
+
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.save {
+  background: var(--dsw-alias-button-info-fill);
+  color: white;
+}
+
+.status,
+.error,
+.saved {
+  margin: 0;
+}
+
+.error {
+  color: var(--dsw-alias-label-error);
+}
+
+.saved {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+@media (max-width: 760px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

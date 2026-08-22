@@ -130,6 +130,7 @@ function assertUsableCwd(label: string, cwd: string): string {
  * workspace (one server process serves many sessions, each with its own cwd).
  */
 function resolveCwd(configured: string | undefined, request: SubagentStartRequest): string {
+  if (request.workspaceCwd !== undefined) return assertUsableCwd('request workspaceCwd', request.workspaceCwd)
   if (configured !== undefined) return configured
   const parentCwd = request.parent.session.header.cwd
   if (parentCwd === undefined) {

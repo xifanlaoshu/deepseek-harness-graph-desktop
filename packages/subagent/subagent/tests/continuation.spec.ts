@@ -12,7 +12,7 @@ import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import * as SubagentFork from '@deepseek-ai/dsh-subagent-fork-in-process'
 import type { GenerateOptions, MessageId, StreamChunk } from '@deepseek-ai/dsh-llm'
-import { CallId, createUserMessage, LlmAdapter } from '@deepseek-ai/dsh-llm'
+import { CallId, createUserMessage, LlmAdapter, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import { MockAdapter, maxTokensResponse, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
@@ -2425,18 +2425,19 @@ describe('continuable errors', () => {
       request: {
         prompt: message('routed work'),
         parent,
-        agentOptions: { provider: 'mock', model: 'child-model' },
+        agentOptions: { provider: 'mock', model: 'child-model', reasoningEffort: ReasoningEffortId('high') },
       },
     })
     await waitNoActivation(ctx, started.childId)
     const loaded = await ctx.sessionPersistence.load(started.childId)
     expect(loaded.events.find(event => event.type === 'subagent/descriptor')?.data)
-      .toMatchObject({ agentProvider: 'mock', agentModel: 'child-model' })
+      .toMatchObject({ agentProvider: 'mock', agentModel: 'child-model', reasoningEffort: 'high' })
 
     // The resumed Activation runs on the declared route, not the parent's.
     await followup(ctx, parent, started.childId, message('again'))
     await vi.waitFor(() => {
       expect(ctx.agents.get(started.childId)?.options.model).toBe('child-model')
+      expect(ctx.agents.get(started.childId)?.options.reasoningEffort).toBe('high')
     })
     await waitNoActivation(ctx, started.childId)
   })

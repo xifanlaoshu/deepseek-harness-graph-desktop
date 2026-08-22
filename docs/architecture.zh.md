@@ -99,6 +99,22 @@ turn/end
 
 **模型可见即已记录。** 抵达模型请求的一切都必须能从日志重建，并由一项运行时不变量断言这一点。因此，新增一项模型可见输入就需要新增一个会话事件：扩展 `SessionEventMap` 并从日志渲染。
 
+## Graph Mode
+
+[`dsh-graph`](../packages/graph/graph/README.zh.md) 在不修改 agent loop 的前提下增加会话所有的多代理编排领域。`/graph` 激活主控策略和 `graph_submit` 工具。主控会判断之后的每次人类输入：新任务创建新的不可变 DAG；调整则为当前任务图创建下一个修订。任务图定义和完整运行快照都是会话事件，因此重新加载、检查和 Web 投影会重建相同的修订与证据。
+
+[`dsh-graph-mode`](../packages/graph/graph-mode/README.zh.md) 通过 [`dsh-graph-worker`](../packages/graph/graph-worker/README.zh.md) 接口调度已就绪节点。必需边要求前置节点完成；结构化条件边只检查已发布 JSON，不包含可执行代码。修订先找出直接变更节点，再按拓扑顺序让所有传递后继失效。不在该闭包内的成功节点保留已发布输出，并记录明确来源。子代理启动前，准入器同时执行全局、角色、精确提供方／模型及可选加权限额；主控预留会阻止 worker 饱和占用全部配置许可。可选的 [`dsh-graph-resources`](../packages/graph/graph-resources/README.zh.md) 提供方可以根据会过期的路由遥测进一步延迟或拒绝工作，但不能提高这些静态上限。
+
+每个不可变节点都携带已解析的执行预算，覆盖模型输出、无持久进度的推理、首次动作、进度静默、检查点、墙钟时间和续跑次数。准入前，Graph Mode 会解析精确 LLM 路由、校验推理强度、用实时资源信息共同限制输出与并行度，并把实际模型画像保存在 Attempt 中。子会话事件会把模型活动与可恢复工程进度分开；只有成功的文件修改、聚焦验证命令和已接受的结构化结果会推进检查点。达到 token 上限或被看门狗终止的 Activation 只能从持久检查点续跑。停止时没有检查点则会把精确路由、容量、预算、计数器和最新证据交回主控；主控必须把不安全工作修订成 10–30 分钟且可独立验证的节点，而不能重新分派同一粗粒度任务。
+
+整图运行所有权与节点执行相互独立。[`dsh-graph-scheduler`](../packages/graph/graph-scheduler/README.zh.md) 向获准推进运行的 Host 授予一个可过期且带围栏的租约；Graph Mode 在调度期间持续发送心跳，并将其 token 用作 `ownerEpoch`。SQLite Provider 在本地 Host 进程之间串行化所有权，并在租约过期和重启后保留 fencing 计数。多 Host 部署应替换为经过认证的分布式 Provider；LoopX 节点 claim 不能替代这一租约。
+
+外部进度协调是独立的 capability seam。[`dsh-graph-coordination`](../packages/graph/graph-coordination/README.zh.md) 管理准备、带围栏的认领、心跳、观察与等待、有限进度、取消、结算和对账；[LoopX 提供方](../packages/graph/graph-coordination-loopx/README.zh.md) 将这些操作映射到已有 goal 和已注册 peer。Graph 在接受终态前持久化操作、Worker、工作区、模型预留、产物、结算、检查点和人工控制证据。Harness 仍是执行和会话轨迹的权威来源。协调记录只接收有长度上限且可公开的摘要，子代理消息和工具事件保留在对应子会话中。
+
+产物传输也是可替换的 Seam。[`dsh-graph-artifacts`](../packages/graph/graph-artifacts/README.zh.md) 把每份 Manifest 绑定到一个带 Fencing 的 Attempt，并校验路径、结果 Hash、源 Hash、总字节数和 Provider 所有权。隔离实现 Attempt 会把完整 Manifest 持久化到 Graph 运行证据。集成节点收集所有传递上游 Manifest，在任何 Materialize 之前拒绝同路径分歧和源工作区漂移，以稳定 Settlement 导入每份 Manifest，并让自身已接受的 Manifest 通过相同检查。文件系统 Provider 为共享同一文件系统的 Host 存储不可变 Blob；经过认证的对象存储或 RPC Provider 可以替换它，而无需修改 Graph Mode 或 Worker Assignment。
+
+远程执行使用 [`dsh-graph-worker-remote`](../packages/graph/graph-worker-remote/README.zh.md)。其 HTTP Client 与 Server 通过 Credential Reference 认证 Worker、Scheduler、Resource 和 Artifact 操作，在分派前持久化确定性的逻辑作业身份，对丢失响应后的重试去重，使用持久化服务 Epoch 阻止被替代进程继续写入，在重启后隔离不确定的非终态作业，并把对账映射到精确底层 Provider 引用。可选路由会公开跨 Host Scheduler、Resource 权威源和带持久化不透明映射、端到端摘要校验的有界内容寻址 Artifact 传输。SQLite Resource Provider 可以根据可信模型运行时或 Sidecar 发布的带过期时间队列与设备显存 Snapshot 拒绝放行。Worker Journal 只是单个活动服务的持久化权威；它不提供可恢复远程进程、复制式高可用、原生模型服务器指标适配器或对象存储。
+
 ## 能力 seam
 
 一个 **seam** 是一项可替换能力，包含三种角色：声明接口的 **Service Definition**、实现它的 **Service Provider**，以及使用它的 **Consumer**（通常是面向模型的工具）。一个包可以合并承担多个角色，但单一角色本身不是 seam；添加一项能力意味着把三者一并设计（[能力图](capability-seams.zh.md)）。
@@ -120,6 +136,7 @@ seam 正是替换一个提供方就能改变整个产品的原因。文件系统
 | 添加持久化终端执行 | 注册 `ctx.terminals` 后端和 `dsh-tool-terminal` |
 | 添加用户命令 | 在 `ctx.commands` 上注册；它无需模型轮次即可分派 |
 | 添加后台工作 | 在 `ctx.jobs` 上注册；`job_*` 工具负责收集或停止 |
+| 编排有依赖的多代理工作 | 使用 `dsh-graph-mode`；通过 `ctx.graphCoordination` 替换外部协调提供方 |
 | 添加文件系统访问或策略 | 注册 `ctx.fs` 提供方，或监听 `fs/*` 事件 |
 | 限制所启动的进程 | 使用 `ctx.sandbox` 后端；消费方在启动进程前包装 argv |
 | 拦截请求、工具或轮次 | 使用相应的 `agent/*` 或 `tools/*` 事件；`agent/turn-stopping` 会停止轮次 |

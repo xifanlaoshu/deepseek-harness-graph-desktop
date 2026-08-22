@@ -161,6 +161,8 @@ interface AgentOptions {
   provider?: string
   /** Model id interpreted by the selected provider adapter. */
   model?: string
+  /** Provider-supported reasoning selector for this agent's requests. */
+  reasoningEffort?: ReasoningEffortId
   /** Maximum output tokens for each conversation-model request. */
   maxTokens?: number
 }

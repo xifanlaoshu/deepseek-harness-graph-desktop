@@ -57,7 +57,7 @@ export function resolveChildDepth(parent: Agent, maxDepth: number | undefined): 
 }
 
 /**
- * Resolve the child's `AgentOptions`: the parent's provider/model/maxTokens
+ * Resolve the child's `AgentOptions`: the parent's provider/model/reasoning/maxTokens
  * route unless the request overrides it, stamped with the child's own
  * delegation depth.
  * @param parent - the delegating parent whose route the child inherits.
@@ -72,10 +72,12 @@ export function resolveChildAgentOptions(
 ): AgentOptions {
   const parentProvider = parent.options.provider
   const parentModel = parent.options.model
+  const parentReasoningEffort = parent.options.reasoningEffort
   const parentMaxTokens = parent.options.maxTokens
   return {
     ...parentProvider !== undefined ? { provider: parentProvider } : {},
     ...parentModel !== undefined ? { model: parentModel } : {},
+    ...parentReasoningEffort !== undefined ? { reasoningEffort: parentReasoningEffort } : {},
     ...parentMaxTokens !== undefined ? { maxTokens: parentMaxTokens } : {},
     ...requested,
     subagentDepth: childDepth,
@@ -97,17 +99,20 @@ export function resolveChildAgentOptions(
  * @param parent - the delegating parent agent.
  * @param childDepth - the resolved delegation depth to persist.
  * @param lineageSeedLength - how many leading events came from the parent's log.
+ * @param workspaceCwd - explicit activation workspace, or parent inheritance.
  * @returns the `meta` for `ctx.agents.create()`.
  */
 export function childSessionMeta(
   parent: Agent,
   childDepth: number,
   lineageSeedLength: number,
+  workspaceCwd?: string,
 ): NonNullable<CreateAgentOptions['meta']> {
   const parentHeader = parent.session.header
   const agentPreset = parent.ctx.get('agentPresets')?.composedPreset(parent.ctx)
+  const cwd = workspaceCwd ?? parentHeader.cwd
   return {
-    ...parentHeader.cwd !== undefined ? { cwd: parentHeader.cwd } : {},
+    ...cwd !== undefined ? { cwd } : {},
     ...agentPreset === undefined ? {} : { agentPreset },
     parentSession: parentHeader.id,
     // Navigation classification only; the descriptor remains the authority

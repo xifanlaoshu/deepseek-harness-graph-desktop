@@ -82,6 +82,21 @@ describe('startInProcessRun', () => {
     await run.dispose()
   })
 
+  it('uses an explicit activation workspace without changing the parent session', async () => {
+    const { ctx } = await setup([textResponse('driver answer')])
+    const parent = ctx.agentLoop.create(SessionId('workspace-parent'), {}, { cwd: '/workspace' })
+    const run = await startInProcessRun({
+      ...request(parent),
+      workspaceCwd: '/isolated-workspace',
+      agentOptions: { provider: 'mock', model: 'mock' },
+    }, {})
+
+    expect(ctx.agents.get(run.id)?.session.header.cwd).toBe('/isolated-workspace')
+    expect(parent.session.header.cwd).toBe('/workspace')
+    await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
+    await run.dispose()
+  })
+
   it('reports a prompt a pre-step rejection discarded as refusal, not completion', async () => {
     const { ctx, parent } = await setup([])
     // A UserPromptSubmit deny or a policy plugin: the child claims its prompt,

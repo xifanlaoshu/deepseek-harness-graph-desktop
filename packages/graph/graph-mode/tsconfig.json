@@ -1,0 +1,25 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cosmokit" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../settings/settings" },
+    { "path": "../../core/system-prompt" },
+    { "path": "../../core/tools" },
+    { "path": "../../interaction/commands" },
+    { "path": "../../llm/llm" },
+    { "path": "../../subagent/subagent" },
+    { "path": "../graph" },
+    { "path": "../graph-artifacts" },
+    { "path": "../graph-coordination" },
+    { "path": "../graph-resources" },
+    { "path": "../graph-scheduler" },
+    { "path": "../graph-worker" },
+    { "path": "../../runtime-diagnostics/invariants" }
+  ]
+}

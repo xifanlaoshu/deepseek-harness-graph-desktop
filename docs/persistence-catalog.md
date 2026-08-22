@@ -424,6 +424,85 @@ Source: [`packages/feedback/command-feedback/src/index.ts:62`](../packages/feedb
 
 Source: [`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain.ts)
 
+### `graph/*`
+
+<a id="graphchange--log-only"></a>
+
+#### `graph/change` — log-only
+
+```ts persistence-catalog
+/** Whole graph-mode configuration or one immutable graph revision. */
+'graph/change': GraphDefinitionChange
+```
+
+Source: [`packages/graph/graph/src/index.ts:42`](../packages/graph/graph/src/index.ts)
+
+<a id="graphcheckpoint--log-only"></a>
+
+#### `graph/checkpoint` — log-only
+
+```ts persistence-catalog
+/** Whole durable state of one planning, repair, or human checkpoint. */
+'graph/checkpoint': GraphCheckpoint
+```
+
+Source: [`packages/graph/graph/src/index.ts:52`](../packages/graph/graph/src/index.ts)
+
+<a id="graphcontrol--log-only"></a>
+
+#### `graph/control` — log-only
+
+```ts persistence-catalog
+/** Accepted human or controller operation over one graph run. */
+'graph/control': GraphControlRecord
+```
+
+Source: [`packages/graph/graph/src/index.ts:54`](../packages/graph/graph/src/index.ts)
+
+<a id="graphoperation--log-only"></a>
+
+#### `graph/operation` — log-only
+
+```ts persistence-catalog
+/** Append-only recoverable transition for one logical node operation. */
+'graph/operation': GraphOperationTransition
+```
+
+Source: [`packages/graph/graph/src/index.ts:46`](../packages/graph/graph/src/index.ts)
+
+<a id="graphrun--log-only"></a>
+
+#### `graph/run` — log-only
+
+```ts persistence-catalog
+/** Whole execution snapshot; the latest snapshot for a run id wins. */
+'graph/run': GraphRun
+```
+
+Source: [`packages/graph/graph/src/index.ts:44`](../packages/graph/graph/src/index.ts)
+
+<a id="graphsettlement--log-only"></a>
+
+#### `graph/settlement` — log-only
+
+```ts persistence-catalog
+/** Append-only external settlement attempt and result. */
+'graph/settlement': GraphSettlementRecord
+```
+
+Source: [`packages/graph/graph/src/index.ts:48`](../packages/graph/graph/src/index.ts)
+
+<a id="graphsubmission--log-only"></a>
+
+#### `graph/submission` — log-only
+
+```ts persistence-catalog
+/** Recoverable intent and result for accepting one immutable revision. */
+'graph/submission': GraphRevisionSubmissionRecord
+```
+
+Source: [`packages/graph/graph/src/index.ts:50`](../packages/graph/graph/src/index.ts)
+
 ### `hook/*`
 
 <a id="hookinvoked--log-only"></a>
@@ -708,7 +787,7 @@ Source: [`packages/core/session/src/types.ts:254`](../packages/core/session/src/
 'subagent/descriptor': SubagentDescriptorData
 ```
 
-Source: [`packages/subagent/subagent/src/descriptor.ts:37`](../packages/subagent/subagent/src/descriptor.ts)
+Source: [`packages/subagent/subagent/src/descriptor.ts:38`](../packages/subagent/subagent/src/descriptor.ts)
 
 ### `team/*`
 

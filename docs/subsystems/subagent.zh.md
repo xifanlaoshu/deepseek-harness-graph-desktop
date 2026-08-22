@@ -56,6 +56,13 @@ interface SubagentStartRequest {
    */
   readonly parent: Agent
   /**
+   * Optional absolute workspace for this activation. Omission inherits the
+   * parent's session workspace. Providers must use this value for both child
+   * session metadata and the execution process; they must not reinterpret it
+   * relative to their launch directory.
+   */
+  readonly workspaceCwd?: string
+  /**
    * Cancellation signal from the spawning context (the tool's `exec.signal`).
    * This is the canonical cancellation channel both before and after startup:
    * a provider rejects `start()` after cleaning partial resources when it

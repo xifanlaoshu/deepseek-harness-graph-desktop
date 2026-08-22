@@ -90,6 +90,72 @@
     - id: session-stats
       name: '@deepseek-ai/dsh-session-stats'
 
+    # Durable Graph Mode projection and controller. LoopX coordination stays
+    # deployment-configured because it binds an external goal and peer roster.
+    - id: graph
+      name: '@deepseek-ai/dsh-graph'
+
+    # Worker and resource Service Definitions precede their Providers and the
+    # Graph Mode Consumer. The local Provider exposes durable worker identity,
+    # cooperative cancellation, and a configurable workspace mode.
+    - id: graph-worker
+      name: '@deepseek-ai/dsh-graph-worker'
+
+    - id: graph-artifacts
+      name: '@deepseek-ai/dsh-graph-artifacts'
+
+    - id: graph-artifacts-fs
+      name: '@deepseek-ai/dsh-graph-artifacts-fs'
+      config:
+        providerName: fs-artifacts
+        storeRoot: .sessions/graph-artifacts
+
+    - id: graph-resources
+      name: '@deepseek-ai/dsh-graph-resources'
+
+    # The SQLite authority shares model-route reservations, expiry, and OOM
+    # backoff across Web sessions and Host processes for this workspace.
+    - id: graph-resources-sqlite
+      name: '@deepseek-ai/dsh-graph-resources-sqlite'
+      config:
+        providerName: sqlite-resources
+        path: .sessions/graph-resources.sqlite
+        routes: []
+
+    # One whole-run lease prevents two restored Web Host processes from
+    # advancing the same durable graph. Node-level LoopX claims remain separate.
+    - id: graph-scheduler
+      name: '@deepseek-ai/dsh-graph-scheduler'
+
+    - id: graph-scheduler-sqlite
+      name: '@deepseek-ai/dsh-graph-scheduler-sqlite'
+      config:
+        providerName: sqlite-scheduler
+        path: .sessions/graph-scheduler.sqlite
+
+    - id: graph-worker-local
+      name: '@deepseek-ai/dsh-graph-worker-local'
+      config:
+        providerName: local
+        subagentProvider: spawn
+        artifactProvider: fs-artifacts
+
+    # Enable in a later deployment patch with goalId and roleAgents. Disabled
+    # here because those identities belong to the selected LoopX registry. The
+    # provider precedes its consumer so reverse teardown lets Graph Mode settle
+    # canceled claims before the provider is disposed.
+    - id: graph-coordination-loopx
+      name: '@deepseek-ai/dsh-graph-coordination-loopx'
+      disabled: true
+
+    - id: graph-mode
+      name: '@deepseek-ai/dsh-graph-mode'
+      config:
+        workerProvider: local
+        workspaceMode: isolated-copy
+        resourceProvider: sqlite-resources
+        schedulerProvider: sqlite-scheduler
+
     # Resolve bind host, SSH launch, and display once at boot, then mount the
     # matching dual-face directory picker. Mount -native or -browse directly in
     # an overlay to pin the interaction.
@@ -261,6 +327,10 @@
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
       name: '@deepseek-ai/dsh-client-ui-goal'
+
+    # Session-header DAG, node evidence, and role/model scheduler settings.
+    - id: ui-graph
+      name: '@deepseek-ai/dsh-client-ui-graph'
 
     # Per-message feedback: Like/Dislike plus an optional note in the
     # assistant-message action strip, over the messageFeedback Remote.
