@@ -252,6 +252,7 @@
     { "path": "./packages/acp/acp" },
     { "path": "./packages/examples/acp-demo" },
     { "path": "./packages/bundle/base" },
+    { "path": "./packages/bundle/browser-chrome-devtools" },
     { "path": "./packages/bundle/headless" },
     { "path": "./packages/bundle/web-app" },
     { "path": "./packages/boot/app-boot" },

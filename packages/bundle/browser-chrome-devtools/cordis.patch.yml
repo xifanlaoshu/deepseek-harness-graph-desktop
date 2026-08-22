@@ -1,0 +1,21 @@
+# Optional browser automation layer. The wrapper starts the pinned official
+# Chrome DevTools MCP server and connects it to a separately launched Chrome
+# debugging profile. Override this row in a later profile patch to change any
+# deployment setting; a patch replaces the complete config object.
+- insert:
+    - id: browser-chrome-devtools
+      name: '@deepseek-ai/dsh-browser-chrome-devtools'
+      config:
+        serverName: chrome
+        browserUrl: !!js process.env.DSH_CHROME_DEBUG_URL?.trim() || 'http://127.0.0.1:9222'
+        toolCallTimeoutMs: 120000
+        failOnStartupError: true
+        experimentalVision: true
+        pageIdRouting: true
+        performanceCrux: false
+        usageStatistics: false
+        redactNetworkHeaders: true
+        screenshotFormat: webp
+        screenshotQuality: 80
+        screenshotMaxWidth: 1600
+        screenshotMaxHeight: 1200

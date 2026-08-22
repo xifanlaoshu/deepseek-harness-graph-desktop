@@ -161,6 +161,9 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // SQLite loads every statement from immutable package resources at runtime.
   '@deepseek-ai/dsh-session-persistence-sqlite': ['resources/sql/**/*.sql'],
   '@deepseek-ai/dsh-skill-badge': ['assets'],
+  // The optional local-browser bundle ships the Windows launcher that creates
+  // the dedicated Chrome debugging profile documented by the package.
+  '@deepseek-ai/dsh-browser-chrome-devtools': ['scripts/start-chrome-debug.ps1'],
   '@deepseek-ai/dsh-subprocess-local': ['scripts/ensure-spawn-helper.mjs'],
 }
 

@@ -397,6 +397,46 @@ export type Config = LocalConfig
 
 来源：[`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-sandbox/src/index.ts)
 
+<a id="deepseek-aidsh-browser-chrome-devtools"></a>
+
+## `@deepseek-ai/dsh-browser-chrome-devtools`
+
+需要：`systemPrompt` · `tools`
+
+```ts config-catalog
+/** Browser automation and screenshot defaults passed to Chrome DevTools MCP. */
+export interface Config {
+  /** Namespace used in model-facing names such as `mcp__chrome__take_snapshot`. */
+  serverName: string
+  /** HTTP endpoint of a Chrome instance started with remote debugging. */
+  browserUrl: string
+  /** Maximum duration of one MCP tool call in milliseconds. */
+  toolCallTimeoutMs: number
+  /** Fail bundle activation when MCP startup or tool discovery fails. */
+  failOnStartupError: boolean
+  /** Expose screenshot-coordinate actions such as `click_at`. */
+  experimentalVision: boolean
+  /** Add `pageId` to page-scoped tools so concurrent agents can target separate tabs. */
+  pageIdRouting: boolean
+  /** Permit performance traces to query Google's CrUX field-data service. */
+  performanceCrux: boolean
+  /** Permit the upstream server to send its own anonymous usage statistics. */
+  usageStatistics: boolean
+  /** Redact sensitive network headers from tool results. */
+  redactNetworkHeaders: boolean
+  /** Default screenshot encoding returned to the model. */
+  screenshotFormat: typeof SCREENSHOT_FORMATS[number]
+  /** JPEG or WebP quality from 0 through 100. */
+  screenshotQuality: number
+  /** Maximum screenshot width before proportional downscaling. */
+  screenshotMaxWidth: number
+  /** Maximum screenshot height before proportional downscaling. */
+  screenshotMaxHeight: number
+}
+```
+
+来源：[`packages/bundle/browser-chrome-devtools/src/index.ts:29`](../packages/bundle/browser-chrome-devtools/src/index.ts)
+
 <a id="deepseek-aidsh-client-connection"></a>
 
 ## `@deepseek-ai/dsh-client-connection`
