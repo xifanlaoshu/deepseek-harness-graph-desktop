@@ -15,6 +15,7 @@ it('publishes the browser-test prompt and real pinned tool catalog', async () =>
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(BrowserChromeDevtools, new BrowserChromeDevtools.Config({
+    browserMode: 'external',
     browserUrl: 'http://127.0.0.1:1',
   } as never))
 

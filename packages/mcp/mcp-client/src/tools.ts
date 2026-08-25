@@ -13,6 +13,8 @@
  */
 
 import { createHash } from 'node:crypto'
+import { realpath } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
@@ -31,6 +33,8 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Top-level string arguments that must remain within the calling agent's workspace. */
+  workspacePathArguments: readonly string[]
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -67,6 +71,70 @@ const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 
 /** Canonical RFC 4648 base64, excluding whitespace and URL-safe aliases. */
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+
+/** Missing-path failures accepted while resolving the deepest existing ancestor. */
+const MISSING_PATH_CODES: ReadonlySet<NodeJS.ErrnoException['code']> = new Set(['ENOENT', 'ENOTDIR'])
+
+/** Resolve a possibly missing target without losing existing symlink identity. */
+async function canonicalTarget(path: string): Promise<string> {
+  let ancestor = resolve(path)
+  const suffix: string[] = []
+  while (true) {
+    try {
+      return join(await realpath(ancestor), ...suffix)
+    } catch (error: unknown) {
+      /* v8 ignore if -- non-missing realpath failures require a host permission or I/O fault during the immediate containment check. */
+      if (!MISSING_PATH_CODES.has((error as NodeJS.ErrnoException).code)) throw error
+      const parent = dirname(ancestor)
+      /* v8 ignore if -- every supported absolute filesystem root exists after the calling workspace itself was realpathed. */
+      if (parent === ancestor) throw error
+      suffix.unshift(basename(ancestor))
+      ancestor = parent
+    }
+  }
+}
+
+/** Whether one canonical target is the canonical root or its descendant. */
+function isWithin(target: string, root: string): boolean {
+  const child = relative(root, target)
+  return child === '' || (child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child))
+}
+
+/**
+ * Confine configured path arguments and replace them with the exact canonical
+ * targets that passed containment, so relative paths use the calling workspace
+ * and the MCP server cannot re-resolve a swapped symlink.
+ */
+async function prepareWorkspacePathArguments(
+  rawName: string,
+  args: Record<string, unknown>,
+  exec: ToolExecution,
+  opts: ToolBridgeOptions,
+): Promise<Record<string, unknown>> {
+  if (opts.workspacePathArguments.length === 0) return args
+  let prepared = args
+  for (const argument of opts.workspacePathArguments) {
+    if (!Object.hasOwn(args, argument)) continue
+    const value = args[argument]
+    if (typeof value !== 'string' || value.length === 0) {
+      throw new Error(`mcp-client(${opts.serverName}): tool ${JSON.stringify(rawName)} argument ${JSON.stringify(argument)} must be a non-empty path string`)
+    }
+    const workspace = exec.agent?.session.header.cwd
+    if (workspace === undefined || workspace.trim() === '') {
+      throw new Error(`mcp-client(${opts.serverName}): tool ${JSON.stringify(rawName)} argument ${JSON.stringify(argument)} requires a calling agent with a session workspace`)
+    }
+    const canonicalRoot = await realpath(resolve(workspace))
+    const target = await canonicalTarget(resolve(canonicalRoot, value))
+    if (!isWithin(target, canonicalRoot)) {
+      throw new Error(
+        `mcp-client(${opts.serverName}): tool ${JSON.stringify(rawName)} argument ${JSON.stringify(argument)} must stay within the calling agent workspace ${JSON.stringify(canonicalRoot)}; use a relative path under that workspace`,
+      )
+    }
+    if (prepared === args) prepared = { ...args }
+    prepared[argument] = target
+  }
+  return prepared
+}
 
 /** List without mutating the SDK's per-page output-validator cache. */
 function listToolsUncached(client: Client, cursor?: string) {
@@ -317,7 +385,8 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const wireArgs = await prepareWorkspacePathArguments(rawName, argsObj, exec, opts)
+    const result = await callToolUncached(client, rawName, wireArgs, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
@@ -147,6 +150,7 @@ const defaultOpts: ToolBridgeOptions = {
   registrationFailure: 'contain',
   serverName: 'srv',
   toolCallTimeoutMs: 60_000,
+  workspacePathArguments: [],
 }
 
 // ---- Tests ----
@@ -875,6 +879,114 @@ describe('tool execution', () => {
       undefined,
       expect.objectContaining({ signal: controller.signal }),
     )
+  })
+
+  it('passes a configured path argument when it stays inside the calling agent workspace', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      const filePath = join('test-evidence', 'shot.png')
+      const outputDirPath = 'test-evidence'
+      const expectedPath = join(await realpath(root), filePath)
+      const expectedOutputDir = join(await realpath(root), outputDirPath)
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath', 'outputDirPath'] }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: CallId('workspace-path-ok'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath, outputDirPath },
+        agent: { session: { header: { cwd: root } } } as never,
+      })
+
+      expect(result.isError).toBe(false)
+      expect(client.callTool).toHaveBeenCalledWith(
+        { name: 'capture', arguments: { filePath: expectedPath, outputDirPath: expectedOutputDir } },
+        undefined,
+        expect.anything(),
+      )
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('requires configured path arguments to carry a usable calling workspace', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+      const execute = (callId: string, arguments_: Record<string, unknown>, agent?: unknown) => ctx.tools.execute({
+        signal: testToolSignal,
+        callId: CallId(callId),
+        name: 'mcp__srv__capture',
+        arguments: arguments_,
+        ...agent === undefined ? {} : { agent: agent as never },
+      })
+
+      expect((await execute('workspace-path-omitted', {}, { session: { header: { cwd: root } } })).isError).toBe(false)
+      expect((await execute('workspace-path-number', { filePath: 7 }, { session: { header: { cwd: root } } })).error?.message)
+        .toContain('must be a non-empty path string')
+      expect((await execute('workspace-path-empty', { filePath: '' }, { session: { header: { cwd: root } } })).error?.message)
+        .toContain('must be a non-empty path string')
+      expect((await execute('workspace-path-agentless', { filePath: 'shot.png' })).error?.message)
+        .toContain('requires a calling agent with a session workspace')
+      expect((await execute('workspace-path-empty-cwd', { filePath: 'shot.png' }, { session: { header: { cwd: '' } } })).error?.message)
+        .toContain('requires a calling agent with a session workspace')
+      expect(client.callTool).toHaveBeenCalledTimes(1)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects configured paths outside the calling agent workspace before MCP dispatch', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    const workspace = join(root, 'workspace')
+    const outside = join(root, 'outside')
+    await Promise.all([mkdir(workspace), mkdir(outside)])
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: CallId('workspace-path-denied'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath: join(outside, 'shot.png') },
+        agent: { session: { header: { cwd: workspace } } } as never,
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.error?.message).toContain('must stay within the calling agent workspace')
+      expect(client.callTool).not.toHaveBeenCalled()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a configured workspace path that escapes through an existing symlink', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    const workspace = join(root, 'workspace')
+    const outside = join(root, 'outside')
+    await Promise.all([mkdir(workspace), mkdir(outside)])
+    await symlink(outside, join(workspace, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: CallId('workspace-path-symlink'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath: join(workspace, 'escape', 'shot.png') },
+        agent: { session: { header: { cwd: workspace } } } as never,
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.error?.message).toContain('must stay within the calling agent workspace')
+      expect(client.callTool).not.toHaveBeenCalled()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   it('handles legacy toolResult shape', async () => {

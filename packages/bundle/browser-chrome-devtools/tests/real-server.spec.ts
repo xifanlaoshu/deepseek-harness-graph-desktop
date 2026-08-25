@@ -10,6 +10,7 @@ describe('browser-chrome-devtools real upstream server', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(BrowserChromeDevtools, new BrowserChromeDevtools.Config({
+      browserMode: 'external',
       browserUrl: 'http://127.0.0.1:1',
       failOnStartupError: true,
     } as never))
@@ -26,6 +27,15 @@ describe('browser-chrome-devtools real upstream server', () => {
     expect(names).toContain('mcp__chrome__click_at')
     expect(names).toContain('mcp__chrome__list_console_messages')
     expect(names).toContain('mcp__chrome__list_network_requests')
+    const configured = new Set(BrowserChromeDevtools.resolveMcpConfig(new BrowserChromeDevtools.Config({} as never)).workspacePathArguments)
+    const discovered = new Set<string>()
+    for (const schema of ctx.tools.schemas()) {
+      const parameters = schema.parameters as { properties?: Record<string, unknown> }
+      for (const argument of Object.keys(parameters.properties ?? {})) {
+        if (argument === 'path' || argument.endsWith('Path')) discovered.add(argument)
+      }
+    }
+    expect([...discovered].filter(argument => !configured.has(argument)).sort()).toEqual([])
     await ctx.fiber.dispose()
   }, 30_000)
 })

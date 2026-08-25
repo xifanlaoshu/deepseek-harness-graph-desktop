@@ -29,7 +29,12 @@ describe('browser-chrome-devtools bundle plugin', () => {
   it('resolves safe multimodal browser-test defaults', () => {
     expect(new Config({} as never)).toEqual({
       serverName: 'chrome',
+      browserMode: 'managed',
       browserUrl: 'http://127.0.0.1:9222',
+      chromeChannel: 'stable',
+      headless: false,
+      isolatedProfile: true,
+      startMaximized: true,
       toolCallTimeoutMs: 120_000,
       failOnStartupError: true,
       experimentalVision: true,
@@ -57,25 +62,46 @@ describe('browser-chrome-devtools bundle plugin', () => {
       failOnStartupError: true,
     })
     expect(config.args.slice(1)).toEqual([
-      '--browser-url=http://127.0.0.1:9222',
+      '--channel=stable',
+      '--headless=false',
+      '--isolated=true',
+      '--chrome-arg=--start-maximized',
       '--experimental-vision=true',
       '--experimental-page-id-routing=true',
       '--performance-crux=false',
       '--usage-statistics=false',
       '--redact-network-headers=true',
+      '--allow-unrestricted-paths=true',
       '--screenshot-format=webp',
       '--screenshot-quality=80',
       '--screenshot-max-width=1600',
       '--screenshot-max-height=1200',
     ])
+    expect(config.workspacePathArguments).toEqual([
+      'baseFilePath',
+      'currentFilePath',
+      'filePath',
+      'outputDirPath',
+      'path',
+      'requestFilePath',
+      'responseFilePath',
+    ])
     expect(resolveServerEntry()).toBe(config.args[0])
   })
 
-  it('rejects a non-HTTP debugging endpoint before mounting a child', () => {
-    expect(() => resolveMcpConfig(new Config({ browserUrl: 'ws://127.0.0.1:9222' } as never)))
+  it('supports an operator-owned external Chrome endpoint', () => {
+    const config = resolveMcpConfig(new Config({ browserMode: 'external', browserUrl: 'http://127.0.0.1:9333/' } as never))
+    expect(config.args.slice(1, 2)).toEqual(['--browser-url=http://127.0.0.1:9333'])
+    expect(config.args).not.toContain('--isolated=true')
+    expect(config.args).not.toContain('--channel=stable')
+  })
+
+  it('rejects a non-HTTP endpoint only in external mode', () => {
+    expect(() => resolveMcpConfig(new Config({ browserMode: 'external', browserUrl: 'ws://127.0.0.1:9222' } as never)))
       .toThrow('browserUrl must use http or https')
-    expect(() => resolveMcpConfig(new Config({ browserUrl: 'not a URL' } as never)))
+    expect(() => resolveMcpConfig(new Config({ browserMode: 'external', browserUrl: 'not a URL' } as never)))
       .toThrow('browserUrl must be an absolute HTTP URL')
+    expect(() => resolveMcpConfig(new Config({ browserUrl: 'not a URL' } as never))).not.toThrow()
   })
 
   it('mounts one MCP child and contributes evidence-oriented browser guidance', async () => {
@@ -92,7 +118,9 @@ describe('browser-chrome-devtools bundle plugin', () => {
       text: browserPrompt('qa'),
     })
     expect(browserPrompt('qa')).toContain('mcp__qa__')
+    expect(browserPrompt('qa')).toContain('unique isolatedContext')
     expect(browserPrompt('qa')).toContain('take_screenshot')
+    expect(browserPrompt('qa')).toContain('filePath relative to the current session workspace')
     expect(browserPrompt('qa')).toContain('Report a test as passing only')
     await ctx.fiber.dispose()
   })

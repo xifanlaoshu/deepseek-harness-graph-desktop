@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-An optional profile bundle that gives dsh agents local Chrome automation through Google's official [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp). The package pins the upstream server, starts it as a child process without a shell, connects to a separately launched Chrome DevTools Protocol endpoint, and exposes its tools through [`@deepseek-ai/dsh-mcp-client`](../../mcp/mcp-client/README.md).
+An optional profile bundle that gives dsh agents local Chrome automation through Google's official [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp). The package pins the upstream server, starts it as a child process without a shell, lets that server launch and reap an isolated Chrome process, and exposes its tools through [`@deepseek-ai/dsh-mcp-client`](../../mcp/mcp-client/README.md).
 
 The default configuration supports DOM snapshots and UID-based actions, screenshots returned as image blocks, coordinate clicks for vision models, console and network inspection, performance traces, and explicit `pageId` routing for concurrent agents. Tool names use the `mcp__chrome__*` namespace.
 
@@ -20,7 +20,15 @@ From this repository checkout, install the workspace package instead:
 pnpm dsh plugin --profile web add ./packages/bundle/browser-chrome-devtools
 ```
 
-Chrome 136 and later require remote debugging to use a non-default user data directory. On Windows, the package includes a launcher that finds Chrome, creates a dedicated profile, binds the debugging endpoint to loopback, and waits until it is ready:
+Start the Web profile after installation:
+
+```sh
+dsh web
+```
+
+No separate Chrome command is required in the default `managed` mode. The first browser tool call launches stable Chrome in a maximized visible window with a temporary profile. Disposing or restarting the bundle closes that Chrome process and removes the profile through the upstream MCP lifecycle.
+
+Set `DSH_CHROME_DEBUG_URL` before starting dsh to select `external` mode and attach to an operator-owned debugging endpoint instead. Chrome 136 and later require remote debugging to use a non-default user data directory. On Windows, the package includes a launcher for this optional mode:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\packages\bundle\browser-chrome-devtools\scripts\start-chrome-debug.ps1
@@ -32,13 +40,7 @@ The equivalent direct launch is:
 & "$env:PROGRAMFILES\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1 --user-data-dir="$env:LOCALAPPDATA\dsh\chrome-debug-profile" --no-first-run --no-default-browser-check
 ```
 
-Then start the Web profile:
-
-```sh
-dsh web
-```
-
-Set `DSH_CHROME_DEBUG_URL` before starting dsh when Chrome uses another port. An installed profile may also override the `browser-chrome-devtools` row in its `cordis.patch.yml`; patch replacement requires restating the complete config.
+The external Chrome process remains operator-owned when the bundle stops. An installed profile may also override the `browser-chrome-devtools` row in its `cordis.patch.yml`; patch replacement requires restating the complete config.
 
 ## Enable Qwen image input
 
@@ -64,7 +66,12 @@ Keep the provider id, model id, endpoint, credential reference, capacity, and re
 | Field | Default | Behavior |
 |---|---:|---|
 | `serverName` | `chrome` | MCP tool namespace |
-| `browserUrl` | `http://127.0.0.1:9222` | Running Chrome debugging endpoint |
+| `browserMode` | `managed` | Launch an owned Chrome process, or attach to `external` Chrome |
+| `browserUrl` | `http://127.0.0.1:9222` | Chrome debugging endpoint used only in `external` mode |
+| `chromeChannel` | `stable` | Installed Chrome channel selected in `managed` mode |
+| `headless` | `false` | Hide the managed Chrome window |
+| `isolatedProfile` | `true` | Use a temporary profile that is removed after managed Chrome closes |
+| `startMaximized` | `true` | Maximize the initial headed managed Chrome window |
 | `toolCallTimeoutMs` | `120000` | Harness-side deadline for one browser call |
 | `failOnStartupError` | `true` | Refuse activation when server startup or tool discovery fails |
 | `experimentalVision` | `true` | Expose screenshot-coordinate actions |
@@ -77,13 +84,21 @@ Keep the provider id, model id, endpoint, credential reference, capacity, and re
 | `screenshotMaxWidth` | `1600` | Proportional screenshot width cap |
 | `screenshotMaxHeight` | `1200` | Proportional screenshot height cap |
 
-The wrapper also disables the upstream update check. Upgrades are explicit dependency changes, so the tool schema cannot change between local starts without a reviewed package update.
+The wrapper also disables the upstream update check. Managed Chrome starts lazily on the first browser operation; MCP tool discovery does not open a window. Upgrades are explicit dependency changes, so the tool schema cannot change between local starts without a reviewed package update.
+
+## Graph and concurrent agents
+
+The browser bundle has no Graph package dependency and owns no Graph run state. Graph workers receive the same browser tools through the ordinary Harness tool registry, so browser process startup, shutdown, and configuration remain replaceable independently of Graph Mode.
+
+One live bundle serves its agents through one managed Chrome process. A delegated or parallel test must call `new_page` with a unique `isolatedContext` and then keep every action on page IDs returned for that context. Different isolated contexts do not share cookies or Web Storage; explicit `pageId` routing avoids the server's global selected-page state.
+
+Browser tools that preserve file evidence accept a path relative to the calling agent's session workspace, such as `test-evidence/run-01/login.png`. A Graph worker in an isolated copy writes there and publishes the image through the existing artifact integration; it must not target the source workspace through an absolute path.
 
 ## Security
 
-Use the dedicated debug profile only for test accounts and test data. Any local process that can reach the debugging port can control that Chrome instance, and browser tool results can contain page text, console output, request data, and screenshots. The launcher binds to `127.0.0.1`; the plugin does not add authentication to a non-loopback endpoint.
+Use managed Chrome only for test accounts and test data. Its temporary profile is isolated from the ordinary Chrome profile, but browser tool results can still contain page text, console output, request data, and screenshots. In `external` mode, any local process that can reach the debugging port can control that Chrome instance; the launcher binds to `127.0.0.1`, and the plugin does not add authentication to a non-loopback endpoint.
 
-The upstream server's unrestricted-path option remains disabled. Without negotiated MCP roots, file-writing browser tools stay restricted to the operating-system temporary directory.
+The upstream MCP process receives its unrestricted-path option because one connection is shared by several agents and therefore cannot safely advertise a single static MCP root. The Harness MCP bridge confines every browser filesystem-path argument to the exact calling agent's canonical session workspace and sends that same checked target, so relative paths use the agent workspace and cannot be re-resolved through a swapped symlink. It rejects missing caller context, outside paths, and symlink escapes before dispatch. A real-server test compares the pinned discovered tool schemas with the guarded argument list, so a newly exposed path argument fails verification. The upstream process never receives a rejected path.
 
 ## Model Experience
 
@@ -91,7 +106,7 @@ The upstream server's unrestricted-path option remains disabled. Without negotia
 
 #### What the model sees
 
-The model receives the discovered `mcp__chrome__*` tool schemas, a short system-prompt section, and browser tool results retained in conversation history. The prompt directs it to prefer accessibility snapshots and stable element UIDs, use screenshots for visual assertions, preserve explicit page identity, inspect relevant console or network failures, and claim success only from observed evidence. The generic MCP client stores supported screenshot blocks as durable Harness image attachments before the next model request.
+The model receives the discovered `mcp__chrome__*` tool schemas, a short system-prompt section, and browser tool results retained in conversation history. The prompt directs delegated or parallel work to create a unique isolated context, prefer accessibility snapshots and stable element UIDs, use screenshots for visual assertions, save file evidence through workspace-relative paths, preserve explicit page identity, inspect relevant console or network failures, and claim success only from observed evidence. The generic MCP client stores supported screenshot blocks as durable Harness image attachments before the next model request.
 
 #### Token effect
 
@@ -103,7 +118,7 @@ The system-prompt section is stable for one `serverName`, and the tool catalog s
 
 ## Known Limitations and Deferred Work
 
-- **The browser is an external process** — dsh starts and supervises the MCP server, not Chrome. Start the debug profile first and keep it running for the test.
-- **Concurrent agents still coordinate tab ownership** — `pageIdRouting` prevents accidental reliance on one global selected page, but it does not assign tabs or serialize conflicting actions.
+- **Managed startup is lazy** — dsh activation proves the pinned MCP server and tool catalog are available; Chrome installation or launch failures surface on the first browser operation.
+- **Concurrent agents still choose their context names** — isolated contexts and `pageIdRouting` provide the mechanism, but the upstream server does not allocate names or serialize conflicting actions for Harness agents.
 - **Visual accuracy belongs to the selected model** — screenshots provide pixels, while coordinate selection and visual assertions depend on the local Qwen projector, quantization, prompt, and image budget.
 - **Chrome DevTools MCP officially supports Google Chrome and Chrome for Testing** — other Chromium browsers may work but are outside the upstream support promise.

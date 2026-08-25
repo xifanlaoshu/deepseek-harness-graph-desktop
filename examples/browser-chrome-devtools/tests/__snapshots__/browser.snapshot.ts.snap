@@ -4,7 +4,7 @@ exports[`publishes the browser-test prompt and real pinned tool catalog 1`] = `
 {
   "prompt": {
     "name": "tool:browser-chrome-devtools",
-    "text": "Browser automation is available through tools prefixed mcp__chrome__. For reliable web tests, list the pages and keep pageId explicit, use take_snapshot plus element UIDs for ordinary interaction, and use take_screenshot for visual assertions or click_at only when the snapshot cannot identify the target. After critical actions, inspect visible state and relevant console or network failures. Report a test as passing only when the observed evidence satisfies the requested behavior.",
+    "text": "Browser automation is available through tools prefixed mcp__chrome__. For delegated or parallel web tests, create the first page with a unique isolatedContext and use only pageIds returned for that context. For reliable web tests, keep pageId explicit, use take_snapshot plus element UIDs for ordinary interaction, and use take_screenshot for visual assertions or click_at only when the snapshot cannot identify the target. When preserving browser evidence as a file, create its parent directory with an available filesystem tool, then pass a filePath relative to the current session workspace; absolute paths outside that workspace are rejected. After critical actions, inspect visible state and relevant console or network failures. Report a test as passing only when the observed evidence satisfies the requested behavior.",
   },
   "screenshot": {
     "description": "Take a screenshot of the page or element.",

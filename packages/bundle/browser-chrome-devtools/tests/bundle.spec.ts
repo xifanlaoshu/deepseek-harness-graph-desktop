@@ -28,6 +28,13 @@ describe('browser-chrome-devtools bundle patch', () => {
       name: '@deepseek-ai/dsh-browser-chrome-devtools',
       config: {
         serverName: 'chrome',
+        browserMode: {
+          __jsExpr: "process.env.DSH_CHROME_DEBUG_URL?.trim() ? 'external' : 'managed'",
+        },
+        chromeChannel: 'stable',
+        headless: false,
+        isolatedProfile: true,
+        startMaximized: true,
         experimentalVision: true,
         pageIdRouting: true,
         usageStatistics: false,

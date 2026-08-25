@@ -54,7 +54,13 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
 
 // vi.mock is hoisted above static imports, so the module under test sees the
 // mocked SDK even through a static import.
-import { apply, name, inject, Config as ConfigSchema } from '@deepseek-ai/dsh-mcp-client/src/index.ts'
+import {
+  apply,
+  name,
+  inject,
+  Config as ConfigSchema,
+  resolveWorkspacePathArguments,
+} from '@deepseek-ai/dsh-mcp-client/src/index.ts'
 
 // ---- Helpers ----
 
@@ -150,6 +156,13 @@ describe('mcp-client plugin module exports', () => {
       command: 'echo',
       reconnect: { maxAttempts: 0 },
     } as never)).toThrow()
+  })
+
+  it('resolves unique workspace path arguments and rejects invalid entries', () => {
+    expect(resolveWorkspacePathArguments(undefined, 'srv')).toEqual([])
+    expect(resolveWorkspacePathArguments(['filePath'], 'srv')).toEqual(['filePath'])
+    expect(() => resolveWorkspacePathArguments(['filePath', 'filePath'], 'srv')).toThrow(/duplicate/)
+    expect(() => resolveWorkspacePathArguments(['bad path'], 'srv')).toThrow(/must match/)
   })
 })
 
