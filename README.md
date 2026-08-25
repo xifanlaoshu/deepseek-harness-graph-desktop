@@ -12,6 +12,8 @@ DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. *
 
 ## Run
 
+For a source deployment that another person or AI executor can reproduce, use the [local installation and deployment guide](docs/user/guide/local-installation.md). It covers Windows + WSL, native Windows, Linux, macOS, Graph + LoopX, optional Chrome automation, verification, upgrades, and recovery.
+
 ### Run from `npm`
 
 Install `Node.js`, then run:
@@ -27,7 +29,7 @@ The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it
 To run from a repository checkout:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
+git clone https://github.com/xifanlaoshu/deepseek-harness.git
 cd deepseek-harness
 pnpm install
 pnpm run build

@@ -114,12 +114,20 @@ const homeAndGuide = pairedPages([
     order: 0,
   },
   {
+    source: 'docs/user/guide/local-installation.md',
+    route: 'guide/local-installation.md',
+    label: { root: '本地安装与部署', en: 'Install locally' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: '入门', en: 'Guide' },
+    order: 1,
+  },
+  {
     source: 'docs/user/guide/index.md',
     route: 'guide/quickstart.md',
     label: { root: '使用 Web UI', en: 'Use the Web UI' },
     sidebar: { root: 'zh-guide', en: 'en-guide' },
     section: { root: '入门', en: 'Guide' },
-    order: 1,
+    order: 2,
     sourceAliases: ['docs/user/guide'],
   },
   {
@@ -128,7 +136,7 @@ const homeAndGuide = pairedPages([
     label: { root: '配置模型', en: 'Configure models' },
     sidebar: { root: 'zh-guide', en: 'en-guide' },
     section: { root: '入门', en: 'Guide' },
-    order: 2,
+    order: 3,
   },
   {
     source: 'docs/user/guide/python-sdk.md',

@@ -18,6 +18,8 @@ The user-surface section adds the ACP automation server and Python/JSON-RPC SDK 
 
 Detailed package and service inventories remain at their owning documentation. The English and Chinese README sides share the same technical structure, while their community sections continue to point to the primary channel for each language audience. The documentation website keeps a separate [quick-start entry route](../simplification/2026-08-11-quickstart-documentation-home.md) instead of presenting another product landing page.
 
+The root run section links one published local-installation tutorial rather than duplicating platform procedures. That tutorial owns source deployment for Windows + WSL, native Windows, Linux, and macOS; distinguishes built-in Graph Mode from optional LoopX coordination; and gives human and AI executors observable checks, a secret-free receipt, and explicit upgrade and rollback limits.
+
 ## Alternatives considered
 
 **Rewrite the README around a new product narrative.** A complete rewrite can make every current surface prominent, but it replaces accurate, reviewed copy and creates unnecessary churn. Current facts fit the established product-first structure.

@@ -14,6 +14,8 @@ DeepSeek Harness 目前处于 _开发者预览_ 阶段，正在快速迭代。**
 
 ## 运行
 
+如需让其他用户或 AI 执行器可复现地完成源码部署，请使用[本地安装与部署指南](docs/user/guide/local-installation.zh.md)。该指南覆盖 Windows + WSL、纯 Windows、Linux、macOS、Graph + LoopX、可选 Chrome 自动化、验证、升级与恢复。
+
 ### 通过 `npm` 运行
 
 安装 `Node.js`，然后运行：
@@ -31,7 +33,7 @@ npx @deepseek-ai/dsh web
 如需从仓库源码运行：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
+git clone https://github.com/xifanlaoshu/deepseek-harness.git
 cd deepseek-harness
 pnpm install
 pnpm run build
