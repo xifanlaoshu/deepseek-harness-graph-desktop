@@ -15,6 +15,8 @@ import {
   graphNodePoints,
   type GraphActionProps,
 } from '../src/client/GraphAction.tsx'
+import { graphRevisionLineageItems } from '../src/client/RevisionLineage.tsx'
+import { cytoscapeColor } from '../src/client/cytoscapeColor.ts'
 import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -122,7 +124,10 @@ function setup(
 
 describe('GraphAction', () => {
   it('uses restrained node typography and smooth dependency curves', () => {
-    expect(graphCanvasNodeTypography).toEqual({ 'font-size': 12, 'font-weight': 500 })
+    expect(cytoscapeColor('#fff3')).toBe('rgba(255, 255, 255, 0.2)')
+    expect(cytoscapeColor('#abc')).toBe('rgb(170, 187, 204)')
+    expect(graphCanvasNodeTypography).toMatchObject({ 'font-size': 12, 'font-weight': 500 })
+    expect(graphCanvasNodeTypography['font-family']).toContain('Microsoft YaHei UI')
     expect(graphCanvasEdgeGeometry).toEqual({
       width: 1.5,
       'curve-style': 'unbundled-bezier',
@@ -138,6 +143,34 @@ describe('GraphAction', () => {
     expect(setup({ config: { ...config, active: false }, graphs: {}, runs: {} }).view.container.innerHTML).toBe('')
   })
 
+  it('offers executor reconciliation for every recoverable run phase', () => {
+    const { control } = setup({
+      config,
+      graphs: { g1: [revision] },
+      currentGraphId: 'g1',
+      runs: {
+        r1: {
+          id: 'r1', graphId: 'g1', revision: 1, generation: 4, generationId: 'generation-4', ownerEpoch: 4,
+          configSnapshot: config, overrides: {}, phase: 'running', createdAt: 1, updatedAt: 2,
+          nodes: {
+            a: { workId: 'work-a', nodeId: 'a', phase: 'running', attempts: [] },
+            b: { workId: 'work-b', nodeId: 'b', phase: 'pending', attempts: [] },
+          },
+        },
+      },
+    } as unknown as GraphProjection)
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    fireEvent.click(screen.getByRole('button', { name: zh['control.reconcile'] }))
+
+    expect(control).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'reconcile-run',
+      graphId: 'g1',
+      runId: 'r1',
+      expectedRevision: 1,
+      expectedGeneration: 4,
+    }))
+  })
+
   it('shows and closes the empty active panel before a graph exists', () => {
     setup({ config, graphs: {}, runs: {} })
     fireEvent.click(screen.getByRole('button', { name: 'Graph' }))
@@ -149,6 +182,142 @@ describe('GraphAction', () => {
     setup({ config, graphs: {}, currentGraphId: 'missing', runs: {} } as GraphProjection)
     fireEvent.click(screen.getByRole('button', { name: 'Graph' }))
     expect(screen.getByText(zh.empty)).toBeTruthy()
+  })
+
+  it('switches between independent batch graphs from the campaign track', () => {
+    const secondRevision = { ...revision, graphId: 'g2', revision: 2, objective: 'Verify release' }
+    setup({
+      config,
+      graphs: { g1: [revision], g2: [secondRevision] },
+      currentGraphId: 'g2',
+      currentCampaignId: 'campaign-1',
+      campaigns: {
+        'campaign-1': {
+          version: 1,
+          id: 'campaign-1',
+          objective: 'Accept the complete hospital workflow',
+          createdAt: 1,
+          updatedAt: 4,
+          phase: 'running',
+          activeBatchId: 'batch-2',
+          planRevision: 2,
+          planExtensions: [{
+            revision: 2,
+            createdAt: 3,
+            reason: 'Inventory discovered diagnosis workflows.',
+            addedBatchIds: ['batch-2'],
+            sourceBatchId: 'batch-1',
+            sourceRunId: 'r1',
+            settlementIds: ['s1'],
+          }],
+          batches: [
+            {
+              id: 'batch-1', ordinal: 1, title: 'Customer workflows', objective: 'Accept customers',
+              dependsOn: [], status: 'approved', graphId: 'g1',
+              executions: [{ graphId: 'g1', revision: 1, runId: 'r1', status: 'succeeded', startedAt: 1, completedAt: 2, settlementIds: ['s1'], summary: 'Customer workflows passed.' }],
+            },
+            {
+              id: 'batch-2', ordinal: 2, title: 'Diagnosis workflows', objective: 'Accept diagnoses',
+              dependsOn: ['batch-1'], status: 'running', graphId: 'g2',
+              executions: [{ graphId: 'g2', revision: 2, runId: 'r2', status: 'running', startedAt: 3, settlementIds: [] }],
+            },
+          ],
+        },
+      },
+      runs: {},
+    } as unknown as GraphProjection)
+
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    expect(screen.getByText('任务 Campaign · 计划 p2')).toBeTruthy()
+    expect(screen.getByLabelText<HTMLSelectElement>(zh.revisions).value).toBe('2')
+    const appendedBatch = screen.getByRole('button', { name: /批次 2：Diagnosis workflows/ })
+    expect(appendedBatch.getAttribute('aria-pressed')).toBe('true')
+    expect(appendedBatch.textContent).toContain('p2')
+    expect(appendedBatch.getAttribute('title')).toContain('Inventory discovered diagnosis workflows.')
+
+    fireEvent.click(screen.getByRole('button', { name: /批次 1：Customer workflows/ }))
+    expect(screen.getByLabelText<HTMLSelectElement>(zh.revisions).value).toBe('1')
+    expect(screen.getByRole('button', { name: /批次 1：Customer workflows/ }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('renders typed revision lineage and derives runtime evidence without inventing unavailable metrics', () => {
+    const latest = { ...revision, revision: 2, parentRevision: 1, objective: 'Repair checkout' } as unknown as typeof revision
+    const run = {
+      id: 'run-2', graphId: 'g1', revision: 2, generation: 1, generationId: 'generation-1', ownerEpoch: 1,
+      configSnapshot: config, overrides: {}, phase: 'succeeded', createdAt: 2, updatedAt: 6,
+      terminal: { outcome: 'succeeded', rule: 'complete', acceptedAt: 6 },
+      nodes: {
+        a: { workId: 'work-a', nodeId: 'a', phase: 'succeeded', attempts: [{
+          id: 'attempt-a-1', number: 1, startedAt: 2, finishedAt: 3, childSessionId: 'child-a',
+        }, {
+          id: 'attempt-a', number: 2, startedAt: 2, finishedAt: 5, childSessionId: 'child-a',
+          continuationSessionIds: ['child-a-2'],
+          health: { status: 'active', startedAt: 2, estimatedReasoningTokens: 5, reasoningCharacters: 20, inputTokens: 100, outputTokens: 40, providerReasoningTokens: 12, toolCalls: 3, durableActions: 2, changedFileCount: 1, checkpointCount: 1 },
+        }] },
+        b: { workId: 'work-b', nodeId: 'b', phase: 'succeeded', attempts: [] },
+      },
+    } as unknown as GraphProjection['runs'][string]
+    const projection = {
+      config,
+      graphs: { g1: [revision, latest] },
+      currentGraphId: 'g1',
+      runs: { 'run-2': run },
+      operations: {}, settlements: {}, checkpoints: {}, campaigns: {},
+      controls: { human: { graphId: 'g1', expectedRevision: 2, action: 'modify-task' } },
+      submissions: {
+        second: {
+          graph: latest,
+          requestedAt: 2,
+          lineage: {
+            version: 1, taskId: 'g1', kind: 'execution_correction', title: 'Repair checkout', objective: 'Repair checkout',
+            reason: 'Review rejected checkout.', creator: 'controller', createdAt: 2,
+            trigger: { source: 'review_rejection', summary: 'Checkout validation failed.', evidence: ['HTTP 500'] },
+            relationships: [{ kind: 'corrects', graphId: 'g1', revision: 1, reason: 'Corrects failed checkout.' }],
+            successCriteria: ['Checkout succeeds'],
+            changes: { addedNodeIds: [], changedNodeIds: ['a'], removedNodeIds: [], preservedNodeIds: ['b'], invalidatedNodeIds: ['a', 'b'] },
+          },
+        },
+      },
+    } as unknown as GraphProjection
+    const items = graphRevisionLineageItems(projection)
+    expect(items[1]?.metrics).toMatchObject({
+      subagentCount: 2,
+      taskInteractions: 2,
+      inputTokens: 100,
+      outputTokens: 40,
+      reasoningTokens: 12,
+      toolCalls: 3,
+      retries: 1,
+      humanInteractions: 1,
+    })
+    expect(items[1]?.metrics.agentTurns).toBeUndefined()
+
+    setup(projection)
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['tab.revisions'] }))
+    expect(screen.getAllByText('Repair checkout')).toHaveLength(2)
+    expect(screen.getAllByText(zh['revision.kind.execution_correction'])).toHaveLength(2)
+    expect(screen.getByText('Checkout validation failed.')).toBeTruthy()
+    expect(screen.getByText('HTTP 500')).toBeTruthy()
+    expect(screen.getByText(zh['revision.unavailable'])).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: zh['revision.openDesign'] }))
+    expect(screen.getByRole('tab', { name: zh['tab.design'] }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('keeps one hundred revisions navigable through bounded expansion', () => {
+    const revisions = Array.from({ length: 101 }, (_, index) => ({
+      ...revision,
+      revision: index + 1,
+      createdAt: index + 1,
+      ...index === 0 ? {} : { parentRevision: index },
+    })) as unknown as GraphProjection['graphs'][string]
+    setup({ config, graphs: { g1: revisions }, currentGraphId: 'g1', runs: {}, submissions: {} } as unknown as GraphProjection)
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['tab.revisions'] }))
+    const list = screen.getByLabelText(zh['revision.listAria'])
+    expect(list.querySelectorAll('button')).toHaveLength(21)
+    fireEvent.click(screen.getByRole('button', { name: zh['revision.showAll'].replace('{count}', '101') }))
+    expect(list.querySelectorAll('button')).toHaveLength(101)
   })
 
   it('lays out dependencies left-to-right and exposes node evidence', () => {
@@ -185,6 +354,8 @@ describe('GraphAction', () => {
                   completedCriteria: [], changedFiles: [{ path: 'src/a.ts', contentHash: 'sha256:abc' }],
                   verification: [], remainingWork: ['known'], nextAction: 'Verify the change.',
                 }],
+              }, {
+                id: 'try-2', number: 2, startedAt: 4, finishedAt: 5, childSessionId: 'child-2',
               }],
             },
             b: { workId: 'work-b', nodeId: 'b', phase: 'succeeded', output: { summary: 'verified', artifacts: [] }, attempts: [] },
@@ -232,8 +403,11 @@ describe('GraphAction', () => {
     expect(screen.getByText(/coordination · attempt 1 · confirmed/)).toBeTruthy()
     expect(screen.getByText('LoopX accepted result')).toBeTruthy()
     expect(screen.getByText(zh['run.terminal'].replace('{rule}', 'all-required-nodes-settled'))).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: zh['attempt.open'] }))
-    expect(openSession).toHaveBeenCalledWith('child-1')
+    const openChildSession = screen.getByRole('button', { name: zh['attempt.open'] })
+    expect(openChildSession.closest('header')?.querySelector('h2')?.textContent).toBe('Analyze')
+    expect(openChildSession.closest('[data-attempt]')).toBeNull()
+    fireEvent.click(openChildSession)
+    expect(openSession).toHaveBeenCalledWith('child-2')
     fireEvent.keyDown(document, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
     expect(screen.getAllByText('verified')).toHaveLength(2)

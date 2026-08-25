@@ -13,8 +13,10 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
   GraphModeConfig,
+  GraphCampaign,
   GraphModelSelection,
   GraphCheckpoint,
+  GraphId,
   GraphNode,
   GraphNodeExecutionBudget,
   GraphNodeId,
@@ -30,6 +32,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type { GraphActionInjected } from './index.ts'
 import { NS, type GraphKey } from './locales.ts'
+import { RevisionLineage } from './RevisionLineage.tsx'
+import { cytoscapeColor } from './cytoscapeColor.ts'
+import { graphCanvasNodeTypography, graphFontFamily } from './graphTypography.ts'
 import css from './GraphAction.module.css'
 
 /** Full props for the session-header Graph Mode action. */
@@ -52,11 +57,7 @@ interface ModelChoice {
   readonly defaultReasoningEffort?: string
 }
 
-/** Typography applied to task labels on the primary DAG canvas. */
-export const graphCanvasNodeTypography = {
-  'font-size': 12,
-  'font-weight': 500,
-} as const
+export { graphCanvasNodeTypography } from './graphTypography.ts'
 
 /** Geometry applied to dependency edges on the primary DAG canvas. */
 export const graphCanvasEdgeGeometry = {
@@ -66,6 +67,11 @@ export const graphCanvasEdgeGeometry = {
   'control-point-weight': 0.5,
   'line-cap': 'round',
 } as const
+
+/** Return the audited plan revision that introduced one Campaign Batch. */
+export function graphCampaignBatchPlanRevision(campaign: GraphCampaign, batchId: GraphCampaign['batches'][number]['id']): number {
+  return campaign.planExtensions?.find(extension => extension.addedBatchIds.includes(batchId))?.revision ?? 1
+}
 
 /** Compute stable topological levels for the browser DAG canvas. */
 export function graphNodePoints(revision: GraphRevision): readonly NodePoint[] {
@@ -101,10 +107,10 @@ export function graphNodePoints(revision: GraphRevision): readonly NodePoint[] {
   })
 }
 
-function currentGraph(projection: GraphProjection): readonly GraphRevision[] | undefined {
-  return projection.currentGraphId === undefined
+function currentGraph(projection: GraphProjection, graphId = projection.currentGraphId): readonly GraphRevision[] | undefined {
+  return graphId === undefined
     ? undefined
-    : projection.graphs[projection.currentGraphId]
+    : projection.graphs[graphId]
 }
 
 function newestRun(projection: GraphProjection, revision: GraphRevision): GraphRun | undefined {
@@ -574,9 +580,16 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
       {run === undefined || run.attempts.length === 0
         ? null
         : <><h4>{t('attempts')}</h4>{run.attempts.map((attempt) => {
-          const childSessionId = attempt.childSessionId
+          const continuationSessionIds = attempt.continuationSessionIds ?? []
           return (
-            <div key={attempt.id} className={css.attempt}>
+            <div key={attempt.id} className={css.attempt} data-attempt={attempt.id}>
+              {continuationSessionIds.length === 0 ? null : <div className={css.attemptSessionActions}>
+                {continuationSessionIds.map((id, index) => (
+                  <button key={id} type="button" onClick={() => { openSession(id) }}>
+                    {t('attempt.openContinuation', { number: index + 1 })}
+                  </button>
+                ))}
+              </div>}
               <span>#{attempt.number} · {attempt.error?.message ?? (attempt.finishedAt === undefined ? 'running' : 'completed')}</span>
               <time>{new Date(attempt.startedAt).toLocaleString()} → {attempt.finishedAt === undefined ? '…' : new Date(attempt.finishedAt).toLocaleString()}</time>
               {attempt.error === undefined ? null : <code>{attempt.error.code}</code>}
@@ -616,18 +629,6 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
                 <summary>{t('attempt.checkpoint', { activation: checkpoint.activation, sequence: checkpoint.sequence })}</summary>
                 <pre>{JSON.stringify(checkpoint, null, 2)}</pre>
               </details>)}
-              {childSessionId === undefined
-                ? null
-                : (
-                  <button type="button" onClick={() => { openSession(childSessionId) }}>
-                    {t('attempt.open')}
-                  </button>
-                )}
-              {attempt.continuationSessionIds?.map((id, index) => (
-                <button key={id} type="button" onClick={() => { openSession(id) }}>
-                  {t('attempt.openContinuation', { number: index + 1 })}
-                </button>
-              ))}
             </div>
           )
         })}</>}
@@ -694,7 +695,7 @@ interface GraphPalette {
 
 function graphPalette(element: HTMLElement): GraphPalette {
   const styles = getComputedStyle(element)
-  const token = (name: string): string => styles.getPropertyValue(name).trim()
+  const token = (name: string): string => cytoscapeColor(styles.getPropertyValue(name).trim())
   return {
     background: token('--dsw-alias-bg-layer-1'),
     border: token('--dsw-alias-border-l4'),
@@ -764,7 +765,7 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
       style: [
         { selector: 'node', style: { 'background-color': 'data(color)', 'border-color': palette.background, 'border-width': 2, color: palette.labelInverted, label: 'data(label)', ...graphCanvasNodeTypography, 'text-wrap': 'wrap', 'text-max-width': '150px', width: 176, height: 58, shape: 'round-rectangle', 'text-valign': 'center', 'text-halign': 'center' } },
         { selector: 'node:selected', style: { 'border-color': palette.selected, 'border-width': 4, 'overlay-opacity': 0 } },
-        { selector: 'edge', style: { ...graphCanvasEdgeGeometry, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', label: 'data(label)', color: palette.label, 'font-size': 10, 'text-background-color': palette.background, 'text-background-opacity': 0.9, 'text-background-padding': '3px' } },
+        { selector: 'edge', style: { ...graphCanvasEdgeGeometry, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', label: 'data(label)', color: palette.label, 'font-family': graphFontFamily, 'font-size': 10, 'text-background-color': palette.background, 'text-background-opacity': 0.9, 'text-background-padding': '3px' } },
         { selector: 'edge.conditional', style: { 'line-style': 'dashed', 'line-color': palette.conditional, 'target-arrow-color': palette.conditional } },
       ],
       minZoom: 0.35,
@@ -787,7 +788,7 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
       },
       style: [
         { selector: 'node', style: { 'background-color': 'data(color)', width: 16, height: 10, shape: 'round-rectangle', label: '' } },
-        { selector: 'edge', style: { width: 1, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', 'curve-style': 'straight' } },
+        { selector: 'edge', style: { width: 1, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', 'curve-style': 'straight', 'font-family': graphFontFamily } },
       ],
       userPanningEnabled: false,
       userZoomingEnabled: false,
@@ -922,9 +923,10 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
   const projection = useProjection('graph')
   const models = useModels(state => state)
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<'design' | 'execution'>('design')
+  const [tab, setTab] = useState<'design' | 'execution' | 'revisions'>('design')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [nodeDialogOpen, setNodeDialogOpen] = useState(false)
+  const [selectedGraphId, setSelectedGraphId] = useState<GraphId>()
   const [revisionNumber, setRevisionNumber] = useState<number>()
   const [selected, setSelected] = useState<string>()
   const [draft, setDraft] = useState<GraphModeConfig>()
@@ -939,16 +941,24 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
   const [overrideReasoningBudget, setOverrideReasoningBudget] = useState('')
   const [suppliedOutput, setSuppliedOutput] = useState('{"summary":"","artifacts":[]}')
   const [modificationReason, setModificationReason] = useState('')
+  const requestedRevision = useRef<number>()
   const panelTitleId = useId()
   const settingsTitleId = useId()
   const nodeTitleId = useId()
-  const revisions = projection === undefined ? undefined : currentGraph(projection)
+  const viewedGraphId = selectedGraphId !== undefined && projection?.graphs[selectedGraphId] !== undefined
+    ? selectedGraphId
+    : projection?.currentGraphId
+  const revisions = projection === undefined ? undefined : currentGraph(projection, viewedGraphId)
+  const campaign = projection?.currentCampaignId === undefined
+    ? undefined
+    : projection.campaigns[projection.currentCampaignId]
   const revision = revisions?.find(item => item.revision === revisionNumber) ?? revisions?.at(-1)
   const run = projection !== undefined && revision !== undefined ? newestRun(projection, revision) : undefined
   const latestRevision = revisions?.at(-1)
   const latestRun = projection !== undefined && latestRevision !== undefined ? newestRun(projection, latestRevision) : undefined
   const selectedNode = revision?.nodes.find(node => node.id === selected)
   const selectedRun = selected === undefined ? undefined : run?.nodes[selected]
+  const selectedChildSessionId = selectedRun?.attempts.findLast(attempt => attempt.childSessionId !== undefined)?.childSessionId
   const workerRoles = (run?.configSnapshot ?? projection?.config)?.roles
     .filter(role => role.enabled && !role.controller) ?? []
   const overrideRoleValue = overrideRole
@@ -969,10 +979,14 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
     if (open) loadModels()
   }, [loadModels, open])
   useEffect(() => {
-    setRevisionNumber(revisions?.at(-1)?.revision)
+    const requested = requestedRevision.current
+    requestedRevision.current = undefined
+    setRevisionNumber(requested !== undefined && revisions?.some(item => item.revision === requested) === true
+      ? requested
+      : revisions?.at(-1)?.revision)
     setSelected(undefined)
     setNodeDialogOpen(false)
-  }, [projection?.currentGraphId, revisions?.length])
+  }, [viewedGraphId, revisions?.length])
   useEffect(() => {
     setOverrideRole('')
     setOverrideModel('')
@@ -1109,6 +1123,9 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                   <button type="button" role="tab" aria-selected={tab === 'execution'} data-active={tab === 'execution'} onClick={() => { setSettingsOpen(false); setTab('execution') }}>
                     {t('tab.execution')}
                   </button>
+                  <button type="button" role="tab" aria-selected={tab === 'revisions'} data-active={tab === 'revisions'} onClick={() => { setSettingsOpen(false); setTab('revisions') }}>
+                    {t('tab.revisions')}
+                  </button>
                 </nav>
                 <div className={css.headerActions}>
                   <button type="button" className={css.iconButton} aria-label={t('settings.open')} onClick={() => { setSettingsOpen(true) }}><IconSettingsOutline16 size={16} /></button>
@@ -1146,198 +1163,267 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                   ? <p className={css.empty}>{t('empty')}</p>
                   : (
                     <div className={css.graphView}>
+                      {campaign === undefined ? null : <nav className={css.campaign} aria-label={t('campaign.aria')}>
+                        <div className={css.campaignHeading}>
+                          <span>{t('campaign.planRevision', { revision: campaign.planRevision ?? 1 })}</span>
+                          <strong>{campaign.objective}</strong>
+                        </div>
+                        <div className={css.campaignTrack}>
+                          {campaign.batches.map((batch) => {
+                            const execution = batch.executions.at(-1)
+                            const planRevision = graphCampaignBatchPlanRevision(campaign, batch.id)
+                            const planExtension = campaign.planExtensions?.find(extension => extension.revision === planRevision)
+                            const active = batch.graphId !== undefined && batch.graphId === viewedGraphId
+                            return <button
+                              key={batch.id}
+                              type="button"
+                              className={css.campaignBatch}
+                              data-active={active}
+                              data-status={batch.status}
+                              disabled={batch.graphId === undefined}
+                              aria-pressed={active}
+                              aria-label={t('campaign.batchAria', { ordinal: batch.ordinal, title: batch.title, status: batch.status })}
+                              title={[
+                                execution?.summary ?? batch.objective,
+                                planExtension?.reason,
+                                planExtension?.sourceBatchId === undefined ? undefined : t('campaign.planSource', {
+                                  batchId: planExtension.sourceBatchId,
+                                  runId: planExtension.sourceRunId ?? '—',
+                                  settlements: planExtension.settlementIds.length,
+                                }),
+                              ].filter(item => item !== undefined).join('\n')}
+                              onClick={() => {
+                                if (batch.graphId !== undefined) {
+                                  setRevisionNumber(undefined)
+                                  setSelectedGraphId(batch.graphId)
+                                }
+                              }}
+                            >
+                              <span className={css.campaignOrdinal}>{String(batch.ordinal).padStart(2, '0')}</span>
+                              <span className={css.campaignBatchText}>
+                                <strong>{batch.title}</strong>
+                                <small>{t(`campaign.status.${batch.status}`)}</small>
+                              </span>
+                              <span className={css.campaignMetric}>p{planRevision} · {execution === undefined
+                                ? t('campaign.notStarted')
+                                : `r${execution.revision} · ${execution.settlementIds.length} ${t('campaign.settlements')}`}</span>
+                            </button>
+                          })}
+                        </div>
+                      </nav>}
                       <div className={css.graphMain}>
-                        <label className={css.revision}>
-                          {t('revisions')}
-                          <select value={revision.revision} onChange={(event) => {
-                            setRevisionNumber(Number(event.target.value))
+                        {tab === 'revisions' ? <RevisionLineage
+                          projection={projection}
+                          selectedGraphId={viewedGraphId}
+                          selectedRevision={revision.revision}
+                          selectRevision={(graphId, selectedRevision, view) => {
+                            requestedRevision.current = selectedRevision
+                            setSelectedGraphId(graphId)
+                            setRevisionNumber(selectedRevision)
                             setSelected(undefined)
-                          }}>
-                            {revisions.map(item => (
-                              <option key={item.revision} value={item.revision}>r{item.revision}</option>
-                            ))}
-                          </select>
-                          {latestRevision !== undefined && revision.revision < latestRevision.revision && latestRun !== undefined
-                            ? <button type="button" onClick={() => { operate('rollback', { targetRevision: revision.revision }, latestRun) }}>{t('control.rollback')}</button>
-                            : null}
-                        </label>
-                        {run === undefined
-                          ? <p>{t('run.none')}</p>
-                          : <div className={css.runBar}><p className={css.phase}>{run.phase}</p>
-                            {!['succeeded', 'failed', 'canceled', 'exhausted', 'paused', 'awaiting_user'].includes(run.phase)
-                              ? <button type="button" onClick={() => { operate('pause-run') }}><IconPauseOutline16 size={14} />{t('control.pauseRun')}</button>
+                            if (view !== undefined) setTab(view)
+                          }}
+                          t={t}
+                        /> : <>
+                          <label className={css.revision}>
+                            {t('revisions')}
+                            <select value={revision.revision} onChange={(event) => {
+                              setRevisionNumber(Number(event.target.value))
+                              setSelected(undefined)
+                            }}>
+                              {revisions.map(item => (
+                                <option key={item.revision} value={item.revision}>r{item.revision}</option>
+                              ))}
+                            </select>
+                            {latestRevision !== undefined && revision.revision < latestRevision.revision && latestRun !== undefined
+                              ? <button type="button" onClick={() => { operate('rollback', { targetRevision: revision.revision }, latestRun) }}>{t('control.rollback')}</button>
                               : null}
-                            {run.phase === 'awaiting_user'
-                              ? <button type="button" onClick={() => { operate('reconcile-run') }}>{t('control.reconcile')}</button>
-                              : null}
-                            {!['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
-                              ? <button type="button" onClick={() => { operate('cancel-run') }}><IconStopFill16 size={14} />{t('control.cancelRun')}</button>
-                              : null}
+                          </label>
+                          {run === undefined
+                            ? <p>{t('run.none')}</p>
+                            : <div className={css.runBar}><p className={css.phase}>{run.phase}</p>
+                              {!['succeeded', 'failed', 'canceled', 'exhausted', 'paused', 'awaiting_user'].includes(run.phase)
+                                ? <button type="button" onClick={() => { operate('pause-run') }}><IconPauseOutline16 size={14} />{t('control.pauseRun')}</button>
+                                : null}
+                              {['queued', 'running', 'paused', 'awaiting_user'].includes(run.phase)
+                                ? <button type="button" onClick={() => { operate('reconcile-run') }}>{t('control.reconcile')}</button>
+                                : null}
+                              {!['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
+                                ? <button type="button" onClick={() => { operate('cancel-run') }}><IconStopFill16 size={14} />{t('control.cancelRun')}</button>
+                                : null}
+                            </div>}
+                          {run?.error === undefined
+                            ? null
+                            : <p role="status">{t('run.error', { code: run.error.code, message: run.error.message })}</p>}
+                          {controlError === undefined ? null : <p role="status">{controlError}</p>}
+                          {checkpoint === undefined ? null : <div className={css.checkpoint}>
+                            <strong>{checkpoint.kind}</strong><span>{checkpoint.reason}</span>
+                            <button type="button" onClick={() => { operate('approve-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.approve')}</button>
+                            <button type="button" onClick={() => { operate('reject-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.reject')}</button>
                           </div>}
-                        {run?.error === undefined
-                          ? null
-                          : <p role="status">{t('run.error', { code: run.error.code, message: run.error.message })}</p>}
-                        {controlError === undefined ? null : <p role="status">{controlError}</p>}
-                        {checkpoint === undefined ? null : <div className={css.checkpoint}>
-                          <strong>{checkpoint.kind}</strong><span>{checkpoint.reason}</span>
-                          <button type="button" onClick={() => { operate('approve-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.approve')}</button>
-                          <button type="button" onClick={() => { operate('reject-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.reject')}</button>
-                        </div>}
-                        {tab === 'design'
-                          ? <section className={css.graphSection} data-view="design">
-                            <GraphCanvas mode="design" revision={revision} run={run} selected={selected} select={setSelected} t={t} />
-                          </section>
-                          : <section className={css.graphSection} data-view="execution">
-                            <div className={css.executionGraph}>
-                              <GraphCanvas
-                                mode="execution"
+                          {tab === 'design'
+                            ? <section className={css.graphSection} data-view="design">
+                              <GraphCanvas mode="design" revision={revision} run={run} selected={selected} select={setSelected} t={t} />
+                            </section>
+                            : <section className={css.graphSection} data-view="execution">
+                              <div className={css.executionGraph}>
+                                <GraphCanvas
+                                  mode="execution"
+                                  revision={revision}
+                                  run={run}
+                                  selected={selected}
+                                  select={inspectNode}
+                                  t={t}
+                                />
+                              </div>
+                              <ExecutionRecords
                                 revision={revision}
                                 run={run}
+                                config={config}
                                 selected={selected}
                                 select={inspectNode}
                                 t={t}
                               />
-                            </div>
-                            <ExecutionRecords
-                              revision={revision}
-                              run={run}
-                              config={config}
-                              selected={selected}
-                              select={inspectNode}
-                              t={t}
-                            />
-                          </section>}
-                        {nodeDialogOpen && selectedNode !== undefined ? <div className={css.subOverlay} role="presentation">
-                          <div className={css.mask} aria-hidden="true" onClick={() => { setNodeDialogOpen(false) }} />
-                          <div className={css.nodeDialog} role="dialog" aria-modal="true" aria-labelledby={nodeTitleId}>
-                            <header className={css.modalHeader}>
-                              <div>
-                                <span className={css.modalEyebrow}>{t('node.details')}</span>
-                                <h2 id={nodeTitleId}>{selectedNode.title}</h2>
-                              </div>
-                              <button
-                                type="button"
-                                className={css.iconButton}
-                                aria-label={t('close')}
-                                autoFocus
-                                onClick={() => { setNodeDialogOpen(false) }}
-                              >
-                                <IconCloseOutline16 size={16} />
-                              </button>
-                            </header>
-                            <div className={css.nodeDialogBody}>
-                              <NodeDetails
-                                node={selectedNode}
-                                run={selectedRun}
-                                graphRun={run}
-                                revision={revision}
-                                operations={selectedRun === undefined || run === undefined
-                                  ? []
-                                  : (projection.operations[selectedRun.workId] ?? []).filter(item => (
-                                    item.runId === run.id && item.generationId === run.generationId
-                                  ))}
-                                settlements={selectedRun === undefined || run === undefined
-                                  ? []
-                                  : Object.values(projection.settlements).flat().filter(item => item.workId === selectedRun.workId
-                                  && item.runId === run.id && item.generationId === run.generationId)}
-                                checkpoints={run === undefined
-                                  ? []
-                                  : Object.values(projection.checkpoints).filter(item => (
-                                    item.runId === run.id && item.nodeId === selectedNode.id
-                                  ))}
-                                openSession={openSession}
-                                t={t}
-                              />
-                              {controls.length === 0 ? null : <section className={css.controlTimeline}>
-                                <h3>{t('control.timeline')}</h3>
-                                {controls.map(item => <div key={item.id}>
-                                  <strong>{item.action}</strong>
-                                  <span>{item.actor.kind}:{item.actor.id} · {item.source}</span>
-                                  <span>
-                                    g{item.expectedGeneration} → {item.resultingGeneration ?? item.expectedGeneration}
-                                    {' · '}{item.result.outcome}
-                                  </span>
-                                  <time>{new Date(item.completedAt).toLocaleString()}</time>
-                                </div>)}
-                              </section>}
-                              {run === undefined ? null : <div className={css.nodeControls}>
-                                <div className={css.supplyControls}>
-                                  <label>{t('control.modifyLabel')}<textarea value={modificationReason} onChange={(event) => { setModificationReason(event.target.value) }} /></label>
-                                  <button type="button" onClick={requestModification}><IconEditOutline16 size={14} />{t('control.modify')}</button>
+                            </section>}
+                          {nodeDialogOpen && selectedNode !== undefined ? <div className={css.subOverlay} role="presentation">
+                            <div className={css.mask} aria-hidden="true" onClick={() => { setNodeDialogOpen(false) }} />
+                            <div className={css.nodeDialog} role="dialog" aria-modal="true" aria-labelledby={nodeTitleId}>
+                              <header className={css.modalHeader}>
+                                <div>
+                                  <span className={css.modalEyebrow}>{t('node.details')}</span>
+                                  <h2 id={nodeTitleId}>{selectedNode.title}</h2>
                                 </div>
-                                {selectedRun?.phase === 'running'
-                                  ? <button type="button" onClick={() => { operate('cancel-node', { nodeId: selectedNode.id }) }}><IconStopFill16 size={14} />{t('control.cancelNode')}</button>
-                                  : null}
-                                {selectedRun !== undefined && ['failed', 'canceled', 'exhausted', 'blocked'].includes(selectedRun.phase)
-                                  ? <button type="button" onClick={() => { operate('retry-node', { nodeId: selectedNode.id }) }}>{t('control.retry')}</button>
-                                  : null}
-                                {['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
-                                  ? <button type="button" onClick={() => { operate('resume-from-node', { nodeId: selectedNode.id }) }}>{t('control.resume')}</button>
-                                  : null}
-                                {selectedNode.skippable && !['succeeded', 'skipped'].includes(selectedRun?.phase ?? '')
-                                  ? <button type="button" onClick={() => { operate('skip-node', { nodeId: selectedNode.id }) }}>{t('control.skip')}</button>
-                                  : null}
-                                {selectedRun !== undefined && ['failed', 'canceled', 'exhausted', 'blocked', 'awaiting_user'].includes(selectedRun.phase)
-                                  ? <div className={css.supplyControls}>
-                                    <label>{t('control.supplyOutputLabel')}<textarea value={suppliedOutput} onChange={(event) => { setSuppliedOutput(event.target.value) }} /></label>
-                                    <button type="button" onClick={applySuppliedOutput}>{t('control.supplyOutput')}</button>
+                                <div className={css.modalHeaderActions}>
+                                  {selectedChildSessionId === undefined ? null : <button
+                                    type="button"
+                                    className={css.primarySessionButton}
+                                    onClick={() => { openSession(selectedChildSessionId) }}
+                                  >{t('attempt.open')}</button>}
+                                  <button
+                                    type="button"
+                                    className={css.iconButton}
+                                    aria-label={t('close')}
+                                    autoFocus
+                                    onClick={() => { setNodeDialogOpen(false) }}
+                                  >
+                                    <IconCloseOutline16 size={16} />
+                                  </button>
+                                </div>
+                              </header>
+                              <div className={css.nodeDialogBody}>
+                                <NodeDetails
+                                  node={selectedNode}
+                                  run={selectedRun}
+                                  graphRun={run}
+                                  revision={revision}
+                                  operations={selectedRun === undefined || run === undefined
+                                    ? []
+                                    : (projection.operations[selectedRun.workId] ?? []).filter(item => (
+                                      item.runId === run.id && item.generationId === run.generationId
+                                    ))}
+                                  settlements={selectedRun === undefined || run === undefined
+                                    ? []
+                                    : Object.values(projection.settlements).flat().filter(item => item.workId === selectedRun.workId
+                                  && item.runId === run.id && item.generationId === run.generationId)}
+                                  checkpoints={run === undefined
+                                    ? []
+                                    : Object.values(projection.checkpoints).filter(item => (
+                                      item.runId === run.id && item.nodeId === selectedNode.id
+                                    ))}
+                                  openSession={openSession}
+                                  t={t}
+                                />
+                                {controls.length === 0 ? null : <section className={css.controlTimeline}>
+                                  <h3>{t('control.timeline')}</h3>
+                                  {controls.map(item => <div key={item.id}>
+                                    <strong>{item.action}</strong>
+                                    <span>{item.actor.kind}:{item.actor.id} · {item.source}</span>
+                                    <span>
+                                      g{item.expectedGeneration} → {item.resultingGeneration ?? item.expectedGeneration}
+                                      {' · '}{item.result.outcome}
+                                    </span>
+                                    <time>{new Date(item.completedAt).toLocaleString()}</time>
+                                  </div>)}
+                                </section>}
+                                {run === undefined ? null : <div className={css.nodeControls}>
+                                  <div className={css.supplyControls}>
+                                    <label>{t('control.modifyLabel')}<textarea value={modificationReason} onChange={(event) => { setModificationReason(event.target.value) }} /></label>
+                                    <button type="button" onClick={requestModification}><IconEditOutline16 size={14} />{t('control.modify')}</button>
                                   </div>
-                                  : null}
-                                {selectedRun?.phase === 'running' || ['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
-                                  ? <div className={css.overrideControls}>
-                                    <label>
-                                      {t('control.overrideRole')}
-                                      <select value={overrideRoleValue} onChange={(event) => { setOverrideRole(event.target.value) }}>
-                                        {workerRoles.map(role => (
-                                          <option key={role.id} value={role.id}>{role.label}</option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                    <label>
-                                      {t('control.overrideModel')}
-                                      <select value={overrideModel} onChange={(event) => {
-                                        const choice = modelChoices(models).find(item => item.key === event.target.value)
-                                        setOverrideModel(event.target.value)
-                                        setOverrideReasoning(choice?.defaultReasoningEffort ?? '')
-                                      }}>
-                                        <option value="">{t('model.inherit')}</option>
-                                        {modelChoices(models).map(choice => (
-                                          <option key={choice.key} value={choice.key}>{choice.label}</option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                    <label>
-                                      {t('control.overrideReasoning')}
-                                      <input
-                                        value={overrideReasoning}
-                                        disabled={overrideModel !== '' && modelChoices(models).find(item => item.key === overrideModel)?.reasoningEfforts === undefined}
-                                        list="graph-override-reasoning"
-                                        onChange={(event) => { setOverrideReasoning(event.target.value) }}
-                                      />
-                                      <datalist id="graph-override-reasoning">
-                                        {modelChoices(models).find(item => item.key === overrideModel)?.reasoningEfforts
-                                          ?.map(effort => <option key={effort} value={effort} />)}
-                                      </datalist>
-                                    </label>
-                                    <label>
-                                      {t('control.overrideWorker')}
-                                      <input value={overrideWorker} onChange={(event) => { setOverrideWorker(event.target.value) }} />
-                                    </label>
-                                    <label>
-                                      {t('control.overrideMaxOutput')}
-                                      <input type="number" min={1} value={overrideMaxOutput} onChange={(event) => { setOverrideMaxOutput(event.target.value) }} />
-                                    </label>
-                                    <label>
-                                      {t('control.overrideReasoningBudget')}
-                                      <input type="number" min={1} value={overrideReasoningBudget} onChange={(event) => { setOverrideReasoningBudget(event.target.value) }} />
-                                    </label>
-                                    <button type="button" onClick={applyOverride}>{t('control.override')}</button>
-                                  </div>
-                                  : null}
-                              </div>}
+                                  {selectedRun?.phase === 'running'
+                                    ? <button type="button" onClick={() => { operate('cancel-node', { nodeId: selectedNode.id }) }}><IconStopFill16 size={14} />{t('control.cancelNode')}</button>
+                                    : null}
+                                  {selectedRun !== undefined && ['failed', 'canceled', 'exhausted', 'blocked'].includes(selectedRun.phase)
+                                    ? <button type="button" onClick={() => { operate('retry-node', { nodeId: selectedNode.id }) }}>{t('control.retry')}</button>
+                                    : null}
+                                  {['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
+                                    ? <button type="button" onClick={() => { operate('resume-from-node', { nodeId: selectedNode.id }) }}>{t('control.resume')}</button>
+                                    : null}
+                                  {selectedNode.skippable && !['succeeded', 'skipped'].includes(selectedRun?.phase ?? '')
+                                    ? <button type="button" onClick={() => { operate('skip-node', { nodeId: selectedNode.id }) }}>{t('control.skip')}</button>
+                                    : null}
+                                  {selectedRun !== undefined && ['failed', 'canceled', 'exhausted', 'blocked', 'awaiting_user'].includes(selectedRun.phase)
+                                    ? <div className={css.supplyControls}>
+                                      <label>{t('control.supplyOutputLabel')}<textarea value={suppliedOutput} onChange={(event) => { setSuppliedOutput(event.target.value) }} /></label>
+                                      <button type="button" onClick={applySuppliedOutput}>{t('control.supplyOutput')}</button>
+                                    </div>
+                                    : null}
+                                  {selectedRun?.phase === 'running' || ['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)
+                                    ? <div className={css.overrideControls}>
+                                      <label>
+                                        {t('control.overrideRole')}
+                                        <select value={overrideRoleValue} onChange={(event) => { setOverrideRole(event.target.value) }}>
+                                          {workerRoles.map(role => (
+                                            <option key={role.id} value={role.id}>{role.label}</option>
+                                          ))}
+                                        </select>
+                                      </label>
+                                      <label>
+                                        {t('control.overrideModel')}
+                                        <select value={overrideModel} onChange={(event) => {
+                                          const choice = modelChoices(models).find(item => item.key === event.target.value)
+                                          setOverrideModel(event.target.value)
+                                          setOverrideReasoning(choice?.defaultReasoningEffort ?? '')
+                                        }}>
+                                          <option value="">{t('model.inherit')}</option>
+                                          {modelChoices(models).map(choice => (
+                                            <option key={choice.key} value={choice.key}>{choice.label}</option>
+                                          ))}
+                                        </select>
+                                      </label>
+                                      <label>
+                                        {t('control.overrideReasoning')}
+                                        <input
+                                          value={overrideReasoning}
+                                          disabled={overrideModel !== '' && modelChoices(models).find(item => item.key === overrideModel)?.reasoningEfforts === undefined}
+                                          list="graph-override-reasoning"
+                                          onChange={(event) => { setOverrideReasoning(event.target.value) }}
+                                        />
+                                        <datalist id="graph-override-reasoning">
+                                          {modelChoices(models).find(item => item.key === overrideModel)?.reasoningEfforts
+                                            ?.map(effort => <option key={effort} value={effort} />)}
+                                        </datalist>
+                                      </label>
+                                      <label>
+                                        {t('control.overrideWorker')}
+                                        <input value={overrideWorker} onChange={(event) => { setOverrideWorker(event.target.value) }} />
+                                      </label>
+                                      <label>
+                                        {t('control.overrideMaxOutput')}
+                                        <input type="number" min={1} value={overrideMaxOutput} onChange={(event) => { setOverrideMaxOutput(event.target.value) }} />
+                                      </label>
+                                      <label>
+                                        {t('control.overrideReasoningBudget')}
+                                        <input type="number" min={1} value={overrideReasoningBudget} onChange={(event) => { setOverrideReasoningBudget(event.target.value) }} />
+                                      </label>
+                                      <button type="button" onClick={applyOverride}>{t('control.override')}</button>
+                                    </div>
+                                    : null}
+                                </div>}
+                              </div>
                             </div>
-                          </div>
-                        </div> : null}
+                          </div> : null}
+                        </>}
                       </div>
                     </div>
                   )}
