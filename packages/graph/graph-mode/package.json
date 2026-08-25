@@ -31,7 +31,9 @@
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-session-projection": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^",
+    "@deepseek-ai/dsh-shell": "workspace:^",
     "@deepseek-ai/dsh-subagent": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
@@ -42,7 +44,9 @@
     "@deepseek-ai/dsh-graph-coordination": { "optional": true },
     "@deepseek-ai/dsh-graph-artifacts": { "optional": true },
     "@deepseek-ai/dsh-graph-resources": { "optional": true },
-    "@deepseek-ai/dsh-graph-scheduler": { "optional": true }
+    "@deepseek-ai/dsh-graph-scheduler": { "optional": true },
+    "@deepseek-ai/dsh-session-projection": { "optional": true },
+    "@deepseek-ai/dsh-shell": { "optional": true }
   },
   "devDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
@@ -56,7 +60,9 @@
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-session-projection": "workspace:^",
     "@deepseek-ai/dsh-settings": "workspace:^",
+    "@deepseek-ai/dsh-shell": "workspace:^",
     "@deepseek-ai/dsh-scope": "workspace:^",
     "@deepseek-ai/dsh-subagent": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",

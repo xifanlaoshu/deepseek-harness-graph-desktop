@@ -42,6 +42,8 @@ export interface GraphCoordinationClaim {
   readonly expiresAt: number
   readonly fencingToken: number
   readonly observation: string
+  /** Existing terminal result returned instead of reacquiring a completed activation. */
+  readonly terminal?: { readonly outcome: GraphCoordinationSettlement['outcome']; readonly evidence: string }
 }
 
 /** Result facts safe to write to the coordination control plane. */
@@ -230,7 +232,18 @@ export class MemoryGraphCoordination extends GraphCoordination {
   claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim> {
     signal.throwIfAborted()
     const state = this.state(request.activationId)
-    if (state.terminal !== undefined) throw new Error(`graph activation ${request.activationId} is already terminal`)
+    if (state.terminal !== undefined) {
+      const prior = state.claim
+      return Promise.resolve({
+        claimId: prior?.claimId ?? `terminal:${request.activationId}`,
+        todoId: prior?.todoId ?? `todo:${request.activationId}`,
+        leaseId: prior?.leaseId ?? `terminal:${request.activationId}`,
+        expiresAt: prior?.expiresAt ?? 0,
+        fencingToken: prior?.fencingToken ?? 0,
+        observation: JSON.stringify({ schema: 'dsh-memory-coordination-v3', activationId: request.activationId, terminal: true }),
+        terminal: { outcome: state.terminal.outcome, evidence: state.terminal.evidence },
+      })
+    }
     const now = Date.now()
     if (state.claim !== undefined && state.claim.expiresAt > now && state.owner !== request.callerId) {
       throw new Error(`graph activation ${request.activationId} has an unexpired owner`)

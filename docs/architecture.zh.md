@@ -103,13 +103,17 @@ turn/end
 
 [`dsh-graph`](../packages/graph/graph/README.zh.md) 在不修改 agent loop 的前提下增加会话所有的多代理编排领域。`/graph` 激活主控策略和 `graph_submit` 工具。主控会判断之后的每次人类输入：新任务创建新的不可变 DAG；调整则为当前任务图创建下一个修订。任务图定义和完整运行快照都是会话事件，因此重新加载、检查和 Web 投影会重建相同的修订与证据。
 
+有顺序的长目标会在 Revision 层之上使用 Campaign。每个 Batch 拥有独立 Graph 且只包含当前工作；Campaign Event 保留 Batch 依赖、状态、紧凑结果与 Settlement 引用。已登记 Batch 定义构成不可变前缀；全部已登记 Batch 验收后，主控可以把新发现的有序后缀作为可审计计划修订追加，并持久保留原因、前序 Run 与 Settlement 证据。成功 Batch 通过主控 Follow-up 激活下一个就绪 Batch，修正则只调整失败 Batch Graph。这样会把跨任务历史与任务内修订谱系分开，避免已完成节点不断堆积到后续 DAG。
+
 [`dsh-graph-mode`](../packages/graph/graph-mode/README.zh.md) 通过 [`dsh-graph-worker`](../packages/graph/graph-worker/README.zh.md) 接口调度已就绪节点。必需边要求前置节点完成；结构化条件边只检查已发布 JSON，不包含可执行代码。修订先找出直接变更节点，再按拓扑顺序让所有传递后继失效。不在该闭包内的成功节点保留已发布输出，并记录明确来源。子代理启动前，准入器同时执行全局、角色、精确提供方／模型及可选加权限额；主控预留会阻止 worker 饱和占用全部配置许可。可选的 [`dsh-graph-resources`](../packages/graph/graph-resources/README.zh.md) 提供方可以根据会过期的路由遥测进一步延迟或拒绝工作，但不能提高这些静态上限。
+
+宿主变更使用显式环境节点，而不是扩大 Worker 权限。主控会在依赖它的工程工作之前放置有界的精确命令计划，并列出所需的网络、包安装或 Docker 能力。部署策略校验计划后，Graph 会停在人工检查点。批准仅对下一个执行 Generation 生效；Graph Mode 通过 Shell 能力执行不可变命令并记录稳定 Settlement，绝不会给模型子 agent 开放式高权限轮次。失败、不确定或回滚副作用都需要新的人工决定。
 
 每个不可变节点都携带已解析的执行预算，覆盖模型输出、无持久进度的推理、首次动作、进度静默、检查点、墙钟时间和续跑次数。准入前，Graph Mode 会解析精确 LLM 路由、校验推理强度、用实时资源信息共同限制输出与并行度，并把实际模型画像保存在 Attempt 中。子会话事件会把模型活动与可恢复工程进度分开；只有成功的文件修改、聚焦验证命令和已接受的结构化结果会推进检查点。达到 token 上限或被看门狗终止的 Activation 只能从持久检查点续跑。停止时没有检查点则会把精确路由、容量、预算、计数器和最新证据交回主控；主控必须把不安全工作修订成 10–30 分钟且可独立验证的节点，而不能重新分派同一粗粒度任务。
 
-整图运行所有权与节点执行相互独立。[`dsh-graph-scheduler`](../packages/graph/graph-scheduler/README.zh.md) 向获准推进运行的 Host 授予一个可过期且带围栏的租约；Graph Mode 在调度期间持续发送心跳，并将其 token 用作 `ownerEpoch`。SQLite Provider 在本地 Host 进程之间串行化所有权，并在租约过期和重启后保留 fencing 计数。多 Host 部署应替换为经过认证的分布式 Provider；LoopX 节点 claim 不能替代这一租约。
+整图运行所有权与节点执行相互独立。[`dsh-graph-scheduler`](../packages/graph/graph-scheduler/README.zh.md) 向获准推进运行的 Host 授予一个可过期且带围栏的租约；Graph Mode 在调度期间持续发送心跳，并将其 token 用作 `ownerEpoch`。恢复扫描会重新取得没有本地执行器的 `queued` 或 `running` 持久工作，而仍然存活的租约会阻止重复执行。Graph 状态读取会优先使用持续增量维护的 Session Projection，避免大日志阻塞租约 Heartbeat。SQLite Provider 在本地 Host 进程之间串行化所有权，并在租约过期和重启后保留 fencing 计数。多 Host 部署应替换为经过认证的分布式 Provider；LoopX 节点 claim 不能替代这一租约。
 
-外部进度协调是独立的 capability seam。[`dsh-graph-coordination`](../packages/graph/graph-coordination/README.zh.md) 管理准备、带围栏的认领、心跳、观察与等待、有限进度、取消、结算和对账；[LoopX 提供方](../packages/graph/graph-coordination-loopx/README.zh.md) 将这些操作映射到已有 goal 和已注册 peer。Graph 在接受终态前持久化操作、Worker、工作区、模型预留、产物、结算、检查点和人工控制证据。Harness 仍是执行和会话轨迹的权威来源。协调记录只接收有长度上限且可公开的摘要，子代理消息和工具事件保留在对应子会话中。
+外部进度协调是独立的 capability seam。[`dsh-graph-coordination`](../packages/graph/graph-coordination/README.zh.md) 管理准备、带围栏的认领、心跳、观察与等待、有限进度、取消、结算和对账；[LoopX 提供方](../packages/graph/graph-coordination-loopx/README.zh.md) 将这些操作映射到已有 goal 和已注册 peer。认领已经终态的 Activation 时会返回其已接受的 Terminal Disposition，绝不会再次分派 Worker。Graph 在接受终态前持久化操作、Worker、工作区、模型预留、产物、结算、检查点和人工控制证据。Harness 仍是执行和会话轨迹的权威来源。协调记录只接收有长度上限且可公开的摘要，子代理消息和工具事件保留在对应子会话中。
 
 产物传输也是可替换的 Seam。[`dsh-graph-artifacts`](../packages/graph/graph-artifacts/README.zh.md) 把每份 Manifest 绑定到一个带 Fencing 的 Attempt，并校验路径、结果 Hash、源 Hash、总字节数和 Provider 所有权。隔离实现 Attempt 会把完整 Manifest 持久化到 Graph 运行证据。集成节点收集所有传递上游 Manifest，在任何 Materialize 之前拒绝同路径分歧和源工作区漂移，以稳定 Settlement 导入每份 Manifest，并让自身已接受的 Manifest 通过相同检查。文件系统 Provider 为共享同一文件系统的 Host 存储不可变 Blob；经过认证的对象存储或 RPC Provider 可以替换它，而无需修改 Graph Mode 或 Worker Assignment。
 

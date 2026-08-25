@@ -412,9 +412,9 @@ flowchart TD
 
 ## 进程与传输行为
 
-LoopX provider 只解析一次配置的 executable，并为每次 CLI 操作启动一个新 subprocess。`executableArgs` 插在 executable 之后、LoopX 参数之前；可选 registry 路径会传给每次调用。Subprocess 继承任务图取消信号，使用可配置终止宽限期，忽略 stdin，最多捕获 1 MiB stdout 和 128 KiB stderr，并要求退出码为零且 stdout 中包含一个 JSON object。
+LoopX Provider 同时支持逐操作进程和常驻 stdio Broker。Persistent Transport 在 Provider 生命周期内只启动一个 Launcher 进程，并通过其管道 stdin 与 stdout 发送带版本号的请求。Broker 串行执行 LoopX CLI 子进程，分别应用每次操作的 Deadline、取消、终止宽限期和输出限制，并在销毁时停止全部自有子进程。Broker 异常退出会拒绝正在执行的操作；后续调用会启动新 Broker，但不会重放结果不确定的修改。默认最多保留 8 MiB stdout 和 1 MiB stderr，成功响应要求退出码为零且 stdout 中包含一个 JSON Object。
 
-`pathStyle: wsl` 会把 LoopX WSL 进程所解释参数中的 Windows 盘符路径转换为 `/mnt/<drive>/...`。因此 executable 前缀可以使用 `wsl.exe`、发行版选择参数、`--` 和 WSL LoopX 路径，provider 不会改写该前缀。
+`pathStyle: wsl` 会把 Registry 和每次操作工作目录中的 Windows 盘符路径转换为 `/mnt/<drive>/...`。使用 Persistent Transport 时，`executable` 与 `executableArgs` 启动 WSL 执行环境，`brokerPythonExecutable` 与 `brokerCommand` 则指定其中的 Python 与 LoopX。
 
 ```yaml
 - id: graph-coordination-loopx
@@ -429,7 +429,10 @@ LoopX provider 只解析一次配置的 executable，并为每次 CLI 操作启�
       verifier: verifier-peer
       writer: writer-peer
     executable: wsl.exe
-    executableArgs: [-d, Ubuntu, --, /root/.local/bin/loopx]
+    executableArgs: [-d, Ubuntu, --exec]
+    transport: persistent
+    brokerPythonExecutable: python3
+    brokerCommand: /root/.local/bin/loopx
     pathStyle: wsl
     registry: D:\project\.loopx\registry.json
     graceMs: 10000

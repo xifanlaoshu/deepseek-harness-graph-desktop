@@ -1,4 +1,4 @@
-import { PassThrough } from 'node:stream'
+import { PassThrough, Writable } from 'node:stream'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -12,10 +12,12 @@ import { GraphActivationId, GraphControlOperationId, GraphRunId, GraphSettlement
 import type { GraphRevision, GraphRole } from '@deepseek-ai/dsh-graph'
 import LoopxGraphCoordination from '../src/index.ts'
 import * as LoopxInvariant from '../src/invariant.ts'
+import { PersistentLoopxBroker } from '../src/broker.ts'
 import { runGraphCoordinationContract } from '../../graph-coordination/tests/contract.ts'
 
 class FakeSubprocess extends SubprocessRuntime {
   readonly argv: readonly string[][] = []
+  readonly specs: SubprocessSpawnSpec[] = []
   readonly responses: Array<{
     readonly stdout?: unknown
     readonly stderr?: string
@@ -24,11 +26,14 @@ class FakeSubprocess extends SubprocessRuntime {
     readonly omitStderr?: boolean
     readonly doneWait?: Promise<void>
     readonly waitForAbort?: boolean
+    readonly stdoutLossy?: boolean
+    readonly stderrLossy?: boolean
   }> = []
   private leaseVersion = 0
   async resolveExecutable(command: string): Promise<string> { return command }
   spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
     ;(this.argv as string[][]).push([...spec.argv])
+    this.specs.push(spec)
     const args = spec.argv.join(' ')
     const expectedVersionIndex = spec.argv.indexOf('--expected-version')
     const expectedVersion = expectedVersionIndex < 0 ? this.leaseVersion : Number(spec.argv[expectedVersionIndex + 1])
@@ -56,7 +61,7 @@ class FakeSubprocess extends SubprocessRuntime {
     }
     const text = typeof value === 'string' ? value : JSON.stringify(value)
     const stderr = response?.stderr ?? ''
-    const reader = { readFrom: () => ({ text, nextOffset: text.length, lossy: false }) }
+    const stdoutReader = { readFrom: () => ({ text, nextOffset: text.length, lossy: response?.stdoutLossy ?? false }) }
     const done = response?.waitForAbort === true
       ? new Promise<{ exitCode: number; signal: NodeJS.Signals }>((resolve) => {
         spec.signal?.addEventListener('abort', () => { resolve({ exitCode: 1, signal: 'SIGTERM' }) }, { once: true })
@@ -68,10 +73,10 @@ class FakeSubprocess extends SubprocessRuntime {
       stdout: undefined,
       stderr: undefined,
       collected: {
-        ...response?.omitStdout === true ? {} : { stdout: reader },
+        ...response?.omitStdout === true ? {} : { stdout: stdoutReader },
         ...response?.omitStderr === true
           ? {}
-          : { stderr: { readFrom: () => ({ text: stderr, nextOffset: stderr.length, lossy: false }) } },
+          : { stderr: { readFrom: () => ({ text: stderr, nextOffset: stderr.length, lossy: response?.stderrLossy ?? false }) } },
       },
       done,
       terminate: () => {},
@@ -89,6 +94,185 @@ class FakeSubprocess extends SubprocessRuntime {
       terminate: async () => {},
     }
   }
+}
+
+class FakePersistentSubprocess extends SubprocessRuntime {
+  readonly specs: SubprocessSpawnSpec[] = []
+  readonly requests: Array<Record<string, unknown>> = []
+
+  async resolveExecutable(command: string): Promise<string> { return command }
+
+  spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
+    this.specs.push(spec)
+    const stdin = new PassThrough()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const settled = Promise.withResolvers<{ exitCode: number; signal: null }>()
+    let input = ''
+    let closed = false
+    const close = (): void => {
+      if (closed) return
+      closed = true
+      stdout.end()
+      stderr.end()
+      settled.resolve({ exitCode: 0, signal: null })
+    }
+    stdin.setEncoding('utf8')
+    stdin.on('data', (chunk: string) => {
+      input += chunk
+      let newline = input.indexOf('\n')
+      while (newline >= 0) {
+        const line = input.slice(0, newline)
+        input = input.slice(newline + 1)
+        const message = JSON.parse(line) as Record<string, unknown>
+        if (message['type'] === 'request') {
+          this.requests.push(message)
+          const args = message['args'] as string[]
+          const value = args.includes('list') ? { todos: [] } : { changed: true }
+          stdout.write(`${JSON.stringify({
+            type: 'response', protocol: 1, id: message['id'], exitCode: 0,
+            timedOut: false, cancelled: false,
+            stdout: Buffer.from(JSON.stringify(value)).toString('base64'),
+            stderr: '', stdoutLossy: false, stderrLossy: false,
+          })}\n`)
+        }
+        newline = input.indexOf('\n')
+      }
+    })
+    stdin.on('finish', close)
+    queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
+    return {
+      pid: 1,
+      stdin,
+      stdout,
+      stderr,
+      collected: {},
+      done: settled.promise,
+      terminate: close,
+      waitForExit: async (signal) => {
+        if (closed) return true
+        if (signal?.aborted) return false
+        if (signal === undefined) {
+          await settled.promise
+          return true
+        }
+        const aborted = Promise.withResolvers<boolean>()
+        const onAbort = (): void => { aborted.resolve(false) }
+        signal.addEventListener('abort', onAbort, { once: true })
+        try {
+          return await Promise.race([settled.promise.then(() => true), aborted.promise])
+        } finally {
+          signal.removeEventListener('abort', onAbort)
+        }
+      },
+    }
+  }
+
+  async spawnTerminal(): Promise<SubprocessTerminalHandle> {
+    throw new Error('not used')
+  }
+}
+
+class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
+  async resolveExecutable(command: string): Promise<string> { return command }
+
+  spawn(): SubprocessHandle {
+    const stdin = new PassThrough()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const done = Promise.withResolvers<{ exitCode: number; signal: null }>()
+    queueMicrotask(() => {
+      stdout.end(Buffer.from('由于系统缓冲区空间不足或队列已满，不能执行套接字上的操作。\r\n错误代码: Wsl/Service/0x80072747\r\n', 'utf16le'))
+      stderr.end()
+      done.resolve({ exitCode: 0xffff_ffff, signal: null })
+    })
+    return {
+      pid: 1, stdin, stdout, stderr, collected: {}, done: done.promise,
+      terminate: () => {}, waitForExit: () => Promise.resolve(true),
+    }
+  }
+
+  async spawnTerminal(): Promise<SubprocessTerminalHandle> {
+    throw new Error('not used')
+  }
+}
+
+class PendingWritePersistentSubprocess extends SubprocessRuntime {
+  readonly writeStarted = Promise.withResolvers<boolean>()
+  private readonly writeCallbacks: Array<(error?: Error | null) => void> = []
+  private stdin: Writable | undefined
+  private releasePendingWrites = false
+
+  async resolveExecutable(command: string): Promise<string> { return command }
+
+  spawn(): SubprocessHandle {
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const settled = Promise.withResolvers<{ exitCode: number; signal: null }>()
+    let closed = false
+    const stdin = new Writable({
+      write: (_chunk, _encoding, callback) => {
+        this.writeStarted.resolve(true)
+        if (this.releasePendingWrites) callback()
+        else this.writeCallbacks.push(callback)
+      },
+    })
+    this.stdin = stdin
+    const close = (): void => {
+      if (closed) return
+      closed = true
+      this.releaseWrites()
+      stdout.end()
+      stderr.end()
+      settled.resolve({ exitCode: 0, signal: null })
+    }
+    stdin.on('finish', close)
+    queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
+    return {
+      pid: 1, stdin, stdout, stderr, collected: {}, done: settled.promise,
+      terminate: close,
+      waitForExit: async (signal) => {
+        if (closed) return true
+        if (signal?.aborted) return false
+        if (signal === undefined) {
+          await settled.promise
+          return true
+        }
+        const aborted = Promise.withResolvers<boolean>()
+        const onAbort = (): void => { aborted.resolve(false) }
+        signal.addEventListener('abort', onAbort, { once: true })
+        try {
+          return await Promise.race([settled.promise.then(() => true), aborted.promise])
+        } finally {
+          signal.removeEventListener('abort', onAbort)
+        }
+      },
+    }
+  }
+
+  releaseWrites(error?: Error): void {
+    this.releasePendingWrites = true
+    for (const callback of this.writeCallbacks.splice(0)) callback(error)
+  }
+
+  emitStdinError(error: Error): void {
+    if (this.stdin === undefined) throw new Error('persistent stdin is unavailable')
+    this.stdin.emit('error', error)
+  }
+
+  async spawnTerminal(): Promise<SubprocessTerminalHandle> {
+    throw new Error('not used')
+  }
+}
+
+const brokerOptions = {
+  launcher: 'wsl.exe',
+  launcherArgs: ['-d', 'Ubuntu', '--exec'],
+  pythonExecutable: 'python3',
+  command: '/root/.local/bin/loopx',
+  graceMs: 100,
+  startTimeoutMs: 1_000,
+  diagnosticMaxBytes: 8_192,
 }
 
 const role = {
@@ -139,6 +323,11 @@ async function setup(config: {
   watchReconnectAttempts?: number
   watchReconnectDelayMs?: number
   operationTimeoutMs?: number
+  stdoutMaxBytes?: number
+  stderrMaxBytes?: number
+  transport?: 'process' | 'persistent'
+  brokerPythonExecutable?: string
+  brokerCommand?: string
 } = { goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' } }) {
   const ctx = new Context()
   await ctx.plugin(FakeSubprocess).await()
@@ -205,6 +394,12 @@ describe('LoopxGraphCoordination', () => {
       ...base, claimId: claim.claimId, leaseId: claim.leaseId, fencingToken: claim.fencingToken,
       settlementId: GraphSettlementId('settlement-1'), outcome: 'succeeded', evidence: 'validated',
     }, signal)
+    const claimCommands = runtime.argv.filter(args => args.includes('claim')).length
+    await expect(ctx.graphCoordination.claim(base, signal)).resolves.toMatchObject({
+      claimId: claim.claimId,
+      terminal: { outcome: 'succeeded', evidence: 'validated' },
+    })
+    expect(runtime.argv.filter(args => args.includes('claim'))).toHaveLength(claimCommands)
     expect(runtime.argv.map(args => args.join(' '))).toEqual(expect.arrayContaining([
       expect.stringContaining('todo add'),
       expect.stringContaining('todo claim'),
@@ -581,6 +776,104 @@ describe('LoopxGraphCoordination', () => {
     run.runtime.responses.push({ waitForAbort: true })
     await expect(run.coordination.claim(request(graph.nodes[0]!), run.signal))
       .rejects.toThrow(/timed out after 10ms/)
+  })
+
+  it('bounds large LoopX responses with configurable collection limits', async () => {
+    const configured = await setup({
+      goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' },
+      stdoutMaxBytes: 4_194_304, stderrMaxBytes: 262_144,
+    })
+    await configured.coordination.prepare(graph, [role], 'D:/work', configured.signal)
+    expect(configured.runtime.specs[0]?.stdio).toEqual({
+      stdin: 'ignore',
+      stdout: { maxBytes: 4_194_304 },
+      stderr: { maxBytes: 262_144 },
+    })
+
+    const truncated = await setup()
+    truncated.runtime.responses.push({ stdout: '{"todos":[', stdoutLossy: true })
+    await expect(truncated.coordination.prepare(graph, [role], 'D:/work', truncated.signal))
+      .rejects.toThrow('LoopX todo list response exceeded stdoutMaxBytes=8388608')
+  })
+
+  it('reuses one persistent broker for independent LoopX operations', async () => {
+    const ctx = new Context()
+    await ctx.plugin(FakePersistentSubprocess).await()
+    const runtime = ctx.subprocess as FakePersistentSubprocess
+    await ctx.plugin(LoopxGraphCoordination, {
+      goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' }, journalPath: ':memory:',
+      executable: 'wsl.exe', executableArgs: ['-d', 'Ubuntu', '--exec'], pathStyle: 'wsl',
+      transport: 'persistent', brokerPythonExecutable: 'python3', brokerCommand: '/root/.local/bin/loopx',
+    }).await()
+    const signal = new AbortController().signal
+    await ctx.graphCoordination.prepare(graph, [role], 'D:\\work\\one', signal)
+    await ctx.graphCoordination.prepare(graph, [role], 'D:\\work\\two', signal)
+    expect(runtime.specs).toHaveLength(1)
+    expect(runtime.specs[0]?.stdio).toEqual({ stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' })
+    expect(runtime.specs[0]?.argv).toEqual(expect.arrayContaining([
+      'wsl.exe', '-d', 'Ubuntu', '--exec', 'python3', '/root/.local/bin/loopx',
+    ]))
+    expect(runtime.requests.map(item => item['cwd'])).toEqual(['/mnt/d/work/one', '/mnt/d/work/two'])
+    await ctx.fiber.dispose()
+  })
+
+  it('contains caller cancellation while a persistent stdin write is pending', async () => {
+    const ctx = new Context()
+    await ctx.plugin(PendingWritePersistentSubprocess).await()
+    const runtime = ctx.subprocess as PendingWritePersistentSubprocess
+    const broker = new PersistentLoopxBroker(ctx, brokerOptions)
+    const controller = new AbortController()
+    const unhandled: unknown[] = []
+    const onUnhandled = (error: unknown): void => { unhandled.push(error) }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const operation = broker.run('/mnt/d/work', ['todo', 'list'], 1_000, 1_024, 1_024, controller.signal)
+      await runtime.writeStarted.promise
+      controller.abort()
+      await expect(operation).rejects.toMatchObject({ name: 'AbortError' })
+      await new Promise(resolve => setImmediate(resolve))
+      expect(unhandled).toEqual([])
+      runtime.releaseWrites()
+      await broker.dispose()
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('turns a persistent stdin EPIPE into the active broker request failure', async () => {
+    const ctx = new Context()
+    await ctx.plugin(PendingWritePersistentSubprocess).await()
+    const runtime = ctx.subprocess as PendingWritePersistentSubprocess
+    const broker = new PersistentLoopxBroker(ctx, brokerOptions)
+    const operation = broker.run('/mnt/d/work', ['todo', 'list'], 1_000, 1_024, 1_024, new AbortController().signal)
+    await runtime.writeStarted.promise
+    expect(() => { runtime.emitStdinError(new Error('write EPIPE')) }).not.toThrow()
+    await expect(operation).rejects.toThrow('write EPIPE')
+    await broker.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects persistent transport without an execution-world LoopX command', async () => {
+    const ctx = new Context()
+    await ctx.plugin(FakeSubprocess).await()
+    expect(() => {
+      new LoopxGraphCoordination(ctx, {
+        goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' }, transport: 'persistent',
+      })
+    }).toThrow(/requires brokerCommand/)
+  })
+
+  it('decodes WSL UTF-16 diagnostics and normalizes its unsigned failure code', async () => {
+    const ctx = new Context()
+    await ctx.plugin(Utf16FailingPersistentSubprocess).await()
+    await ctx.plugin(LoopxGraphCoordination, {
+      goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' }, journalPath: ':memory:',
+      executable: 'wsl.exe', executableArgs: ['-d', 'Ubuntu', '--exec'], pathStyle: 'wsl',
+      transport: 'persistent', brokerCommand: '/root/.local/bin/loopx',
+    }).await()
+    await expect(ctx.graphCoordination.prepare(graph, [role], 'D:\\work', new AbortController().signal))
+      .rejects.toThrow('LoopX broker exited (-1): 由于系统缓冲区空间不足或队列已满，不能执行套接字上的操作')
   })
 
   it('serializes settlement per activation without blocking another activation', async () => {

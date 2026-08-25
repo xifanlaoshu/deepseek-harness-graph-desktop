@@ -22,19 +22,20 @@ Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.sub
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * to `maxDepth`, `sandboxMode` to `sandboxModeCap`; the other names match.
  */
 interface SubagentCapabilities {
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  readonly sandboxMode?: boolean
 }
 ```
 
 ## 单次启动请求
 
-工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系与委派深度。可选的 output schema、depth、工具过滤器和 persona 需要对应的能力 flag 匹配。不支持的 schema 在启动时即失败；进程内后端将 filter 和 persona 的作用域限定在子 agent 创建阶段，并通过强制 capture 工具实现所支持的 object-rooted schema。
+工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系与委派深度。可选的 output schema、depth、工具过滤器、persona 和沙箱模式上限需要对应的能力 flag 匹配。不支持的 schema 在启动时即失败；进程内后端将 filter 和 persona 的作用域限定在子 agent 创建阶段，通过强制 capture 工具实现所支持的 object-rooted schema，并且可以收窄子 agent 的生效沙箱模式而不放宽父级权限。
 
 ```ts type-equiv
 /**
@@ -100,6 +101,13 @@ interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional upper bound on the child's sandbox authority. Requires
+   * {@link SubagentCapabilities.sandboxMode}; an in-process provider resolves
+   * the parent's effective mode and records the more restrictive value on the
+   * child before publication. The cap never widens a restrictive parent.
+   */
+  readonly sandboxModeCap?: SandboxMode
 }
 ```
 

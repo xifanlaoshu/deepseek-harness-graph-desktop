@@ -4,6 +4,8 @@ import {
   MAX_GRAPH_TIMER_MS,
   GraphAttemptId,
   GraphBranchGroupId,
+  GraphCampaignBatchId,
+  GraphCampaignId,
   GraphControlOperationId,
   GraphNodeId,
   GraphRunId,
@@ -11,6 +13,7 @@ import {
   GraphRoleId,
   GraphSettlementId,
   GraphSubmissionId,
+  GraphTaskId,
   GraphWorkId,
   GraphValidationError,
   apply,
@@ -100,6 +103,11 @@ describe('graph domain', () => {
     const config = defaultGraphModeConfig()
     expect(() =>{  validateGraphModeConfig(config) }).not.toThrow()
     expect(config.roles.filter(role => role.controller && role.enabled).map(role => role.id)).toEqual(['controller'])
+    expect(config.roles.find(role => role.id === 'browser-tester')).toMatchObject({
+      enabled: true,
+      maxParallel: 1,
+      description: 'Validates web flows with DOM, visual, console, and network evidence.',
+    })
     expect(config.limits.controllerReserve).toBe(1)
   })
 
@@ -534,6 +542,138 @@ describe('graph domain', () => {
     expect(registered).toBe(graphProjectionDefinition)
   })
 
+  it('projects campaign batches as independent graph executions with immutable history', () => {
+    const revision = graph([])
+    const run = runFor(revision)
+    let state = applyGraphEvent(emptyGraphProjection(), sessionEvent('graph/change', {
+      kind: 'graph/revision', version: 2, graph: revision, current: true,
+    }, 1))
+    state = applyGraphEvent(state, sessionEvent('graph/run', run, 2))
+    const campaign = {
+      version: 1 as const,
+      id: GraphCampaignId('campaign-1'),
+      objective: 'Accept the complete product',
+      createdAt: 1,
+      updatedAt: 2,
+      phase: 'running' as const,
+      activeBatchId: GraphCampaignBatchId('batch-1'),
+      batches: [{
+        id: GraphCampaignBatchId('batch-1'),
+        ordinal: 1,
+        title: 'Customer workflows',
+        objective: 'Accept customer workflows',
+        dependsOn: [],
+        status: 'running' as const,
+        graphId: revision.graphId,
+        executions: [{
+          graphId: revision.graphId,
+          revision: revision.revision,
+          runId: run.id,
+          status: 'running' as const,
+          startedAt: 1,
+          settlementIds: [],
+        }],
+      }],
+    }
+    state = applyGraphEvent(state, sessionEvent('graph/campaign', campaign, 3))
+    expect(state.currentCampaignId).toBe(campaign.id)
+    expect(state.campaigns[campaign.id]?.batches[0]?.graphId).toBe(revision.graphId)
+
+    const completed = {
+      ...campaign,
+      updatedAt: 3,
+      phase: 'succeeded' as const,
+      activeBatchId: undefined,
+      batches: [{
+        ...campaign.batches[0],
+        status: 'approved' as const,
+        executions: [{ ...campaign.batches[0]!.executions[0]!, status: 'succeeded' as const, completedAt: 3 }],
+      }],
+    }
+    state = applyGraphEvent(state, sessionEvent('graph/campaign', completed, 4))
+    expect(state.campaigns[campaign.id]?.phase).toBe('succeeded')
+    expectCode('GRAPH_CAMPAIGN_REPLACEMENT', () => {
+      applyGraphEvent(state, sessionEvent('graph/campaign', {
+        ...completed,
+        updatedAt: 4,
+        batches: [{
+          ...completed.batches[0],
+          executions: [{ ...completed.batches[0]!.executions[0]!, startedAt: 2 }],
+        }],
+      }, 5))
+    })
+
+    const secondRevision = { ...revision, graphId: GraphId('g-2'), objective: 'Accept diagnosis workflows' }
+    const { terminal: _terminal, ...secondRunBase } = runFor(secondRevision)
+    const secondRun = {
+      ...secondRunBase,
+      id: GraphRunId('run-2'),
+      graphId: secondRevision.graphId,
+      phase: 'running' as const,
+      createdAt: 4,
+      updatedAt: 4,
+      nodes: Object.fromEntries(secondRevision.nodes.map(item => [item.id, {
+        workId: GraphWorkId(`work-2-${item.id}`), nodeId: item.id, phase: 'pending' as const, attempts: [],
+      }])),
+    }
+    state = applyGraphEvent(state, sessionEvent('graph/change', {
+      kind: 'graph/revision', version: 2, graph: secondRevision, current: true,
+    }, 5))
+    state = applyGraphEvent(state, sessionEvent('graph/run', secondRun, 6))
+    const extended = {
+      ...completed,
+      updatedAt: 7,
+      phase: 'running' as const,
+      activeBatchId: GraphCampaignBatchId('batch-2'),
+      planRevision: 2,
+      planExtensions: [{
+        revision: 2,
+        createdAt: 7,
+        reason: 'Functional inventory discovered diagnosis workflows.',
+        addedBatchIds: [GraphCampaignBatchId('batch-2')],
+        sourceBatchId: GraphCampaignBatchId('batch-1'),
+        sourceRunId: run.id,
+        settlementIds: [],
+      }],
+      batches: [...completed.batches, {
+        id: GraphCampaignBatchId('batch-2'),
+        ordinal: 2,
+        title: 'Diagnosis workflows',
+        objective: 'Accept diagnosis workflows',
+        dependsOn: [GraphCampaignBatchId('batch-1')],
+        status: 'running' as const,
+        graphId: secondRevision.graphId,
+        executions: [{
+          graphId: secondRevision.graphId,
+          revision: secondRevision.revision,
+          runId: secondRun.id,
+          status: 'running' as const,
+          startedAt: 4,
+          settlementIds: [],
+        }],
+      }],
+    }
+    state = applyGraphEvent(state, sessionEvent('graph/campaign', extended, 7))
+    expect(state.campaigns[campaign.id]).toMatchObject({
+      planRevision: 2,
+      batches: [{ id: 'batch-1', status: 'approved' }, { id: 'batch-2', status: 'running' }],
+    })
+    expectCode('GRAPH_CAMPAIGN_PLAN', () => {
+      applyGraphEvent(state, sessionEvent('graph/campaign', {
+        ...extended,
+        updatedAt: 8,
+        planRevision: 3,
+        planExtensions: [...extended.planExtensions, {
+          revision: 3,
+          createdAt: 8,
+          reason: 'Invalid non-tail history.',
+          addedBatchIds: [GraphCampaignBatchId('batch-x')],
+          settlementIds: [],
+        }],
+      }, 8))
+    })
+  })
+
   it('keeps a graph revision provisional until its submission is accepted', () => {
     const revision = graph([])
     const completed = runFor(revision)
@@ -556,10 +696,33 @@ describe('graph domain', () => {
       changedNodeIds: revision.nodes.map(item => item.id),
       outcome: 'pending' as const,
       requestedAt: 1,
+      lineage: {
+        version: 1 as const,
+        taskId: GraphTaskId('g-1'),
+        kind: 'new_task' as const,
+        title: 'Ship graph mode',
+        objective: 'Ship graph mode',
+        reason: 'Start the logical task.',
+        creator: 'controller' as const,
+        createdAt: 1,
+        trigger: { source: 'user' as const, summary: 'Build graph mode.', evidence: [] },
+        relationships: [],
+        successCriteria: ['Graph mode ships'],
+        changes: {
+          addedNodeIds: revision.nodes.map(item => item.id),
+          changedNodeIds: [], removedNodeIds: [], preservedNodeIds: [],
+          invalidatedNodeIds: revision.nodes.map(item => item.id),
+        },
+      },
     }
     let state = applyGraphEvent(emptyGraphProjection(), sessionEvent('graph/submission', pending, 1))
     expect(state.graphs[revision.graphId]).toBeUndefined()
     expect(state.submissions[pending.id]).toEqual(pending)
+    expectCode('GRAPH_SUBMISSION_LINEAGE', () => {
+      applyGraphEvent(emptyGraphProjection(), sessionEvent('graph/submission', {
+        ...pending, lineage: { ...pending.lineage, kind: 'analysis_refactor' },
+      }, 1))
+    })
     expectCode('GRAPH_SUBMISSION_SEQUENCE', () => {
       applyGraphEvent(state, sessionEvent('graph/submission', { ...pending, id: GraphSubmissionId('submission-b') }, 2))
     })

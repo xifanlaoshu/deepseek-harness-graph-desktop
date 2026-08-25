@@ -6,6 +6,8 @@ Service Definition for graph-worker coordination outside the Harness session log
 
 Protocol version 3 carries both a stable logical `workId` and a Generation-scoped `activationId`. Providers key mutable claim, lease, progress, cancellation, observation, and terminal state by Activation; logical Work remains the lineage key used by Graph invalidation and operator controls. A terminal Activation is immutable and does not prevent a later Generation from claiming the same logical Work under another Activation.
 
+Repeated delivery of `claim()` for an already terminal Activation returns the accepted terminal outcome and evidence as an idempotent disposition. A Consumer must not dispatch another Worker for that disposition; reconciliation decides whether the durable local Run already contains the matching terminal result.
+
 The seam deliberately transfers public-safe summaries only. Raw prompts, transcripts, credentials, and private paths remain in Harness sessions and must not be copied into a coordination provider.
 
 A Consumer must give terminal settlement a live signal even when the worker was canceled, and must await that settlement before releasing the provider. This ensures that cancellation, revision replacement, and teardown cannot leave a claimed external work item executable.

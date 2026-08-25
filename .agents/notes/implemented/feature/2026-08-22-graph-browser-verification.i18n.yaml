@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-22-graph-browser-verification.md
+2026-08-22-graph-browser-verification.md: 2ef6f380b2ee6fb40aec6d5fbc3f347067493cfb
+2026-08-22-graph-browser-verification.zh.md: 7934e5d5855adbd6597a8a4ecd10cfeffa71fbd9

@@ -408,8 +408,18 @@ export type Config = LocalConfig
 export interface Config {
   /** Namespace used in model-facing names such as `mcp__chrome__take_snapshot`. */
   serverName: string
-  /** HTTP endpoint of a Chrome instance started with remote debugging. */
+  /** Whether the MCP child owns Chrome or attaches to an operator-owned process. */
+  browserMode: typeof BROWSER_MODES[number]
+  /** HTTP endpoint used only in `external` mode. */
   browserUrl: string
+  /** Installed Chrome release channel selected in `managed` mode. */
+  chromeChannel: typeof CHROME_CHANNELS[number]
+  /** Launch managed Chrome without a visible window. */
+  headless: boolean
+  /** Give each MCP child a temporary profile removed when Chrome closes. */
+  isolatedProfile: boolean
+  /** Ask headed managed Chrome to maximize its initial window. */
+  startMaximized: boolean
   /** Maximum duration of one MCP tool call in milliseconds. */
   toolCallTimeoutMs: number
   /** Fail bundle activation when MCP startup or tool discovery fails. */
@@ -435,7 +445,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/bundle/browser-chrome-devtools/src/index.ts:29`](../packages/bundle/browser-chrome-devtools/src/index.ts)
+来源：[`packages/bundle/browser-chrome-devtools/src/index.ts:31`](../packages/bundle/browser-chrome-devtools/src/index.ts)
 
 <a id="deepseek-aidsh-client-connection"></a>
 
@@ -793,6 +803,12 @@ export interface Config {
   readonly executable?: string
   /** Arguments inserted after the executable and before LoopX CLI arguments. */
   readonly executableArgs?: string[]
+  /** CLI launch mode: one process per operation or one persistent stdio broker. */
+  readonly transport?: 'process' | 'persistent'
+  /** Python executable inside the persistent broker's execution environment. */
+  readonly brokerPythonExecutable?: string
+  /** LoopX executable inside the persistent broker's execution environment. */
+  readonly brokerCommand?: string
   /** Path syntax expected by the LoopX process. */
   readonly pathStyle?: 'native' | 'wsl'
   /** Optional LoopX registry path passed to every CLI invocation. */
@@ -801,6 +817,10 @@ export interface Config {
   readonly graceMs?: number
   /** Maximum wall time for one LoopX CLI operation. */
   readonly operationTimeoutMs?: number
+  /** Maximum captured stdout bytes for one LoopX JSON response. */
+  readonly stdoutMaxBytes?: number
+  /** Maximum captured stderr bytes for one LoopX CLI operation. */
+  readonly stderrMaxBytes?: number
   /** LoopX hard-lease duration in seconds. */
   readonly leaseTtlSeconds?: number
   /** Fallback relative workspace scopes for nodes without precise write ownership. */
@@ -820,7 +840,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/graph/graph-coordination-loopx/src/index.ts:26`](../packages/graph/graph-coordination-loopx/src/index.ts)
+来源：[`packages/graph/graph-coordination-loopx/src/index.ts:27`](../packages/graph/graph-coordination-loopx/src/index.ts)
 
 <a id="deepseek-aidsh-graph-mode"></a>
 
@@ -845,12 +865,20 @@ export interface Config {
   schedulerHeartbeatMs?: number
   /** Deadline for one external cleanup, settlement, or reconciliation operation. */
   externalOperationTimeoutMs?: number
+  /** Interval for detecting durable nonterminal runs without a local executor. */
+  recoveryScanIntervalMs?: number
+  /** Whether immutable environment nodes may request host command execution. */
+  environmentEnabled?: boolean
+  /** Host capability names environment nodes may request. */
+  environmentCapabilities?: GraphEnvironmentCapability[]
+  /** Whether an approved environment node may bypass filesystem confinement. */
+  environmentDangerFullAccess?: boolean
 }
 ```
 
-依赖：[`GraphWorkspaceMode`](../packages/graph/graph-worker/src/index.ts)
+依赖：[`GraphEnvironmentCapability`](../packages/graph/graph/src/index.ts) · [`GraphWorkspaceMode`](../packages/graph/graph-worker/src/index.ts)
 
-来源：[`packages/graph/graph-mode/src/index.ts:107`](../packages/graph/graph-mode/src/index.ts)
+来源：[`packages/graph/graph-mode/src/index.ts:113`](../packages/graph/graph-mode/src/index.ts)
 
 <a id="deepseek-aidsh-graph-resources-local"></a>
 
@@ -1820,6 +1848,8 @@ export interface StdioConfig {
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Top-level path arguments confined to the exact calling agent's workspace. */
+  workspacePathArguments?: string[]
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -1842,6 +1872,8 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Top-level path arguments confined to the exact calling agent's workspace. */
+  workspacePathArguments?: string[]
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */

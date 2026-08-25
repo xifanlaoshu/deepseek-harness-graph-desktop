@@ -20,6 +20,7 @@ import type {
   GraphCoordinationSettlement,
 } from '@deepseek-ai/dsh-graph-coordination'
 import type {} from '@deepseek-ai/dsh-subprocess'
+import { PersistentLoopxBroker } from './broker.ts'
 import { LoopxCoordinationJournal } from './journal.ts'
 
 /** Deployment binding to one existing LoopX goal and its registered peer ids. */
@@ -32,6 +33,12 @@ export interface Config {
   readonly executable?: string
   /** Arguments inserted after the executable and before LoopX CLI arguments. */
   readonly executableArgs?: string[]
+  /** CLI launch mode: one process per operation or one persistent stdio broker. */
+  readonly transport?: 'process' | 'persistent'
+  /** Python executable inside the persistent broker's execution environment. */
+  readonly brokerPythonExecutable?: string
+  /** LoopX executable inside the persistent broker's execution environment. */
+  readonly brokerCommand?: string
   /** Path syntax expected by the LoopX process. */
   readonly pathStyle?: 'native' | 'wsl'
   /** Optional LoopX registry path passed to every CLI invocation. */
@@ -40,6 +47,10 @@ export interface Config {
   readonly graceMs?: number
   /** Maximum wall time for one LoopX CLI operation. */
   readonly operationTimeoutMs?: number
+  /** Maximum captured stdout bytes for one LoopX JSON response. */
+  readonly stdoutMaxBytes?: number
+  /** Maximum captured stderr bytes for one LoopX CLI operation. */
+  readonly stderrMaxBytes?: number
   /** LoopX hard-lease duration in seconds. */
   readonly leaseTtlSeconds?: number
   /** Fallback relative workspace scopes for nodes without precise write ownership. */
@@ -66,10 +77,15 @@ export const Config: z<Config> = z.object({
   roleAgents: z.dict(z.string()).required(),
   executable: z.string().default('loopx'),
   executableArgs: z.array(z.string()).default([]),
+  transport: z.union(['process', 'persistent'] as const).default('process'),
+  brokerPythonExecutable: z.string().default('python3'),
+  brokerCommand: z.string(),
   pathStyle: z.union(['native', 'wsl'] as const).default('native'),
   registry: z.string(),
   graceMs: z.natural().min(1).max(60_000).default(10_000),
   operationTimeoutMs: z.natural().min(1).max(300_000).default(60_000),
+  stdoutMaxBytes: z.natural().min(1_024).max(67_108_864).default(8_388_608),
+  stderrMaxBytes: z.natural().min(1_024).max(67_108_864).default(1_048_576),
   leaseTtlSeconds: z.natural().min(30).max(86_400).default(2_700),
   writeScopes: z.array(z.string()).default(['**/*']),
   journalPath: z.string().default('.sessions/graph-coordination-loopx.sqlite'),
@@ -81,6 +97,10 @@ export const Config: z<Config> = z.object({
 })
 
 type JsonRecord = Record<string, unknown>
+
+const terminalTodoStatus = (status: unknown): status is string => (
+  status === 'done' || status === 'completed' || status === 'blocked' || status === 'canceled'
+)
 
 const record = (value: unknown, operation: string): JsonRecord => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`LoopX ${operation} returned non-object JSON`)
@@ -105,10 +125,14 @@ export class LoopxGraphCoordination extends GraphCoordination {
   private readonly roleAgents: Readonly<Record<string, string>>
   private readonly executable: string
   private readonly executableArgs: readonly string[]
+  private readonly transport: 'process' | 'persistent'
+  private readonly broker: PersistentLoopxBroker | undefined
   private readonly pathStyle: 'native' | 'wsl'
   private readonly registry: string | undefined
   private readonly graceMs: number
   private readonly operationTimeoutMs: number
+  private readonly stdoutMaxBytes: number
+  private readonly stderrMaxBytes: number
   private readonly leaseTtlSeconds: number
   private readonly writeScopes: readonly string[]
   private resolvedExecutable: Promise<string> | undefined
@@ -138,10 +162,13 @@ export class LoopxGraphCoordination extends GraphCoordination {
     this.roleAgents = { ...config.roleAgents }
     this.executable = config.executable ?? 'loopx'
     this.executableArgs = [...config.executableArgs ?? []]
+    this.transport = config.transport ?? 'process'
     this.pathStyle = config.pathStyle ?? 'native'
     this.registry = config.registry
     this.graceMs = config.graceMs ?? 10_000
     this.operationTimeoutMs = config.operationTimeoutMs ?? 60_000
+    this.stdoutMaxBytes = config.stdoutMaxBytes ?? 8_388_608
+    this.stderrMaxBytes = config.stderrMaxBytes ?? 1_048_576
     this.leaseTtlSeconds = config.leaseTtlSeconds ?? 2_700
     this.writeScopes = [...config.writeScopes ?? ['**/*']]
     if (this.writeScopes.length === 0 || this.writeScopes.some(scope => !scope.trim())) throw new Error('LoopX graph coordination requires normalized writeScopes')
@@ -149,6 +176,20 @@ export class LoopxGraphCoordination extends GraphCoordination {
     this.journalEventWindow = config.journalEventWindow ?? 256
     this.watchReconnectAttempts = config.watchReconnectAttempts ?? 2
     this.watchReconnectDelayMs = config.watchReconnectDelayMs ?? 50
+    if (this.transport === 'persistent' && !config.brokerCommand?.trim()) {
+      throw new Error('LoopX persistent transport requires brokerCommand')
+    }
+    this.broker = this.transport === 'persistent'
+      ? new PersistentLoopxBroker(ctx, {
+        launcher: this.executable,
+        launcherArgs: this.executableArgs,
+        pythonExecutable: config.brokerPythonExecutable ?? 'python3',
+        command: config.brokerCommand as string,
+        graceMs: this.graceMs,
+        startTimeoutMs: this.operationTimeoutMs,
+        diagnosticMaxBytes: this.stderrMaxBytes,
+      })
+      : undefined
     this.journal = new LoopxCoordinationJournal(
       this.goalId,
       journalPath === ':memory:' ? journalPath : resolve(journalPath),
@@ -156,7 +197,13 @@ export class LoopxGraphCoordination extends GraphCoordination {
       config.journalMode ?? 'wal',
       this.journalEventWindow,
     )
-    ctx.effect(() => () => { this.journal.close() }, 'graph-coordination-loopx: durable event journal')
+    ctx.effect(() => async () => {
+      try {
+        await this.broker?.dispose()
+      } finally {
+        this.journal.close()
+      }
+    }, 'graph-coordination-loopx: broker and durable event journal')
   }
 
   /** Validate role bindings and confirm that the configured LoopX goal is readable. */
@@ -186,11 +233,23 @@ export class LoopxGraphCoordination extends GraphCoordination {
     const agentId = this.agentFor(request.role.id)
     const key = this.key(request.cwd, request.activationId)
     let todoId = this.todos.get(key)
+    const durableTerminal = this.terminals.get(request.activationId)
+    const durableClaim = this.claims.get(request.activationId)
+    if (durableTerminal !== undefined && durableClaim !== undefined) {
+      return this.terminalDisposition(durableClaim.todoId, durableTerminal, durableClaim)
+    }
     if (todoId === undefined) {
       const existing = this.findActivationTodo(this.todoIndexes.get(request.cwd) ?? [], request.activationId)
       if (existing !== undefined) {
         todoId = this.todoId(existing)
         this.todos.set(key, todoId)
+        if (terminalTodoStatus(existing['status'])) {
+          const persistedEvidence = this.todoEvidence(existing)
+          const terminal = this.recoveredTerminal(request.activationId, existing['status'], persistedEvidence)
+          this.terminals.set(request.activationId, terminal)
+          this.rememberEvent(request.activationId, this.journal.recordTerminal(request.activationId, terminal))
+          return this.terminalDisposition(todoId, terminal, durableClaim)
+        }
       }
     }
     if (todoId === undefined) {
@@ -597,6 +656,22 @@ export class LoopxGraphCoordination extends GraphCoordination {
     }
   }
 
+  private terminalDisposition(
+    todoId: string,
+    terminal: { outcome: GraphCoordinationSettlement['outcome']; evidence: string },
+    claim?: GraphCoordinationClaim,
+  ): GraphCoordinationClaim {
+    return {
+      claimId: claim?.claimId ?? todoId,
+      todoId,
+      leaseId: claim?.leaseId ?? `${todoId}:terminal`,
+      expiresAt: claim?.expiresAt ?? 0,
+      fencingToken: claim?.fencingToken ?? 0,
+      observation: claim?.observation ?? JSON.stringify({ schema: 'dsh-loopx-observation-v1', goalId: this.goalId, todoId, terminal: true }),
+      terminal: { outcome: terminal.outcome, evidence: terminal.evidence },
+    }
+  }
+
   private requireLease(request: Pick<GraphCoordinationHeartbeat, 'activationId' | 'claimId' | 'leaseId' | 'fencingToken'>): GraphCoordinationClaim {
     const claim = this.claims.get(request.activationId)
     if (claim === undefined || claim.claimId !== request.claimId || claim.leaseId !== request.leaseId
@@ -725,30 +800,59 @@ export class LoopxGraphCoordination extends GraphCoordination {
   private async run(cwd: string, signal: AbortSignal, args: readonly string[]): Promise<JsonRecord> {
     const deadline = AbortSignal.timeout(this.operationTimeoutMs)
     const operationSignal = AbortSignal.any([signal, deadline])
-    this.resolvedExecutable ??= this.ctx.subprocess.resolveExecutable(this.executable, undefined, operationSignal)
-    const executable = await this.resolvedExecutable
-    const handle = this.ctx.subprocess.spawn({
-      argv: [
-        executable,
-        ...this.executableArgs,
-        ...this.registry === undefined ? [] : ['--registry', this.runtimePath(this.registry)],
-        '--format', 'json', ...args,
-      ],
-      cwd,
-      stdio: {
-        stdin: 'ignore',
-        stdout: { maxBytes: 1_048_576 },
-        stderr: { maxBytes: 131_072 },
-      },
-      graceMs: this.graceMs,
-      signal: operationSignal,
-    })
-    const outcome = await handle.done
-    const stdout = handle.collected.stdout?.readFrom(0).text ?? ''
-    const stderr = handle.collected.stderr?.readFrom(0).text ?? ''
+    const cliArgs = [
+      ...this.registry === undefined ? [] : ['--registry', this.runtimePath(this.registry)],
+      '--format', 'json', ...args,
+    ]
+    let exitCode: number | null
+    let stdout: string
+    let stderr: string
+    let stdoutLossy: boolean
+    if (this.broker !== undefined) {
+      let result
+      try {
+        result = await this.broker.run(
+          this.runtimePath(cwd), cliArgs, this.operationTimeoutMs,
+          this.stdoutMaxBytes, this.stderrMaxBytes, operationSignal,
+        )
+      } catch (error) {
+        signal.throwIfAborted()
+        if (deadline.aborted) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} timed out after ${String(this.operationTimeoutMs)}ms`)
+        throw error
+      }
+      exitCode = result.exitCode
+      stdout = result.stdout
+      stderr = result.stderr
+      stdoutLossy = result.stdoutLossy
+      if (result.timedOut) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} timed out after ${String(this.operationTimeoutMs)}ms`)
+    } else {
+      this.resolvedExecutable ??= this.ctx.subprocess.resolveExecutable(this.executable, undefined, operationSignal)
+      const executable = await this.resolvedExecutable
+      const handle = this.ctx.subprocess.spawn({
+        argv: [executable, ...this.executableArgs, ...cliArgs],
+        cwd,
+        stdio: {
+          stdin: 'ignore',
+          stdout: { maxBytes: this.stdoutMaxBytes },
+          stderr: { maxBytes: this.stderrMaxBytes },
+        },
+        graceMs: this.graceMs,
+        signal: operationSignal,
+      })
+      const outcome = await handle.done
+      const stdoutRead = handle.collected.stdout?.readFrom(0)
+      const stderrRead = handle.collected.stderr?.readFrom(0)
+      exitCode = outcome.exitCode
+      stdout = stdoutRead?.text ?? ''
+      stderr = stderrRead?.text ?? ''
+      stdoutLossy = stdoutRead?.lossy === true
+    }
     signal.throwIfAborted()
     if (deadline.aborted) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} timed out after ${String(this.operationTimeoutMs)}ms`)
-    if (outcome.exitCode !== 0) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} failed (${String(outcome.exitCode)}): ${stderr || stdout}`)
+    if (exitCode !== 0) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} failed (${String(exitCode)}): ${stderr || stdout}`)
+    if (stdoutLossy) {
+      throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} response exceeded stdoutMaxBytes=${String(this.stdoutMaxBytes)}`)
+    }
     let parsed: unknown
     try {
       parsed = JSON.parse(stdout)

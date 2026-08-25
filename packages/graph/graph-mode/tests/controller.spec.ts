@@ -22,6 +22,7 @@ import {
   defaultGraphExecutionPolicy,
   defaultGraphOutputSchema,
   foldGraph,
+  apply as applyGraphProjection,
 } from '@deepseek-ai/dsh-graph'
 import type { GraphNode, GraphOperationTransition, GraphRevision, GraphRun } from '@deepseek-ai/dsh-graph'
 import GraphCoordination, { MemoryGraphCoordination } from '@deepseek-ai/dsh-graph-coordination'
@@ -63,6 +64,7 @@ import GraphSchedulerRuntime, {
   type GraphSchedulerProvider,
 } from '@deepseek-ai/dsh-graph-scheduler'
 import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type {
@@ -82,6 +84,8 @@ import LlmRuntime, {
   type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { ShellExecutor } from '@deepseek-ai/dsh-shell'
+import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { SettingsProvider } from '@deepseek-ai/dsh-settings'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import GraphModeController, {
@@ -96,6 +100,46 @@ const CAPABILITIES: SubagentCapabilities = {
   depthLimit: true,
   toolFilter: true,
   persona: true,
+  sandboxMode: true,
+}
+
+const successfulShellResult = (): ShellRunResult => ({
+  exitCode: 0,
+  signal: null,
+  timedOut: false,
+  aborted: false,
+  timeoutMs: 60_000,
+  stdout: { text: 'ok', truncated: false },
+  stderr: { text: '', truncated: false },
+})
+
+class TestShell extends ShellExecutor {
+  readonly requests: ShellExecRequest[] = []
+
+  constructor(ctx: Context, private readonly outcomes: ShellRunResult[] = []) {
+    super(ctx)
+  }
+
+  resolve(request: ShellExecRequest): ShellExecSpec {
+    this.requests.push(request)
+    return {
+      command: request.command,
+      workdir: request.workdir ?? process.cwd(),
+      timeoutMs: request.timeoutMs ?? 60_000,
+      stdoutMaxBytes: request.stdoutMaxBytes ?? 64_000,
+      ...request.signal === undefined ? {} : { signal: request.signal },
+      sandboxPolicy: request.sandboxPolicy,
+    }
+  }
+
+  run(spec: ShellExecSpec): Promise<ShellRunResult> {
+    const result = this.outcomes.shift() ?? successfulShellResult()
+    return Promise.resolve({ ...result, timeoutMs: spec.timeoutMs })
+  }
+
+  start(_spec: ShellExecSpec): ShellProcess {
+    throw new Error('TestShell does not support background processes')
+  }
 }
 
 class TestLlmAdapter extends LlmAdapter {
@@ -264,6 +308,50 @@ class TestGraphWorkerAdapter implements RegisteredGraphWorkerProvider {
   }
 }
 
+class RevisionRequiredGraphWorkerAdapter implements RegisteredGraphWorkerProvider {
+  readonly name = 'local'
+  readonly assignments: GraphWorkerAssignment[] = []
+  readonly capabilities = {
+    protocolVersion: 1 as const,
+    remote: false,
+    workspaceModes: ['shared', 'isolated-copy', 'read-only-snapshot'] as const,
+    structuredOutput: true,
+    toolFilter: true,
+    artifactManifest: true,
+    progress: false,
+    cancellation: true,
+  }
+
+  reconcile(): Promise<{ readonly status: 'retained'; readonly evidence: string }> {
+    return Promise.resolve({ status: 'retained', evidence: 'test workspace retained for revision' })
+  }
+
+  start(assignment: GraphWorkerAssignment) {
+    this.assignments.push(assignment)
+    return Promise.resolve({
+      id: GraphWorkerId(`worker:revision-required:${String(this.assignments.length)}`),
+      provider: this.name,
+      workspace: {
+        id: GraphWorkspaceAllocationId(`workspace:revision-required:${String(this.assignments.length)}`),
+        mode: assignment.workspace.mode,
+        root: assignment.workspace.sourceRoot,
+        providerReference: `workspace:revision-required:${String(this.assignments.length)}`,
+        createdAt: Date.now(),
+      },
+      result: Promise.resolve({
+        outcome: 'error' as const,
+        output: [],
+        error: {
+          code: 'GRAPH_WORKER_UNDECLARED_WRITE',
+          message: 'worker changed undeclared path architecture/ARCHITECTURE.md',
+          retryable: false,
+        },
+      }),
+      cancel: (): Promise<void> => Promise.resolve(),
+    })
+  }
+}
+
 class TestGraphArtifactProvider implements GraphArtifactProvider {
   readonly name = 'test-artifacts'
   readonly persistent = true
@@ -386,9 +474,11 @@ class TestGraphSchedulerProvider implements GraphSchedulerProvider {
 
 interface CoordinationBehavior {
   readonly prepareError?: Error
+  readonly prepareWait?: Promise<void>
   readonly claimError?: Error
   readonly claimErrorFor?: (request: GraphCoordinationRequest) => Error | undefined
   readonly claimWaitFor?: (request: GraphCoordinationRequest, signal: AbortSignal) => Promise<void> | undefined
+  readonly terminalClaim?: GraphCoordinationClaim['terminal']
   readonly settleError?: Error | string
   readonly settleWait?: Promise<void>
   readonly progressWait?: Promise<void>
@@ -420,6 +510,7 @@ class TestCoordination extends GraphCoordination {
 
   async prepare(graph: GraphRevision): Promise<void> {
     this.prepares.push(graph)
+    await this.behavior.prepareWait
     if (this.behavior.prepareError !== undefined) throw this.behavior.prepareError
   }
 
@@ -435,6 +526,7 @@ class TestCoordination extends GraphCoordination {
       expiresAt: Date.now() + 60_000,
       fencingToken: 1,
       observation: 'shared progress',
+      ...this.behavior.terminalClaim === undefined ? {} : { terminal: this.behavior.terminalClaim },
     }
     this.liveClaims.set(request.activationId, claim)
     return claim
@@ -542,6 +634,28 @@ const singleRevision = (id: string, maxAttempts = 1): GraphRevision => ({
   edges: [],
   branchGroups: [],
   terminationPolicy: TERMINATION_POLICY,
+})
+
+const environmentRevision = (id: string): GraphRevision => ({
+  ...singleRevision(id),
+  nodes: [{
+    ...task('environment-setup', 'Install the required project toolchain'),
+    kind: 'environment',
+    roleId: GraphRoleId('environment'),
+    environment: {
+      requiredCapabilities: ['network', 'host-package-install'],
+      sandboxMode: 'danger-full-access',
+      operations: [{
+        id: 'install-maven',
+        description: 'Install Maven through the configured host package manager.',
+        command: 'winget install --id Apache.Maven --exact',
+        rollbackCommand: 'winget uninstall --id Apache.Maven --exact',
+      }],
+    },
+    workspace: { mode: 'shared', readRoots: ['.'], writeRoots: ['.'], cleanup: 'retain' },
+    maxAttempts: 1,
+    effectPolicy: 'manual',
+  }],
 })
 
 const dependentRevision = (id: string, conditional: boolean): GraphRevision => ({
@@ -702,8 +816,12 @@ async function harness(options: {
   readonly coordinationHeartbeatMs?: number
   readonly schedulerHeartbeatMs?: number
   readonly externalOperationTimeoutMs?: number
+  readonly recoveryScanIntervalMs?: number
+  readonly projections?: boolean
   readonly scheduler?: TestGraphSchedulerProvider
   readonly artifacts?: TestGraphArtifactProvider
+  readonly graphWorker?: RegisteredGraphWorkerProvider
+  readonly shellResults?: ShellRunResult[]
 } = {}): Promise<{
   ctx: Context
   provider: GraphWorkerProvider
@@ -711,13 +829,19 @@ async function harness(options: {
   steer: ReturnType<typeof vi.fn>
   followup: ReturnType<typeof vi.fn>
   coordination: TestCoordination | undefined
+  shell: TestShell
 }> {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   ctx.llm.registerAdapter(['base', 'controller-provider', 'forced', 'local', 'remote', 'test'], new TestLlmAdapter())
   await ctx.plugin(SessionStore)
+  if (options.projections === true) {
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(applyGraphProjection)
+  }
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(TestShell, options.shellResults ?? [])
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(GraphWorkerRuntime)
   if (options.artifacts !== undefined) {
@@ -736,7 +860,7 @@ async function harness(options: {
   const provider = options.provider ?? new GraphWorkerProvider()
   provider.bind(ctx)
   ctx.subagents.registerProvider(provider)
-  ctx.graphWorkers.register(new TestGraphWorkerAdapter(ctx))
+  ctx.graphWorkers.register(options.graphWorker ?? new TestGraphWorkerAdapter(ctx))
   let coordination: TestCoordination | undefined
   if (options.coordination !== undefined) {
     await ctx.plugin(TestCoordination, options.coordination)
@@ -750,6 +874,7 @@ async function harness(options: {
     ...options.scheduler === undefined ? {} : { schedulerProvider: options.scheduler.name },
     ...options.schedulerHeartbeatMs === undefined ? {} : { schedulerHeartbeatMs: options.schedulerHeartbeatMs },
     ...options.externalOperationTimeoutMs === undefined ? {} : { externalOperationTimeoutMs: options.externalOperationTimeoutMs },
+    ...options.recoveryScanIntervalMs === undefined ? {} : { recoveryScanIntervalMs: options.recoveryScanIntervalMs },
   })
   await ctx.plugin(CommandRuntime)
   await new Promise(resolve => setImmediate(resolve))
@@ -773,10 +898,19 @@ async function harness(options: {
     inject: ['tools', 'systemPrompt'],
   }))
   Object.assign(agent, { ctx: scope.ctx })
-  return { ctx, provider, agent, steer, followup, coordination }
+  return { ctx, provider, agent, steer, followup, coordination, shell: ctx.shell as TestShell }
 }
 
 describe('GraphModeController', () => {
+  it('reads the eagerly maintained graph projection when the registry is composed', async () => {
+    const { ctx, agent } = await harness({ projections: true })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+
+    const projected = ctx.sessionProjections.stateOf(agent.session, 'graph')
+    expect(projected).toBeDefined()
+    expect(ctx.graphMode.state(agent)).toBe(projected)
+  })
+
   it('holds a fenced whole-run scheduler lease from admission through terminal release', async () => {
     const scheduler = new TestGraphSchedulerProvider()
     const { ctx, agent } = await harness({ scheduler })
@@ -817,6 +951,99 @@ describe('GraphModeController', () => {
     expect(agent.session.events.some(event => event.type === 'graph/run'
       && event.data.id === run.id && event.data.terminal !== undefined)).toBe(false)
     expect(followup).not.toHaveBeenCalled()
+  })
+
+  it('automatically recovers a durable nonterminal run without a local executor', async () => {
+    const scheduler = new TestGraphSchedulerProvider()
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'orphan recovered', artifacts: [] }),
+    ])
+    const { ctx, agent } = await harness({ scheduler, provider, recoveryScanIntervalMs: 100 })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    const graph = {
+      ...singleRevision('automatic-orphan-recovery'),
+      nodes: [{ ...task('a', 'complete A'), effectPolicy: 'reconcile' as const }],
+    }
+    agent.session.append('graph/change', { kind: 'graph/revision', version: 2, graph, current: true })
+    agent.session.append('graph/run', {
+      id: GraphRunId('automatic-orphan-run'), graphId: graph.graphId, revision: 1, generation: 1,
+      generationId: GraphRunGenerationId('automatic-orphan-generation-1'), ownerEpoch: 6,
+      configSnapshot: { ...defaultGraphModeConfig(), active: true }, overrides: {},
+      phase: 'running', createdAt: 1, updatedAt: 2,
+      nodes: {
+        a: { workId: GraphWorkId('automatic-orphan-work'), nodeId: GraphNodeId('a'), phase: 'running', attempts: [] },
+      },
+    })
+    agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('automatic-orphan-event-1'),
+      operationId: GraphControlOperationId('automatic-orphan-operation-1'),
+      workId: GraphWorkId('automatic-orphan-work'),
+      runId: GraphRunId('automatic-orphan-run'),
+      generationId: GraphRunGenerationId('automatic-orphan-generation-1'),
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 6,
+      stage: 'planned',
+      at: 1,
+      externalReferences: [],
+    })
+    agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('automatic-orphan-event-2'),
+      operationId: GraphControlOperationId('automatic-orphan-operation-1'),
+      workId: GraphWorkId('automatic-orphan-work'),
+      runId: GraphRunId('automatic-orphan-run'),
+      generationId: GraphRunGenerationId('automatic-orphan-generation-1'),
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 6,
+      stage: 'admitted',
+      expectedPrevious: 'planned',
+      at: 2,
+      externalReferences: [],
+      detail: 'model reservation requested before executor loss',
+    })
+
+    await vi.waitFor(() => {
+      expect(ctx.graphMode.state(agent).runs['automatic-orphan-run']).toMatchObject({
+        generation: 2,
+        phase: 'succeeded',
+        nodes: { a: { phase: 'succeeded' } },
+      })
+    }, { timeout: 2_000, interval: 20 })
+    expect(provider.requests).toHaveLength(1)
+    expect(scheduler.acquisitions).toHaveLength(1)
+  })
+
+  it('treats manual reconciliation as a no-op while a local executor is live', async () => {
+    const provider = new GraphWorkerProvider([abortResult])
+    const active = await harness({ provider, recoveryScanIntervalMs: 300_000 })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const accepted = await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'keep executor live', graph: singleRevision('live-executor-reconcile'),
+    })
+    const runId = GraphRunId(accepted.runId as string)
+    await waitForRequests(provider, 1)
+
+    const record = await active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('live-executor-reconcile-control'),
+      action: 'reconcile-run',
+      ...controlAddress(active.ctx, active.agent, runId),
+      reason: 'operator checks executor liveness',
+    })
+    expect(record.result).toEqual({ outcome: 'no-op', detail: `run ${runId} already has a live local executor` })
+    expect(active.ctx.graphMode.state(active.agent).runs[runId]?.generation).toBe(1)
+
+    await active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('live-executor-cancel-control'),
+      action: 'cancel-run',
+      ...controlAddress(active.ctx, active.agent, runId),
+      reason: 'finish the liveness test',
+    })
+    expect((await terminalRunId(active.ctx, active.agent, runId)).phase).toBe('canceled')
   })
 
   it('does not accept a graph revision when scheduler ownership is unavailable', async () => {
@@ -864,6 +1091,36 @@ describe('GraphModeController', () => {
       .toEqual([expect.objectContaining({ outcome: 'accepted' })])
   })
 
+  it('does not recover a pending submission while its original activation is in flight', async () => {
+    let releasePrepare!: () => void
+    const prepareWait = new Promise<void>((resolve) => { releasePrepare = resolve })
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'single activation complete', artifacts: [] }),
+    ])
+    const active = await harness({
+      provider,
+      coordination: { prepareWait },
+      cwd: process.cwd(),
+      recoveryScanIntervalMs: 100,
+    })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const submission = active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'hold activation across recovery scan', graph: singleRevision('single-flight-submission'),
+    })
+    await vi.waitFor(() => { expect(active.coordination?.prepares).toHaveLength(1) })
+    await new Promise(resolve => setTimeout(resolve, 250))
+    expect(active.coordination?.prepares).toHaveLength(1)
+    releasePrepare()
+
+    const accepted = await submission
+    const run = await terminalRunId(active.ctx, active.agent, accepted.runId as string)
+    expect(run.phase).toBe('succeeded')
+    expect(provider.requests).toHaveLength(1)
+    expect(active.coordination?.claims).toHaveLength(1)
+    expect(active.agent.session.events.filter(event => event.type === 'graph/operation'
+      && event.data.runId === run.id && event.data.stage === 'planned')).toHaveLength(1)
+  })
+
   it('releases scheduler ownership when the post-acquisition handoff barrier fails', async () => {
     const scheduler = new TestGraphSchedulerProvider()
     const active = await harness({ scheduler })
@@ -902,6 +1159,44 @@ describe('GraphModeController', () => {
       required: ['decision', 'issues'],
       properties: { decision: { enum: ['approved', 'rejected', 'needs-user'] } },
     })
+  })
+
+  it('composes specialized verification fields with the structured control decision schema', () => {
+    const specialized = defaultGraphOutputSchema('browser-result')
+    const graph = resolveGraphRevisionDraft({
+      graphId: GraphId('verification-schema'),
+      revision: 1,
+      objective: 'verify one browser flow',
+      userInput: 'verify it',
+      nodes: [{
+        id: GraphNodeId('verify'), title: 'Verify', objective: 'test the login flow', kind: 'verification',
+        roleId: GraphRoleId('browser-tester'), acceptanceCriteria: ['result is explicit'], effectPolicy: 'idempotent',
+        outputSchema: {
+          ...specialized,
+          schema: {
+            ...specialized.schema,
+            properties: {
+              ...specialized.schema.properties,
+              data: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  moduleId: { type: 'string' },
+                  result: { type: 'string', enum: ['pass', 'fail', 'blocked'] },
+                },
+                required: ['moduleId', 'result'],
+              },
+            },
+          },
+        },
+      }],
+    }, defaultGraphModeConfig(), 5)
+    const data = graph.nodes[0]?.outputSchema.schema.properties?.['data']
+
+    expect(graph.nodes[0]?.outputSchema.id).toBe('browser-result')
+    expect(data?.required).toEqual(['moduleId', 'result', 'decision', 'issues'])
+    expect(data?.properties?.['result']).toEqual({ type: 'string', enum: ['pass', 'fail', 'blocked'] })
+    expect(data?.properties?.['decision']).toEqual({ type: 'string', enum: ['approved', 'rejected', 'needs-user'] })
   })
 
   it('returns one aggregate admission diagnostic with a corrected minimal draft', () => {
@@ -984,6 +1279,11 @@ describe('GraphModeController', () => {
     expect(policy).toContain('never calculate or submit graph identifiers, revision numbers, parent revisions, timestamps, changed-node lists')
     expect(policy).toContain('assigns a safe unused graph id for new work')
     expect(policy).toContain("Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies")
+    expect(policy).toContain('set campaign.batchId exactly to campaign.plan.batches[0].id')
+    expect(policy).toContain('campaign.planExtension containing the complete newly discovered ordered suffix')
+    expect(policy).toContain('Never change, insert, reorder, or remove a registered batch')
+    expect(policy).toContain('assign the browser-tester role when available')
+    expect(policy).toContain('relevant console and failed-network inspection')
     expect(assembly.variables).toMatchObject({ provider: 'controller-provider', model: 'controller-model' })
     const routed = await agentEvents(ctx, agent).waterfall(
       'agent/request',
@@ -1108,6 +1408,18 @@ describe('GraphModeController', () => {
     expect(schema).not.toHaveProperty('properties.graph.properties.nodes.items.properties.workspace.properties.readRoots.required')
     expect(schema).not.toHaveProperty('properties.graph.properties.nodes.items.properties.workspace.properties.cleanup.required')
     expect(schema).not.toHaveProperty('properties.graph.properties.nodes.items.required', expect.arrayContaining(['outputSchema']))
+    expect(schema).toHaveProperty(
+      'properties.campaign.properties.batchId.description',
+      expect.stringContaining('first batch in plan or planExtension'),
+    )
+    expect(schema).toHaveProperty(
+      'properties.campaign.properties.plan.description',
+      expect.stringContaining('only while starting its first listed batch'),
+    )
+    expect(schema).toHaveProperty(
+      'properties.campaign.properties.planExtension.properties.batches.items.properties.dependsOn.items.type',
+      'string',
+    )
     const direct = await ctx.tools.execute({
       signal, callId: CallId('direct'), name: 'graph_submit', agent,
       arguments: { intent: 'direct', reason: 'answer directly' },
@@ -1238,6 +1550,13 @@ describe('GraphModeController', () => {
       terminationPolicy: { maxGraphRevisions: defaultGraphExecutionPolicy().maxGraphRevisions },
     })
     expect(Object.values(projection.submissions).find(item => item.graph.revision === 2)?.changedNodeIds).toEqual(['b'])
+    expect(Object.values(projection.submissions).find(item => item.graph.revision === 2)?.lineage).toMatchObject({
+      kind: 'analysis_refactor',
+      reason: 'change B',
+      trigger: { source: 'user', summary: 'change B' },
+      relationships: [{ kind: 'refactors', graphId: startedGraphId, revision: 1 }],
+      changes: { changedNodeIds: ['b'], preservedNodeIds: ['a'], invalidatedNodeIds: ['b'] },
+    })
   })
 
   it('requires explicit disjoint workspace ownership for concurrent mutating controller nodes', async () => {
@@ -1270,6 +1589,330 @@ describe('GraphModeController', () => {
       { mode: 'isolated-copy', readRoots: ['.'], writeRoots: ['backend'], cleanup: 'retain-on-failure' },
       { mode: 'isolated-copy', readRoots: ['.'], writeRoots: ['frontend'], cleanup: 'retain-on-failure' },
     ])
+  })
+
+  it('derives revision changes from values rather than object property order', async () => {
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'A complete', artifacts: [] }),
+      workerResult({ summary: 'B complete', artifacts: [] }),
+      workerResult({ summary: 'B revised', artifacts: [] }),
+    ])
+    const { ctx, agent } = await harness({ provider })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    await ctx.graphMode.submit(agent, { intent: 'new', reason: 'initial values', graph: revision(1, 'A', 'B') })
+    await settled(ctx, agent, 1)
+
+    const next = revision(2, 'A', 'B revised')
+    const a = next.nodes[0] as GraphNode
+    const reorderedA: GraphNode = {
+      id: a.id,
+      title: a.title,
+      objective: a.objective,
+      kind: a.kind,
+      roleId: a.roleId,
+      acceptanceCriteria: a.acceptanceCriteria,
+      effectPolicy: a.effectPolicy,
+      outputSchema: a.outputSchema,
+      maxAttempts: a.maxAttempts,
+      weight: a.weight,
+      executionBudget: a.executionBudget,
+      skippable: a.skippable,
+    }
+    await ctx.graphMode.submit(agent, {
+      intent: 'revise', reason: 'change B only', graph: { ...next, nodes: [reorderedA, next.nodes[1] as GraphNode] },
+    })
+    const run = await terminal(ctx, agent, 2)
+    const state = ctx.graphMode.state(agent)
+    expect(Object.values(state.submissions).find(item => item.graph.revision === 2)?.changedNodeIds).toEqual(['b'])
+    expect(run.nodes['a']).toMatchObject({ phase: 'succeeded', attempts: [], reusedFrom: { nodeId: 'a' } })
+    expect(provider.requests).toHaveLength(3)
+  })
+
+  it('advances ordered campaign batches as independent graphs without copying historical nodes', async () => {
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'batch one accepted', artifacts: [] }),
+      workerResult({ summary: 'batch two accepted', artifacts: [] }),
+    ])
+    const { ctx, agent, followup } = await harness({ provider })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    const first = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'start campaign batch one',
+      graph: singleRevision('campaign-batch-one'),
+      campaign: {
+        batchId: 'batch-01',
+        plan: {
+          objective: 'Complete the acceptance campaign',
+          batches: [
+            { id: 'batch-01', title: 'Batch 01', objective: 'Accept batch one' },
+            { id: 'batch-02', title: 'Batch 02', objective: 'Accept batch two', dependsOn: ['batch-01'] },
+          ],
+        },
+      },
+    })
+    await terminalRunId(ctx, agent, first.runId as string)
+    await vi.waitFor(() => {
+      const campaign = Object.values(ctx.graphMode.state(agent).campaigns)[0]
+      expect(campaign).toMatchObject({
+        phase: 'running', activeBatchId: 'batch-02',
+        batches: [{ id: 'batch-01', status: 'approved' }, { id: 'batch-02', status: 'planned' }],
+      })
+    })
+    const batchFollowup = followup.mock.lastCall?.[0] as { readonly content: readonly { readonly text?: string }[] }
+    expect(batchFollowup.content[0]?.text).toContain('[graph-batch-complete]')
+
+    const second = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'start campaign batch two',
+      graph: singleRevision('campaign-batch-two'),
+      campaign: { batchId: 'batch-02' },
+    })
+    await terminalRunId(ctx, agent, second.runId as string)
+    await vi.waitFor(() => {
+      const campaign = Object.values(ctx.graphMode.state(agent).campaigns)[0]
+      expect(campaign).toMatchObject({
+        phase: 'succeeded',
+        batches: [{ id: 'batch-01', status: 'approved' }, { id: 'batch-02', status: 'approved' }],
+      })
+    })
+    const state = ctx.graphMode.state(agent)
+    expect(state.graphs['campaign-batch-one']?.[0]?.nodes).toHaveLength(1)
+    expect(state.graphs['campaign-batch-two']?.[0]?.nodes).toHaveLength(1)
+    const secondPrompt = provider.requests[1]?.prompt[0]
+    expect(secondPrompt?.type).toBe('text')
+    expect(secondPrompt?.type === 'text' ? secondPrompt.text : '').toContain('"batchId":"batch-01"')
+  })
+
+  it('appends an audited batch suffix after the registered campaign is accepted', async () => {
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'bootstrap accepted', artifacts: [] }),
+      workerResult({ summary: 'customer batch accepted', artifacts: [] }),
+      workerResult({ summary: 'diagnosis batch accepted', artifacts: [] }),
+    ])
+    const { ctx, agent } = await harness({ provider })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    const first = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'start the known bootstrap batch',
+      graph: singleRevision('campaign-extension-bootstrap'),
+      campaign: {
+        batchId: 'batch-01',
+        plan: {
+          objective: 'Complete the acceptance campaign',
+          batches: [{ id: 'batch-01', title: 'Bootstrap', objective: 'Discover the tested product' }],
+        },
+      },
+    })
+    await terminalRunId(ctx, agent, first.runId as string)
+    await vi.waitFor(() => {
+      expect(Object.values(ctx.graphMode.state(agent).campaigns)[0]?.phase).toBe('succeeded')
+    })
+
+    const second = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'accepted inventory discovered customer and diagnosis batches',
+      graph: singleRevision('campaign-extension-customers'),
+      campaign: {
+        batchId: 'batch-02',
+        planExtension: {
+          batches: [
+            { id: 'batch-02', title: 'Customers', objective: 'Accept customer workflows', dependsOn: ['batch-01'] },
+            { id: 'batch-03', title: 'Diagnoses', objective: 'Accept diagnosis workflows', dependsOn: ['batch-02'] },
+          ],
+        },
+      },
+    })
+    await terminalRunId(ctx, agent, second.runId as string)
+    await vi.waitFor(() => {
+      const campaign = Object.values(ctx.graphMode.state(agent).campaigns)[0]
+      expect(campaign).toMatchObject({
+        phase: 'running',
+        activeBatchId: 'batch-03',
+        planRevision: 2,
+        planExtensions: [{
+          revision: 2,
+          reason: 'accepted inventory discovered customer and diagnosis batches',
+          addedBatchIds: ['batch-02', 'batch-03'],
+          sourceBatchId: 'batch-01',
+          sourceRunId: first.runId,
+        }],
+        batches: [
+          { id: 'batch-01', status: 'approved' },
+          { id: 'batch-02', status: 'approved' },
+          { id: 'batch-03', status: 'planned' },
+        ],
+      })
+    })
+
+    const third = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'start the next appended batch',
+      graph: singleRevision('campaign-extension-diagnoses'),
+      campaign: { batchId: 'batch-03' },
+    })
+    await terminalRunId(ctx, agent, third.runId as string)
+    await vi.waitFor(() => {
+      const campaign = Object.values(ctx.graphMode.state(agent).campaigns)[0]
+      expect(campaign).toMatchObject({
+        phase: 'succeeded',
+        planRevision: 2,
+        batches: [
+          { id: 'batch-01', status: 'approved' },
+          { id: 'batch-02', status: 'approved' },
+          { id: 'batch-03', status: 'approved' },
+        ],
+      })
+    })
+  })
+
+  it('rejects plan extension while a registered batch remains planned', async () => {
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'batch one accepted', artifacts: [] }),
+    ])
+    const { ctx, agent } = await harness({ provider })
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    const first = await ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'start campaign',
+      graph: singleRevision('campaign-extension-not-ready'),
+      campaign: {
+        batchId: 'batch-01',
+        plan: {
+          objective: 'Complete the acceptance campaign',
+          batches: [
+            { id: 'batch-01', title: 'Batch 01', objective: 'Accept batch one' },
+            { id: 'batch-02', title: 'Batch 02', objective: 'Accept batch two', dependsOn: ['batch-01'] },
+          ],
+        },
+      },
+    })
+    await terminalRunId(ctx, agent, first.runId as string)
+    await vi.waitFor(() => {
+      expect(Object.values(ctx.graphMode.state(agent).campaigns)[0]).toMatchObject({
+        phase: 'running', activeBatchId: 'batch-02',
+      })
+    })
+
+    await expect(ctx.graphMode.submit(agent, {
+      intent: 'new',
+      reason: 'append too early',
+      graph: singleRevision('campaign-extension-too-early'),
+      campaign: {
+        batchId: 'batch-03',
+        planExtension: { batches: [{ id: 'batch-03', title: 'Batch 03', objective: 'Accept batch three' }] },
+      },
+    })).rejects.toThrow('campaign planExtension requires every registered batch to be accepted and no active batch')
+  })
+
+  it('retains settled campaign execution history when a revision replaces an active batch', async () => {
+    const provider = new GraphWorkerProvider([
+      abortResult,
+      workerResult({ summary: 'replacement accepted', artifacts: [] }),
+    ])
+    const active = await harness({ provider, coordination: {}, cwd: 'D:/work' })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const firstGraph = singleRevision('campaign-revision-replacement')
+    await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new',
+      reason: 'start campaign batch',
+      graph: firstGraph,
+      campaign: {
+        batchId: 'batch-01',
+        plan: {
+          objective: 'Complete the acceptance campaign',
+          batches: [{ id: 'batch-01', title: 'Batch 01', objective: 'Accept batch one' }],
+        },
+      },
+    })
+    await waitForRequests(provider, 1)
+
+    const replacementGraph: GraphRevision = {
+      ...firstGraph,
+      revision: 2,
+      parentRevision: 1,
+      createdAt: 2,
+      userInput: 'revise the active batch',
+      nodes: firstGraph.nodes.map(node => ({ ...node, objective: 'complete revised A' })),
+    }
+    await active.ctx.graphMode.submit(active.agent, {
+      intent: 'revise', reason: 'replace active campaign work', graph: replacementGraph,
+    })
+    await terminal(active.ctx, active.agent, 2)
+    await vi.waitFor(() => {
+      const campaign = Object.values(active.ctx.graphMode.state(active.agent).campaigns)[0]
+      expect(campaign).toMatchObject({
+        phase: 'succeeded',
+        batches: [{
+          id: 'batch-01',
+          executions: [{ status: 'canceled' }, { status: 'succeeded' }],
+        }],
+      })
+    })
+
+    expect(() => foldGraph(active.agent.session.events)).not.toThrow()
+  })
+
+  it('explains how to correct a campaign that starts with a later ordered batch', async () => {
+    const active = await harness()
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+
+    await expect(active.ctx.graphMode.submit(active.agent, {
+      intent: 'new',
+      reason: 'incorrectly start campaign batch two',
+      graph: singleRevision('campaign-invalid-start'),
+      campaign: {
+        batchId: 'batch-02',
+        plan: {
+          objective: 'Complete the acceptance campaign',
+          batches: [
+            { id: 'batch-01', title: 'Batch 01', objective: 'Accept batch one' },
+            { id: 'batch-02', title: 'Batch 02', objective: 'Accept batch two', dependsOn: ['batch-01'] },
+          ],
+        },
+      },
+    })).rejects.toThrow(
+      'campaign.batchId "batch-02" must equal campaign.plan.batches[0].id "batch-01" when creating a campaign; '
+      + 'to start a later batch after [graph-batch-complete], omit campaign.plan and submit only campaign.batchId',
+    )
+    expect(Object.values(active.ctx.graphMode.state(active.agent).campaigns)).toHaveLength(0)
+  })
+
+  it('admits only deployment-authorized environment plans and owns their execution policy', () => {
+    const projection = foldGraph([])
+    const config = defaultGraphModeConfig()
+    const draft = {
+      objective: 'Prepare Maven',
+      userInput: 'Install Maven',
+      nodes: [{
+        id: GraphNodeId('prepare-maven'),
+        title: 'Prepare Maven',
+        objective: 'Install Maven on the host',
+        kind: 'environment' as const,
+        roleId: GraphRoleId('environment'),
+        acceptanceCriteria: ['mvn --version succeeds'],
+        environment: {
+          requiredCapabilities: ['network', 'host-package-install'] as const,
+          sandboxMode: 'danger-full-access' as const,
+          operations: [{ id: 'install', description: 'Install Maven', command: 'winget install Apache.Maven' }],
+        },
+        effectPolicy: 'manual' as const,
+      }],
+    }
+    expect(() => resolveGraphControllerPlanDraft(
+      draft, 'new', projection, config, Date.now(),
+      { enabled: false, capabilities: [], dangerFullAccess: false },
+    )).toThrow(/environment nodes are disabled/)
+
+    const resolved = resolveGraphControllerPlanDraft(
+      draft, 'new', projection, config, Date.now(),
+      { enabled: true, capabilities: ['network', 'host-package-install'], dangerFullAccess: true },
+    )
+    expect(resolved.nodes[0]).toMatchObject({
+      kind: 'environment',
+      maxAttempts: 1,
+      effectPolicy: 'manual',
+      workspace: { mode: 'shared', readRoots: ['.'], writeRoots: ['.'], cleanup: 'retain' },
+    })
   })
 
   it.each([
@@ -1764,6 +2407,107 @@ describe('GraphModeController', () => {
     })
   })
 
+  it('returns a deterministic workspace failure to the controller without repeating the node', async () => {
+    const graphWorker = new RevisionRequiredGraphWorkerAdapter()
+    const active = await harness({ graphWorker, cwd: 'D:/work' })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const base = singleRevision('workspace-revision-required', 3)
+    const graph: GraphRevision = {
+      ...base,
+      nodes: base.nodes.map(node => ({
+        ...node,
+        workspace: {
+          mode: 'isolated-copy' as const,
+          readRoots: ['architecture'],
+          writeRoots: ['docs/architecture'],
+          cleanup: 'retain-on-failure' as const,
+        },
+      })),
+    }
+
+    await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'exercise workspace correction', graph,
+    })
+    const run = await runWithPhase(active.ctx, active.agent, 1, 'paused')
+
+    expect(graphWorker.assignments).toHaveLength(1)
+    expect(run.nodes['a']).toMatchObject({
+      phase: 'failed',
+      attempts: [{ error: { code: 'GRAPH_WORKER_UNDECLARED_WRITE' } }],
+    })
+    const prompt = (graphWorker.assignments[0]?.prompt[0] as { text?: string } | undefined)?.text
+    expect(prompt).toContain('Workspace policy: mode=isolated-copy; readRoots=["architecture"]; writeRoots=["docs/architecture"].')
+    expect(prompt).toContain('Never write through an absolute source-workspace path or outside writeRoots.')
+    expect(active.followup).toHaveBeenCalledOnce()
+    const followup = JSON.stringify(active.followup.mock.lastCall?.[0])
+    expect(followup).toContain('[graph-planning-checkpoint]')
+    expect(followup).toContain('GRAPH_WORKER_UNDECLARED_WRITE')
+    expect(followup).toContain('actual repository paths')
+  })
+
+  it('requires generation-bound human approval before executing exact environment commands', async () => {
+    const active = await harness({ cwd: 'D:/project' })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const submitted = await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'prepare the host toolchain', graph: environmentRevision('environment-approval'),
+    })
+    const waiting = await runInPhase(active.ctx, active.agent, 1, 'awaiting_user')
+    const checkpoint = Object.values(active.ctx.graphMode.state(active.agent).checkpoints)
+      .find(item => item.kind === 'environment' && item.status === 'pending')
+    if (checkpoint === undefined) throw new Error('environment approval checkpoint must exist')
+
+    expect(active.shell.requests).toEqual([])
+    expect(active.provider.requests).toEqual([])
+    expect(checkpoint.reason).toContain('winget install --id Apache.Maven --exact')
+    expect(checkpoint.reason).toContain('winget uninstall --id Apache.Maven --exact')
+    expect(JSON.stringify(active.followup.mock.lastCall?.[0])).toContain('do not call graph_submit')
+
+    const record = await active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('approve-environment'),
+      action: 'approve-checkpoint',
+      ...controlAddress(active.ctx, active.agent, waiting.id),
+      checkpointId: checkpoint.id,
+      reason: 'approve the exact Maven installation command',
+    })
+    const completed = await terminalRunId(active.ctx, active.agent, submitted.runId as string)
+
+    expect(record.resultingGeneration).toBe(2)
+    expect(active.ctx.graphMode.state(active.agent).checkpoints[checkpoint.id])
+      .toMatchObject({ status: 'resolved', authorizedGeneration: 2 })
+    expect(active.shell.requests).toHaveLength(1)
+    expect(active.shell.requests[0]).toMatchObject({
+      command: 'winget install --id Apache.Maven --exact',
+      workdir: 'D:/project',
+      sandboxPolicy: { mode: 'danger-full-access', workspaceRoot: 'D:/project' },
+    })
+    expect(completed).toMatchObject({
+      generation: 2,
+      phase: 'succeeded',
+      nodes: {
+        'environment-setup': {
+          phase: 'succeeded',
+          attempts: [{ number: 1 }],
+          output: { data: { sandboxMode: 'danger-full-access' } },
+        },
+      },
+    })
+    expect(Object.values(active.ctx.graphMode.state(active.agent).settlements).flat())
+      .toContainEqual(expect.objectContaining({ kind: 'environment', outcome: 'confirmed' }))
+
+    await active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('retry-environment'),
+      action: 'retry-node',
+      ...controlAddress(active.ctx, active.agent, completed.id),
+      nodeId: GraphNodeId('environment-setup'),
+      reason: 'repeat the environment operation only after a fresh approval',
+    })
+    const repeated = await runInPhase(active.ctx, active.agent, 1, 'awaiting_user')
+    expect(repeated.generation).toBe(3)
+    expect(active.shell.requests).toHaveLength(1)
+    expect(Object.values(active.ctx.graphMode.state(active.agent).checkpoints)
+      .filter(item => item.kind === 'environment' && item.status === 'pending')).toHaveLength(1)
+  })
+
   it('normalizes verification output before publishing a recoverable checkpoint', async () => {
     const provider = new GraphWorkerProvider([
       commandWorkerResult('npm run build', 'Build complete\r\n', { summary: 'verified', artifacts: [] }),
@@ -2225,6 +2969,58 @@ describe('GraphModeController', () => {
     if (prompt?.type === 'text') expect(prompt.text).toContain('shared progress')
   })
 
+  it('validates control output before staging or settling coordinated work', async () => {
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'browser flow passed without a control decision', artifacts: [], data: { result: 'pass' } }),
+      workerResult({
+        summary: 'browser flow approved',
+        artifacts: [],
+        data: { result: 'pass', decision: 'approved', issues: [] },
+      }),
+    ])
+    const specialized = defaultGraphOutputSchema('historical-browser-result')
+    const graph: GraphRevision = {
+      ...singleRevision('control-validation-order', 2),
+      nodes: [{
+        ...task('a', 'verify the browser flow'),
+        kind: 'verification',
+        roleId: GraphRoleId('browser-tester'),
+        maxAttempts: 2,
+        outputSchema: {
+          ...specialized,
+          schema: {
+            ...specialized.schema,
+            properties: {
+              ...specialized.schema.properties,
+              data: {
+                type: 'object',
+                additionalProperties: false,
+                properties: { result: { type: 'string', enum: ['pass', 'fail'] } },
+                required: ['result'],
+              },
+            },
+          },
+        },
+      }],
+    }
+    const active = await harness({ provider, coordination: {}, cwd: 'D:/work' })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'validate before settlement', graph,
+    })
+    const run = await terminal(active.ctx, active.agent, 1)
+    const operations = active.ctx.graphMode.state(active.agent).operations[run.nodes['a']!.workId] ?? []
+
+    expect(run.phase).toBe('succeeded')
+    expect(provider.requests).toHaveLength(2)
+    expect(active.coordination?.claims).toHaveLength(2)
+    expect(active.coordination?.settlements).toHaveLength(1)
+    expect(active.coordination?.settlements[0]?.outcome).toBe('succeeded')
+    expect(operations.filter(operation => operation.stage === 'output-staged')).toHaveLength(1)
+    expect(operations.findIndex(operation => operation.stage === 'reconciled'))
+      .toBeLessThan(operations.findIndex(operation => operation.stage === 'output-staged'))
+  })
+
   it('publishes bounded progress and watches external coordination while a worker is active', async () => {
     const provider = new GraphWorkerProvider([async () => {
       await new Promise(resolve => setTimeout(resolve, 240))
@@ -2414,6 +3210,30 @@ describe('GraphModeController', () => {
     expect(resources.outcomes).toEqual([expect.objectContaining({ outcome: 'released', evidence: 'Worker dispatch did not start: claim unavailable' })])
     expect(Object.values(active.ctx.graphMode.state(active.agent).settlements).flat())
       .toContainEqual(expect.objectContaining({ kind: 'resource-release', outcome: 'confirmed' }))
+  })
+
+  it('treats an already terminal coordination activation as an idempotent pre-dispatch result', async () => {
+    const active = await harness({
+      coordination: { terminalClaim: { outcome: 'succeeded', evidence: 'durable LoopX result already accepted' } },
+      cwd: 'D:/work',
+    })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const accepted = await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'repeat terminal activation', graph: singleRevision('terminal-activation'),
+    })
+    const run = await terminalRunId(active.ctx, active.agent, accepted.runId as string)
+
+    expect(run).toMatchObject({
+      phase: 'failed',
+      error: {
+        code: 'GRAPH_COORDINATION_ALREADY_TERMINAL',
+        message: 'coordination activation already settled as succeeded: durable LoopX result already accepted',
+        nodeId: 'a',
+      },
+      nodes: { a: { attempts: [] } },
+    })
+    expect(active.coordination?.claims).toHaveLength(1)
+    expect(active.provider.requests).toHaveLength(0)
   })
 
   it('releases pre-dispatch ownership when cancellation interrupts a pending coordination claim', async () => {

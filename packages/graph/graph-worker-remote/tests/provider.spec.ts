@@ -25,7 +25,13 @@ import * as RemoteWorker from '../src/index.ts'
 class RemoteStub implements SubagentProvider {
   readonly name = 'transport'
   readonly inheritsParentContext = false
-  readonly capabilities: SubagentCapabilities = { outputSchema: false, depthLimit: false, toolFilter: false, persona: false }
+  readonly capabilities: SubagentCapabilities = {
+    outputSchema: false,
+    depthLimit: false,
+    toolFilter: false,
+    persona: false,
+    sandboxMode: false,
+  }
   request: ResolvedSubagentStartRequest | undefined
 
   constructor(private readonly text: string, private readonly waitForAbort = false) {}

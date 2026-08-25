@@ -504,6 +504,7 @@ export class SubagentRuntime extends Service {
       { when: request.maxDepth !== undefined, cap: 'depthLimit' },
       { when: request.toolFilter !== undefined, cap: 'toolFilter' },
       { when: request.persona !== undefined, cap: 'persona' },
+      { when: request.sandboxModeCap !== undefined, cap: 'sandboxMode' },
     ]
     for (const { when, cap } of needs) {
       if (when && !provider.capabilities[cap]) {

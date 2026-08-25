@@ -428,6 +428,17 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 ### `graph/*`
 
+<a id="graphcampaign--log-only"></a>
+
+#### `graph/campaign` — log-only
+
+```ts persistence-catalog
+/** Whole campaign snapshot linking independent batch graphs. */
+'graph/campaign': GraphCampaign
+```
+
+来源：[`packages/graph/graph/src/index.ts:59`](../packages/graph/graph/src/index.ts)
+
 <a id="graphchange--log-only"></a>
 
 #### `graph/change` — log-only
@@ -437,7 +448,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/change': GraphDefinitionChange
 ```
 
-来源：[`packages/graph/graph/src/index.ts:42`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:45`](../packages/graph/graph/src/index.ts)
 
 <a id="graphcheckpoint--log-only"></a>
 
@@ -448,7 +459,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/checkpoint': GraphCheckpoint
 ```
 
-来源：[`packages/graph/graph/src/index.ts:52`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:55`](../packages/graph/graph/src/index.ts)
 
 <a id="graphcontrol--log-only"></a>
 
@@ -459,7 +470,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/control': GraphControlRecord
 ```
 
-来源：[`packages/graph/graph/src/index.ts:54`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:57`](../packages/graph/graph/src/index.ts)
 
 <a id="graphoperation--log-only"></a>
 
@@ -470,7 +481,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/operation': GraphOperationTransition
 ```
 
-来源：[`packages/graph/graph/src/index.ts:46`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:49`](../packages/graph/graph/src/index.ts)
 
 <a id="graphrun--log-only"></a>
 
@@ -481,7 +492,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/run': GraphRun
 ```
 
-来源：[`packages/graph/graph/src/index.ts:44`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:47`](../packages/graph/graph/src/index.ts)
 
 <a id="graphsettlement--log-only"></a>
 
@@ -492,7 +503,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/settlement': GraphSettlementRecord
 ```
 
-来源：[`packages/graph/graph/src/index.ts:48`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:51`](../packages/graph/graph/src/index.ts)
 
 <a id="graphsubmission--log-only"></a>
 
@@ -503,7 +514,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'graph/submission': GraphRevisionSubmissionRecord
 ```
 
-来源：[`packages/graph/graph/src/index.ts:50`](../packages/graph/graph/src/index.ts)
+来源：[`packages/graph/graph/src/index.ts:53`](../packages/graph/graph/src/index.ts)
 
 ### `hook/*`
 

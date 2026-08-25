@@ -3749,8 +3749,44 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type GraphBranchMode = \'all\' | \'any\' | \'exactly-one\' | \'activated\';',
   },
   {
+    name: 'GraphCampaign',
+    declaration: 'export interface GraphCampaign {\n    readonly version: 1;\n    readonly id: GraphCampaignId;\n    readonly objective: string;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly phase: \'planned\' | \'running\' | \'awaiting_user\' | \'succeeded\' | \'failed\' | \'canceled\';\n    readonly batches: readonly GraphCampaignBatch[];\n    readonly activeBatchId?: GraphCampaignBatchId;\n    readonly planRevision?: number;\n    readonly planExtensions?: readonly GraphCampaignPlanExtension[];\n}',
+  },
+  {
+    name: 'GraphCampaignBatch',
+    declaration: 'export interface GraphCampaignBatch {\n    readonly id: GraphCampaignBatchId;\n    readonly ordinal: number;\n    readonly title: string;\n    readonly objective: string;\n    readonly dependsOn: readonly GraphCampaignBatchId[];\n    readonly status: \'planned\' | \'running\' | \'approved\' | \'approved_with_findings\' | \'rejected\' | \'needs_user\' | \'blocked\';\n    readonly graphId?: GraphId;\n    readonly executions: readonly {\n        readonly graphId: GraphId;\n        readonly revision: number;\n        readonly runId: GraphRunId;\n        readonly status: \'running\' | \'succeeded\' | \'failed\' | \'canceled\' | \'exhausted\' | \'awaiting_user\';\n        readonly startedAt: number;\n        readonly completedAt?: number;\n        readonly settlementIds: readonly GraphSettlementId[];\n        readonly summary?: string;\n    }[];\n}',
+  },
+  {
+    name: 'GraphCampaignBatchDraft',
+    declaration: 'export interface GraphCampaignBatchDraft {\n    readonly id: string;\n    readonly title: string;\n    readonly objective: string;\n    readonly dependsOn?: readonly string[];\n}',
+  },
+  {
+    name: 'GraphCampaignBatchId',
+    declaration: 'export type GraphCampaignBatchId = Branded<\'GraphCampaignBatchId\'>;',
+  },
+  {
+    name: 'GraphCampaignId',
+    declaration: 'export type GraphCampaignId = Branded<\'GraphCampaignId\'>;',
+  },
+  {
+    name: 'GraphCampaignPlanDraft',
+    declaration: 'export interface GraphCampaignPlanDraft {\n    readonly objective: string;\n    readonly batches: readonly GraphCampaignBatchDraft[];\n}',
+  },
+  {
+    name: 'GraphCampaignPlanExtension',
+    declaration: 'export interface GraphCampaignPlanExtension {\n    readonly revision: number;\n    readonly createdAt: number;\n    readonly reason: string;\n    readonly addedBatchIds: readonly GraphCampaignBatchId[];\n    readonly sourceBatchId?: GraphCampaignBatchId;\n    readonly sourceRunId?: GraphRunId;\n    readonly settlementIds: readonly GraphSettlementId[];\n}',
+  },
+  {
+    name: 'GraphCampaignPlanExtensionDraft',
+    declaration: 'export interface GraphCampaignPlanExtensionDraft {\n    readonly batches: readonly GraphCampaignBatchDraft[];\n}',
+  },
+  {
+    name: 'GraphCampaignSubmissionDraft',
+    declaration: 'export interface GraphCampaignSubmissionDraft {\n    readonly batchId: string;\n    readonly plan?: GraphCampaignPlanDraft;\n    readonly planExtension?: GraphCampaignPlanExtensionDraft;\n}',
+  },
+  {
     name: 'GraphCheckpoint',
-    declaration: 'export interface GraphCheckpoint {\n    readonly id: GraphCheckpointId;\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly runId: GraphRunId;\n    readonly nodeId: GraphNodeId;\n    readonly kind: \'expansion\' | \'repair\' | \'planning\' | \'awaiting_user\';\n    readonly status: \'pending\' | \'resolved\' | \'superseded\' | \'canceled\';\n    readonly createdAt: number;\n    readonly iteration: number;\n    readonly reason: string;\n    readonly proposal?: GraphExpansionProposal;\n    readonly issues?: readonly GraphReviewIssue[];\n    readonly resolvedAt?: number;\n    readonly replacementRevision?: number;\n}',
+    declaration: 'export interface GraphCheckpoint {\n    readonly id: GraphCheckpointId;\n    readonly graphId: GraphId;\n    readonly revision: number;\n    readonly runId: GraphRunId;\n    readonly nodeId: GraphNodeId;\n    readonly kind: \'expansion\' | \'repair\' | \'planning\' | \'environment\' | \'awaiting_user\';\n    readonly status: \'pending\' | \'resolved\' | \'superseded\' | \'canceled\';\n    readonly createdAt: number;\n    readonly iteration: number;\n    readonly reason: string;\n    readonly proposal?: GraphExpansionProposal;\n    readonly issues?: readonly GraphReviewIssue[];\n    readonly resolvedAt?: number;\n    readonly replacementRevision?: number;\n    readonly authorizedGeneration?: number;\n}',
   },
   {
     name: 'GraphCheckpointId',
@@ -3786,7 +3822,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphCoordinationClaim',
-    declaration: 'export interface GraphCoordinationClaim {\n    readonly claimId: string;\n    readonly todoId: string;\n    readonly leaseId: string;\n    readonly expiresAt: number;\n    readonly fencingToken: number;\n    readonly observation: string;\n}',
+    declaration: 'export interface GraphCoordinationClaim {\n    readonly claimId: string;\n    readonly todoId: string;\n    readonly leaseId: string;\n    readonly expiresAt: number;\n    readonly fencingToken: number;\n    readonly observation: string;\n    readonly terminal?: {\n        readonly outcome: GraphCoordinationSettlement[\'outcome\'];\n        readonly evidence: string;\n    };\n}',
   },
   {
     name: 'GraphCoordinationEvent',
@@ -3833,6 +3869,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GraphEdge {\n    readonly from: GraphNodeId;\n    readonly to: GraphNodeId;\n    readonly kind: \'control\' | \'data\' | \'conditional\';\n    readonly condition?: GraphCondition;\n    readonly branchGroupId?: GraphBranchGroupId;\n}',
   },
   {
+    name: 'GraphEnvironmentCapability',
+    declaration: 'export type GraphEnvironmentCapability = \'network\' | \'host-package-install\' | \'docker\';',
+  },
+  {
+    name: 'GraphEnvironmentOperation',
+    declaration: 'export interface GraphEnvironmentOperation {\n    readonly id: string;\n    readonly description: string;\n    readonly command: string;\n    readonly rollbackCommand?: string;\n}',
+  },
+  {
+    name: 'GraphEnvironmentPlan',
+    declaration: 'export interface GraphEnvironmentPlan {\n    readonly requiredCapabilities: readonly GraphEnvironmentCapability[];\n    readonly sandboxMode: \'workspace-write\' | \'danger-full-access\';\n    readonly operations: readonly GraphEnvironmentOperation[];\n}',
+  },
+  {
     name: 'GraphExecutionCheckpoint',
     declaration: 'export interface GraphExecutionCheckpoint {\n    readonly workId: GraphWorkId;\n    readonly attemptId: GraphAttemptId;\n    readonly activation: number;\n    readonly sequence: number;\n    readonly createdAt: number;\n    readonly completedCriteria: readonly string[];\n    readonly changedFiles: readonly {\n        readonly path: string;\n        readonly contentHash: string;\n    }[];\n    readonly verification: readonly {\n        readonly command: string;\n        readonly exitCode: number;\n        readonly summary: string;\n    }[];\n    readonly remainingWork: readonly string[];\n    readonly nextAction: string;\n}',
   },
@@ -3854,7 +3902,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphExternalReference',
-    declaration: 'export interface GraphExternalReference {\n    readonly kind: \'coordination\' | \'worker\' | \'workspace\' | \'model\' | \'child-session\' | \'artifact\';\n    readonly provider: string;\n    readonly id: string;\n    readonly fencingToken?: number;\n}',
+    declaration: 'export interface GraphExternalReference {\n    readonly kind: \'coordination\' | \'worker\' | \'workspace\' | \'model\' | \'child-session\' | \'artifact\' | \'environment\';\n    readonly provider: string;\n    readonly id: string;\n    readonly fencingToken?: number;\n}',
   },
   {
     name: 'GraphId',
@@ -3882,7 +3930,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphNode',
-    declaration: 'export interface GraphNode {\n    readonly id: GraphNodeId;\n    readonly title: string;\n    readonly objective: string;\n    readonly kind: GraphTaskKind;\n    readonly roleId: GraphRoleId;\n    readonly acceptanceCriteria: readonly string[];\n    readonly outputSchema: GraphOutputSchema;\n    readonly maxAttempts: number;\n    readonly weight: number;\n    readonly executionBudget: GraphNodeExecutionBudget;\n    readonly expansion?: GraphExpansionSpec;\n    readonly subgraph?: GraphSubgraphSpec;\n    readonly workspace?: GraphNodeWorkspacePolicy;\n    readonly skippable: boolean;\n    readonly effectPolicy: \'idempotent\' | \'reconcile\' | \'manual\';\n}',
+    declaration: 'export interface GraphNode {\n    readonly id: GraphNodeId;\n    readonly title: string;\n    readonly objective: string;\n    readonly kind: GraphTaskKind;\n    readonly roleId: GraphRoleId;\n    readonly acceptanceCriteria: readonly string[];\n    readonly outputSchema: GraphOutputSchema;\n    readonly maxAttempts: number;\n    readonly weight: number;\n    readonly executionBudget: GraphNodeExecutionBudget;\n    readonly expansion?: GraphExpansionSpec;\n    readonly subgraph?: GraphSubgraphSpec;\n    readonly environment?: GraphEnvironmentPlan;\n    readonly workspace?: GraphNodeWorkspacePolicy;\n    readonly skippable: boolean;\n    readonly effectPolicy: \'idempotent\' | \'reconcile\' | \'manual\';\n}',
   },
   {
     name: 'GraphNodeDraft',
@@ -3938,7 +3986,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphProjection',
-    declaration: 'export interface GraphProjection {\n    readonly config: GraphModeConfig;\n    readonly graphs: Readonly<Record<string, readonly GraphRevision[]>>;\n    readonly runs: Readonly<Record<string, GraphRun>>;\n    readonly operations: Readonly<Record<string, readonly GraphOperationTransition[]>>;\n    readonly settlements: Readonly<Record<string, readonly GraphSettlementRecord[]>>;\n    readonly submissions: Readonly<Record<string, GraphRevisionSubmissionRecord>>;\n    readonly checkpoints: Readonly<Record<string, GraphCheckpoint>>;\n    readonly controls: Readonly<Record<string, GraphControlRecord>>;\n    readonly currentGraphId?: GraphId;\n}',
+    declaration: 'export interface GraphProjection {\n    readonly config: GraphModeConfig;\n    readonly graphs: Readonly<Record<string, readonly GraphRevision[]>>;\n    readonly runs: Readonly<Record<string, GraphRun>>;\n    readonly operations: Readonly<Record<string, readonly GraphOperationTransition[]>>;\n    readonly settlements: Readonly<Record<string, readonly GraphSettlementRecord[]>>;\n    readonly submissions: Readonly<Record<string, GraphRevisionSubmissionRecord>>;\n    readonly checkpoints: Readonly<Record<string, GraphCheckpoint>>;\n    readonly controls: Readonly<Record<string, GraphControlRecord>>;\n    readonly campaigns: Readonly<Record<string, GraphCampaign>>;\n    readonly currentGraphId?: GraphId;\n    readonly currentCampaignId?: GraphCampaignId;\n}',
   },
   {
     name: 'GraphResourceDecision',
@@ -3993,8 +4041,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GraphRevisionDraft extends Omit<GraphRevision, \'createdAt\' | \'nodes\' | \'edges\' | \'branchGroups\' | \'terminationPolicy\'> {\n    readonly createdAt?: number;\n    readonly nodes: readonly GraphNodeDraft[];\n    readonly edges?: GraphRevision[\'edges\'];\n    readonly branchGroups?: GraphRevision[\'branchGroups\'];\n    readonly terminationPolicy?: Partial<GraphTerminationPolicy>;\n}',
   },
   {
+    name: 'GraphRevisionKind',
+    declaration: 'export type GraphRevisionKind = \'new_task\' | \'analysis_refactor\' | \'execution_correction\';',
+  },
+  {
+    name: 'GraphRevisionLineage',
+    declaration: 'export interface GraphRevisionLineage {\n    readonly version: 1;\n    readonly taskId: GraphTaskId;\n    readonly kind: GraphRevisionKind;\n    readonly title: string;\n    readonly objective: string;\n    readonly reason: string;\n    readonly creator: \'controller\' | \'human_control\' | \'recovery\';\n    readonly createdAt: number;\n    readonly trigger: GraphRevisionTrigger;\n    readonly relationships: readonly GraphRevisionRelationship[];\n    readonly successCriteria: readonly string[];\n    readonly changes: {\n        readonly addedNodeIds: readonly GraphNodeId[];\n        readonly changedNodeIds: readonly GraphNodeId[];\n        readonly removedNodeIds: readonly GraphNodeId[];\n        readonly preservedNodeIds: readonly GraphNodeId[];\n        readonly invalidatedNodeIds: readonly GraphNodeId[];\n    };\n}',
+  },
+  {
+    name: 'GraphRevisionLineageDraft',
+    declaration: 'export interface GraphRevisionLineageDraft {\n    readonly kind: GraphRevisionKind;\n    readonly title: string;\n    readonly trigger: {\n        readonly source: GraphRevisionLineage[\'trigger\'][\'source\'];\n        readonly summary: string;\n        readonly runId?: string;\n        readonly nodeId?: string;\n        readonly errorCode?: string;\n        readonly evidence?: readonly string[];\n    };\n    readonly successCriteria?: readonly string[];\n}',
+  },
+  {
+    name: 'GraphRevisionRelationship',
+    declaration: 'export interface GraphRevisionRelationship {\n    readonly kind: \'derived_from\' | \'refactors\' | \'corrects\' | \'supersedes\' | \'depends_on\';\n    readonly graphId: GraphId;\n    readonly revision?: number;\n    readonly reason: string;\n}',
+  },
+  {
     name: 'GraphRevisionSubmissionRecord',
-    declaration: 'export interface GraphRevisionSubmissionRecord {\n    readonly version: 1;\n    readonly id: GraphSubmissionId;\n    readonly intent: \'new\' | \'revise\';\n    readonly graph: GraphRevision;\n    readonly run: GraphRun;\n    readonly changedNodeIds: readonly GraphNodeId[];\n    readonly outcome: \'pending\' | \'accepted\' | \'failed\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+    declaration: 'export interface GraphRevisionSubmissionRecord {\n    readonly version: 1;\n    readonly id: GraphSubmissionId;\n    readonly intent: \'new\' | \'revise\';\n    readonly graph: GraphRevision;\n    readonly run: GraphRun;\n    readonly changedNodeIds: readonly GraphNodeId[];\n    readonly outcome: \'pending\' | \'accepted\' | \'failed\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n    readonly campaign?: GraphCampaign;\n    readonly lineage?: GraphRevisionLineage;\n}',
+  },
+  {
+    name: 'GraphRevisionTrigger',
+    declaration: 'export interface GraphRevisionTrigger {\n    readonly source: \'user\' | \'planning_checkpoint\' | \'run_failure\' | \'review_rejection\' | \'human_control\' | \'recovery\';\n    readonly summary: string;\n    readonly runId?: GraphRunId;\n    readonly nodeId?: GraphNodeId;\n    readonly errorCode?: string;\n    readonly evidence: readonly string[];\n}',
   },
   {
     name: 'GraphRole',
@@ -4062,7 +4130,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphSettlementRecord',
-    declaration: 'export interface GraphSettlementRecord {\n    readonly version: 2;\n    readonly id: GraphSettlementId;\n    readonly attempt: number;\n    readonly operationId: GraphControlOperationId;\n    readonly workId: GraphWorkId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly kind: \'coordination\' | \'resource-release\' | \'artifact\' | \'cancellation\' | \'compensation\';\n    readonly outcome: \'pending\' | \'confirmed\' | \'failed\' | \'conflict\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly externalReference?: GraphExternalReference;\n    readonly evidence?: string;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
+    declaration: 'export interface GraphSettlementRecord {\n    readonly version: 2;\n    readonly id: GraphSettlementId;\n    readonly attempt: number;\n    readonly operationId: GraphControlOperationId;\n    readonly workId: GraphWorkId;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly kind: \'coordination\' | \'resource-release\' | \'artifact\' | \'environment\' | \'cancellation\' | \'compensation\';\n    readonly outcome: \'pending\' | \'confirmed\' | \'failed\' | \'conflict\';\n    readonly requestedAt: number;\n    readonly completedAt?: number;\n    readonly externalReference?: GraphExternalReference;\n    readonly evidence?: string;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n    };\n}',
   },
   {
     name: 'GraphSubgraphSpec',
@@ -4070,15 +4138,19 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphSubmission',
-    declaration: 'export interface GraphSubmission {\n    readonly intent: ControllerIntent;\n    readonly reason: string;\n    readonly graph?: GraphRevisionDraft;\n    readonly changedNodeIds?: readonly GraphNodeId[];\n}',
+    declaration: 'export interface GraphSubmission {\n    readonly intent: ControllerIntent;\n    readonly reason: string;\n    readonly graph?: GraphRevisionDraft;\n    readonly changedNodeIds?: readonly GraphNodeId[];\n    readonly campaign?: GraphCampaignSubmissionDraft;\n    readonly lineage?: GraphRevisionLineageDraft;\n}',
   },
   {
     name: 'GraphSubmissionId',
     declaration: 'export type GraphSubmissionId = Branded<\'GraphSubmissionId\'>;',
   },
   {
+    name: 'GraphTaskId',
+    declaration: 'export type GraphTaskId = Branded<\'GraphTaskId\'>;',
+  },
+  {
     name: 'GraphTaskKind',
-    declaration: 'export type GraphTaskKind = \'analysis\' | \'design\' | \'implementation\' | \'review\' | \'verification\' | \'documentation\' | \'integration\' | \'specialist\' | \'expansion\' | \'subgraph\';',
+    declaration: 'export type GraphTaskKind = \'analysis\' | \'design\' | \'environment\' | \'implementation\' | \'review\' | \'verification\' | \'documentation\' | \'integration\' | \'specialist\' | \'expansion\' | \'subgraph\';',
   },
   {
     name: 'GraphTerminalEvidence',
@@ -4118,7 +4190,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphWorkerResult',
-    declaration: 'export interface GraphWorkerResult {\n    readonly outcome: GraphWorkerOutcome;\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly childSessionId?: string;\n    readonly artifactManifest?: GraphArtifactManifest;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n        readonly retryAfterMs?: number;\n    };\n}',
+    declaration: 'export interface GraphWorkerResult {\n    readonly outcome: GraphWorkerOutcome;\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly childSessionId?: string;\n    readonly artifactManifest?: GraphArtifactManifest;\n    readonly error?: {\n        readonly code: string;\n        readonly message: string;\n        readonly retryable?: boolean;\n        readonly retryAfterMs?: number;\n    };\n}',
   },
   {
     name: 'GraphWorkerRun',
@@ -5162,7 +5234,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly sandboxMode?: boolean;\n}',
   },
   {
     name: 'SubagentDescendantListEntry',
@@ -5218,7 +5290,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly workspaceCwd?: string;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly workspaceCwd?: string;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n    readonly sandboxModeCap?: SandboxMode;\n}',
   },
   {
     name: 'SubagentStopReason',

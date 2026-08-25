@@ -55,7 +55,13 @@ interface ControlledRun {
  * the request signal fires, like the real in-process backends.
  */
 class StubProvider implements SubagentProvider {
-  readonly capabilities: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: false }
+  readonly capabilities: SubagentCapabilities = {
+    outputSchema: true,
+    depthLimit: true,
+    toolFilter: true,
+    persona: false,
+    sandboxMode: false,
+  }
   readonly inheritsParentContext = false
   readonly runs: ControlledRun[] = []
 

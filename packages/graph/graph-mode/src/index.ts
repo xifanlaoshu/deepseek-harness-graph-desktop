@@ -6,27 +6,34 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   GraphActivationId,
   GraphAttemptId,
+  GraphCampaignBatchId,
+  GraphCampaignId,
   GraphCheckpointId,
   GraphControlOperationId,
   GraphOperationEventId,
   GraphSubmissionId,
+  GraphTaskId,
   GraphRunGenerationId,
   GraphSettlementId,
   GraphWorkId,
   MAX_GRAPH_TIMER_MS,
   GraphRunId,
   GraphId,
+  MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES,
+  MAX_GRAPH_ENVIRONMENT_OPERATIONS,
   defaultGraphModeConfig,
   defaultGraphNodeExecutionBudget,
   defaultGraphOutputSchema,
   downstreamInvalidation,
   foldGraph,
+  graphEnvironmentApprovalText,
   validateGraphModeConfig,
   validateGraphCheckpoint,
   validateGraphNodeOutput,
@@ -34,11 +41,14 @@ import {
 } from '@deepseek-ai/dsh-graph'
 import type {
   GraphCondition,
+  GraphCampaign,
   GraphCheckpoint,
   GraphControlActor,
   GraphExpansionProposal,
   GraphExecutionCheckpoint,
   GraphExecutionHealth,
+  GraphEnvironmentCapability,
+  GraphEnvironmentPlan,
   GraphAttempt,
   GraphJsonValue,
   GraphModelExecutionProfile,
@@ -62,6 +72,8 @@ import type {
   GraphBranchEvaluation,
   GraphSettlementRecord,
   GraphRevisionSubmissionRecord,
+  GraphRevisionKind,
+  GraphRevisionLineage,
   GraphTerminationPolicy,
 } from '@deepseek-ai/dsh-graph'
 import type GraphCoordination from '@deepseek-ai/dsh-graph-coordination'
@@ -91,9 +103,11 @@ import {
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-subagent'
+import type {} from '@deepseek-ai/dsh-shell'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 
@@ -119,6 +133,14 @@ export interface Config {
   schedulerHeartbeatMs?: number
   /** Deadline for one external cleanup, settlement, or reconciliation operation. */
   externalOperationTimeoutMs?: number
+  /** Interval for detecting durable nonterminal runs without a local executor. */
+  recoveryScanIntervalMs?: number
+  /** Whether immutable environment nodes may request host command execution. */
+  environmentEnabled?: boolean
+  /** Host capability names environment nodes may request. */
+  environmentCapabilities?: GraphEnvironmentCapability[]
+  /** Whether an approved environment node may bypass filesystem confinement. */
+  environmentDangerFullAccess?: boolean
 }
 
 /** Plugin configuration schema. */
@@ -130,7 +152,25 @@ export const Config: z<Config> = z.object({
   schedulerProvider: z.string(),
   schedulerHeartbeatMs: z.natural().min(100).max(300_000).default(5_000),
   externalOperationTimeoutMs: z.natural().min(1).max(MAX_GRAPH_TIMER_MS).default(60_000),
+  recoveryScanIntervalMs: z.natural().min(100).max(300_000).default(15_000),
+  environmentEnabled: z.boolean().default(true),
+  environmentCapabilities: z.array(z.union(['network', 'host-package-install', 'docker'] as const))
+    .default(['network', 'host-package-install', 'docker']),
+  environmentDangerFullAccess: z.boolean().default(true),
 })
+
+/** Deployment authority applied while admitting environment nodes. */
+export interface GraphEnvironmentHostPolicy {
+  readonly enabled: boolean
+  readonly capabilities: readonly GraphEnvironmentCapability[]
+  readonly dangerFullAccess: boolean
+}
+
+const DISABLED_ENVIRONMENT_POLICY: GraphEnvironmentHostPolicy = {
+  enabled: false,
+  capabilities: [],
+  dangerFullAccess: false,
+}
 
 /** Global role and scheduler defaults copied into a session on first activation. */
 export interface GraphTemplateSettings {
@@ -468,6 +508,16 @@ class GraphWorkerStalledError extends Error {
   }
 }
 
+class GraphWorkerRevisionRequiredError extends Error {
+  constructor(
+    readonly code: string,
+    readonly workerMessage: string,
+  ) {
+    super(workerMessage)
+    this.name = 'GraphWorkerRevisionRequiredError'
+  }
+}
+
 const conditionToolSchema = {
   type: 'object',
   additionalProperties: false,
@@ -520,12 +570,12 @@ const graphRevisionToolSchema = {
           objective: { type: 'string', required: true },
           kind: {
             type: 'string',
-            enum: ['analysis', 'design', 'implementation', 'review', 'verification', 'documentation', 'integration', 'specialist', 'expansion', 'subgraph'],
+            enum: ['analysis', 'design', 'environment', 'implementation', 'review', 'verification', 'documentation', 'integration', 'specialist', 'expansion', 'subgraph'],
             required: true,
           },
           roleId: { type: 'string', description: 'One enabled non-controller role id.', required: true },
           acceptanceCriteria: { type: 'array', items: { type: 'string' }, required: true },
-          outputSchema: { ...standardOutputSchemaTool, description: 'Optional specialized result schema; ordinary nodes inherit the standard structured result.' },
+          outputSchema: { ...standardOutputSchemaTool, description: 'Optional specialized result schema; ordinary nodes inherit the standard structured result, while review and verification nodes also require Host-owned data.decision and data.issues fields.' },
           maxAttempts: { type: 'number', description: 'Optional positive attempt ceiling; defaults to the frozen session policy.' },
           weight: { type: 'number', description: 'Optional positive scheduling weight; defaults to one.' },
           executionBudget: {
@@ -544,6 +594,40 @@ const graphRevisionToolSchema = {
           },
           expansion: { type: 'object', additionalProperties: true },
           subgraph: { type: 'object', additionalProperties: true },
+          environment: {
+            type: 'object',
+            additionalProperties: false,
+            description: 'Required only for environment nodes. Every exact command receives mandatory human approval before execution.',
+            properties: {
+              requiredCapabilities: {
+                type: 'array',
+                items: { type: 'string', enum: ['network', 'host-package-install', 'docker'] },
+                required: true,
+              },
+              sandboxMode: {
+                type: 'string',
+                enum: ['workspace-write', 'danger-full-access'],
+                required: true,
+              },
+              operations: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    id: { type: 'string', required: true },
+                    description: { type: 'string', required: true },
+                    command: { type: 'string', required: true },
+                    rollbackCommand: {
+                      type: 'string',
+                      description: 'Documentary rollback command; it is never executed automatically.',
+                    },
+                  },
+                },
+                required: true,
+              },
+            },
+          },
           workspace: {
             type: 'object',
             additionalProperties: false,
@@ -771,6 +855,35 @@ const resolvedDefaultOutputSchema = (node: GraphNodeDraft, maxBytes: number): Gr
   }
 }
 
+const resolvedOutputSchema = (node: GraphNodeDraft, maxBytes: number): GraphOutputSchema => {
+  const declared = node.outputSchema
+  if (declared === undefined) return resolvedDefaultOutputSchema(node, maxBytes)
+  if (node.kind !== 'review' && node.kind !== 'verification') return declared
+  const control = resolvedDefaultOutputSchema(node, maxBytes)
+  const declaredData = declared.schema.properties?.['data']
+  const controlData = control.schema.properties?.['data']
+  if (controlData?.type !== 'object') throw new Error('Graph control output schema is invalid')
+  const specializedData = declaredData?.type === 'object' ? declaredData : { type: 'object' as const }
+  return {
+    ...declared,
+    schema: {
+      ...declared.schema,
+      properties: {
+        ...declared.schema.properties,
+        data: {
+          ...specializedData,
+          properties: {
+            ...specializedData.properties,
+            ...controlData.properties,
+          },
+          required: [...new Set([...(specializedData.required ?? []), ...(controlData.required ?? [])])],
+        },
+      },
+      required: [...new Set([...(declared.schema.required ?? []), 'data'])],
+    },
+  }
+}
+
 const workspaceRootIssue = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return 'provide a string root'
   if (value.length === 0) return 'use "." for the whole workspace or a normalized source-relative path; empty roots are invalid'
@@ -822,7 +935,80 @@ const collectWorkspaceDraftIssues = (workspace: unknown, path: string, issues: s
   }
 }
 
-const draftAdmissionIssues = (draft: GraphRevisionDraft, config: GraphModeConfig): string[] => {
+const collectEnvironmentDraftIssues = (
+  environment: unknown,
+  path: string,
+  policy: GraphEnvironmentHostPolicy,
+  issues: string[],
+): void => {
+  if (typeof environment !== 'object' || environment === null || Array.isArray(environment)) {
+    issues.push(`${path}: provide an environment plan object`)
+    return
+  }
+  const value = environment as Record<string, unknown>
+  const allowedKeys = new Set(['requiredCapabilities', 'sandboxMode', 'operations'])
+  for (const key of Object.keys(value)) if (!allowedKeys.has(key)) issues.push(`${path}.${key}: unknown environment field`)
+  if (!policy.enabled) issues.push(`${path}: environment nodes are disabled by the deployment`)
+  const capabilities = Array.isArray(value.requiredCapabilities) ? value.requiredCapabilities as readonly unknown[] : undefined
+  if (capabilities === undefined || capabilities.length === 0
+    || capabilities.some(capability => typeof capability !== 'string')
+    || new Set(capabilities).size !== capabilities.length) {
+    issues.push(`${path}.requiredCapabilities: provide unique network, host-package-install, or docker capabilities`)
+  } else {
+    const allowed = new Set(policy.capabilities)
+    for (const [index, capability] of capabilities.entries()) {
+      if (!['network', 'host-package-install', 'docker'].includes(capability as string)) {
+        issues.push(`${path}.requiredCapabilities[${String(index)}]: choose network, host-package-install, or docker`)
+      } else if (!allowed.has(capability as GraphEnvironmentCapability)) {
+        issues.push(`${path}.requiredCapabilities[${String(index)}]: capability ${String(capability)} is disabled by the deployment`)
+      }
+    }
+  }
+  if (value.sandboxMode !== 'workspace-write' && value.sandboxMode !== 'danger-full-access') {
+    issues.push(`${path}.sandboxMode: choose workspace-write or danger-full-access`)
+  } else if (value.sandboxMode === 'danger-full-access' && !policy.dangerFullAccess) {
+    issues.push(`${path}.sandboxMode: danger-full-access environment operations are disabled by the deployment`)
+  }
+  const operations = Array.isArray(value.operations) ? value.operations as readonly unknown[] : undefined
+  if (operations === undefined || operations.length === 0 || operations.length > MAX_GRAPH_ENVIRONMENT_OPERATIONS) {
+    issues.push(`${path}.operations: provide 1-${String(MAX_GRAPH_ENVIRONMENT_OPERATIONS)} exact operations`)
+    return
+  }
+  const ids = new Set<string>()
+  for (const [index, candidate] of operations.entries()) {
+    const operationPath = `${path}.operations[${String(index)}]`
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+      issues.push(`${operationPath}: provide an operation object`)
+      continue
+    }
+    const operation = candidate as Record<string, unknown>
+    const operationKeys = new Set(['id', 'description', 'command', 'rollbackCommand'])
+    for (const key of Object.keys(operation)) if (!operationKeys.has(key)) issues.push(`${operationPath}.${key}: unknown operation field`)
+    if (typeof operation.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(operation.id)
+      || ids.has(operation.id)) {
+      issues.push(`${operationPath}.id: use a unique normalized safe id`)
+    } else ids.add(operation.id)
+    for (const field of ['description', 'command'] as const) {
+      if (typeof operation[field] !== 'string' || operation[field].trim() !== operation[field]
+        || operation[field].length === 0) issues.push(`${operationPath}.${field}: provide normalized non-empty text`)
+    }
+    if (operation.rollbackCommand !== undefined && (typeof operation.rollbackCommand !== 'string'
+      || operation.rollbackCommand.trim() !== operation.rollbackCommand || operation.rollbackCommand.length === 0)) {
+      issues.push(`${operationPath}.rollbackCommand: provide normalized non-empty text or omit it`)
+    }
+  }
+  if (issues.some(issue => issue.startsWith(path))) return
+  const approvalText = graphEnvironmentApprovalText(value as unknown as GraphEnvironmentPlan)
+  if (new TextEncoder().encode(approvalText).byteLength > MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES) {
+    issues.push(`${path}: approval text exceeds ${String(MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES)} bytes; split the change into smaller environment nodes`)
+  }
+}
+
+const draftAdmissionIssues = (
+  draft: GraphRevisionDraft,
+  config: GraphModeConfig,
+  environmentPolicy: GraphEnvironmentHostPolicy,
+): string[] => {
   const issues: string[] = []
   const safeId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
   const normalized = (value: unknown): value is string => typeof value === 'string' && value.trim() === value && value.length > 0
@@ -868,6 +1054,17 @@ const draftAdmissionIssues = (draft: GraphRevisionDraft, config: GraphModeConfig
     if (!normalized(node.effectPolicy) || !['idempotent', 'reconcile', 'manual'].includes(node.effectPolicy)) {
       issues.push(`${path}.effectPolicy: choose idempotent, reconcile, or manual`)
     }
+    if ((node.kind === 'environment') !== (node.environment !== undefined)) {
+      issues.push(`${path}.environment: exactly environment nodes require an environment plan`)
+    }
+    if (node.environment !== undefined) {
+      collectEnvironmentDraftIssues(node.environment, `${path}.environment`, environmentPolicy, issues)
+      if (node.effectPolicy !== 'manual') issues.push(`${path}.effectPolicy: environment nodes require manual`)
+      if (node.maxAttempts !== undefined && node.maxAttempts !== 1) issues.push(`${path}.maxAttempts: environment nodes allow exactly one attempt`)
+      if (node.workspace !== undefined && (node.workspace as Record<string, unknown>).mode !== 'shared') {
+        issues.push(`${path}.workspace.mode: environment nodes require shared`)
+      }
+    }
     if (node.maxAttempts !== undefined && (!Number.isSafeInteger(node.maxAttempts)
       || typeof node.maxAttempts !== 'number' || node.maxAttempts < 1
       || node.maxAttempts > config.executionPolicy.maxAttemptsPerNode)) {
@@ -883,6 +1080,15 @@ const draftAdmissionIssues = (draft: GraphRevisionDraft, config: GraphModeConfig
       if (Object.keys(budget).some(key => !expected.includes(key))
         || expected.some(key => !Number.isSafeInteger(budget[key]) || (budget[key] as number) < (key === 'maxContinuations' ? 0 : 1))) {
         issues.push(`${path}.executionBudget: provide positive integer limits and a non-negative maxContinuations`)
+      }
+    }
+    if ((node.kind === 'review' || node.kind === 'verification') && node.outputSchema !== undefined) {
+      const dataSchema = (node.outputSchema as GraphOutputSchema).schema.properties?.['data']
+      if (dataSchema !== undefined && dataSchema.type !== undefined && dataSchema.type !== 'object') {
+        issues.push(`${path}.outputSchema.schema.properties.data: review and verification nodes require an object data schema`)
+      }
+      if (dataSchema !== undefined && dataSchema.oneOf !== undefined) {
+        issues.push(`${path}.outputSchema.schema.properties.data: review and verification nodes cannot replace the required control object with oneOf`)
       }
     }
     if (node.workspace !== undefined) collectWorkspaceDraftIssues(node.workspace, `${path}.workspace`, issues)
@@ -952,9 +1158,10 @@ const resolveGraphRevisionDraftWithCorrection = (
   config: GraphModeConfig,
   now: number,
   correction: string,
+  environmentPolicy: GraphEnvironmentHostPolicy,
 ): GraphRevision => {
   validateGraphModeConfig(config)
-  const admissionIssues = draftAdmissionIssues(draft, config)
+  const admissionIssues = draftAdmissionIssues(draft, config, environmentPolicy)
   if (admissionIssues.length > 0) {
     throw new Error(`Graph draft rejected:\n${admissionIssues.map(issue => `- ${issue}`).join('\n')}\nCorrected minimal example: ${correction}`)
   }
@@ -965,11 +1172,17 @@ const resolveGraphRevisionDraftWithCorrection = (
       const { workspace, ...semanticNode } = node
       const resolvedNode = {
         ...semanticNode,
-        outputSchema: node.outputSchema ?? resolvedDefaultOutputSchema(node, config.executionPolicy.maxOutputBytes),
-        maxAttempts: node.maxAttempts ?? config.executionPolicy.maxAttemptsPerNode,
+        outputSchema: resolvedOutputSchema(node, config.executionPolicy.maxOutputBytes),
+        maxAttempts: node.kind === 'environment' ? 1 : node.maxAttempts ?? config.executionPolicy.maxAttemptsPerNode,
         weight: node.weight ?? 1,
         executionBudget: node.executionBudget ?? defaultGraphNodeExecutionBudget(config.executionPolicy),
         skippable: node.skippable ?? false,
+      }
+      if (node.kind === 'environment') {
+        return {
+          ...resolvedNode,
+          workspace: { mode: 'shared', readRoots: ['.'], writeRoots: ['.'], cleanup: 'retain' },
+        }
       }
       if (workspace === undefined) return resolvedNode
       return { ...resolvedNode, workspace: resolveWorkspaceDraft(workspace) }
@@ -991,6 +1204,7 @@ const resolveGraphRevisionDraftWithCorrection = (
  * @param draft semantic controller output with optional deployment-owned fields.
  * @param config frozen session configuration that owns execution defaults and ceilings.
  * @param now authoritative Host timestamp recorded for the accepted revision.
+ * @param environmentPolicy deployment-authorized host effects available to environment nodes.
  * @returns complete validated graph revision detached from the input draft.
  * @throws Error when the draft or resolved revision violates Graph configuration.
  */
@@ -998,8 +1212,9 @@ export function resolveGraphRevisionDraft(
   draft: GraphRevisionDraft,
   config: GraphModeConfig,
   now = Date.now(),
+  environmentPolicy: GraphEnvironmentHostPolicy = DISABLED_ENVIRONMENT_POLICY,
 ): GraphRevision {
-  return resolveGraphRevisionDraftWithCorrection(draft, config, now, correctedDraftExample(config, draft))
+  return resolveGraphRevisionDraftWithCorrection(draft, config, now, correctedDraftExample(config, draft), environmentPolicy)
 }
 
 const HOST_OWNED_GRAPH_FIELDS = new Set([
@@ -1034,7 +1249,24 @@ const allocateGraphId = (draft: GraphControllerPlanDraft, projection: GraphProje
   return GraphId(candidate)
 }
 
-const MUTATING_GRAPH_KINDS = new Set<GraphNode['kind']>(['implementation', 'documentation', 'integration', 'specialist'])
+const allocateCampaignId = (plan: GraphCampaignPlanDraft, projection: GraphProjection): GraphCampaignId => {
+  const slug = plan.objective.normalize('NFKD').toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-+|-+$/g, '')
+    .slice(0, 96)
+    .replaceAll(/-+$/g, '')
+  const digest = createHash('sha256').update(JSON.stringify(plan)).digest('hex').slice(0, 12)
+  const base = `${slug || 'campaign'}-${digest}`
+  let candidate = base
+  let duplicate = 2
+  while (projection.campaigns[candidate] !== undefined) {
+    candidate = `${base}-${String(duplicate)}`
+    duplicate += 1
+  }
+  return GraphCampaignId(candidate)
+}
+
+const MUTATING_GRAPH_KINDS = new Set<GraphNode['kind']>(['environment', 'implementation', 'documentation', 'integration', 'specialist'])
 
 const controllerWorkspaceIssues = (graph: GraphRevision): string[] => {
   const successors = new Map<GraphNodeId, GraphNodeId[]>()
@@ -1074,6 +1306,7 @@ const validateControllerWorkspaces = (graph: GraphRevision, correction: string):
  * @param projection authoritative session state used to assign graph and revision identity.
  * @param config frozen session configuration that owns execution defaults and ceilings.
  * @param now authoritative Host timestamp recorded for the accepted revision.
+ * @param environmentPolicy deployment-authorized host effects available to environment nodes.
  * @returns complete validated graph revision ready for durable admission.
  * @throws Error when a revision has no current graph or the resolved plan violates Graph configuration.
  */
@@ -1083,6 +1316,7 @@ export function resolveGraphControllerPlanDraft(
   projection: GraphProjection,
   config: GraphModeConfig,
   now = Date.now(),
+  environmentPolicy: GraphEnvironmentHostPolicy = DISABLED_ENVIRONMENT_POLICY,
 ): GraphRevision {
   const semantic = Object.fromEntries(
     Object.entries(draft).filter(([key]) => !isHostOwnedGraphField(key)),
@@ -1094,7 +1328,9 @@ export function resolveGraphControllerPlanDraft(
       revision: 1,
     }
     const correction = correctedControllerPlanExample(config)
-    return validateControllerWorkspaces(resolveGraphRevisionDraftWithCorrection(complete, config, now, correction), correction)
+    return validateControllerWorkspaces(resolveGraphRevisionDraftWithCorrection(
+      complete, config, now, correction, environmentPolicy,
+    ), correction)
   }
   const graphId = projection.currentGraphId
   const previous = graphId === undefined ? undefined : projection.graphs[graphId]?.at(-1)
@@ -1108,7 +1344,9 @@ export function resolveGraphControllerPlanDraft(
     parentRevision: previous.revision,
   }
   const correction = correctedControllerPlanExample(config)
-  return validateControllerWorkspaces(resolveGraphRevisionDraftWithCorrection(complete, config, now, correction), correction)
+  return validateControllerWorkspaces(resolveGraphRevisionDraftWithCorrection(
+    complete, config, now, correction, environmentPolicy,
+  ), correction)
 }
 
 /** Controller tool request after model-schema decoding. */
@@ -1117,6 +1355,49 @@ export interface GraphSubmission {
   readonly reason: string
   readonly graph?: GraphRevisionDraft
   readonly changedNodeIds?: readonly GraphNodeId[]
+  readonly campaign?: GraphCampaignSubmissionDraft
+  readonly lineage?: GraphRevisionLineageDraft
+}
+
+/** Controller-authored explanation used by the Host to create durable revision lineage. */
+export interface GraphRevisionLineageDraft {
+  readonly kind: GraphRevisionKind
+  readonly title: string
+  readonly trigger: {
+    readonly source: GraphRevisionLineage['trigger']['source']
+    readonly summary: string
+    readonly runId?: string
+    readonly nodeId?: string
+    readonly errorCode?: string
+    readonly evidence?: readonly string[]
+  }
+  readonly successCriteria?: readonly string[]
+}
+
+/** One controller-authored Batch definition in an initial plan or appended suffix. */
+export interface GraphCampaignBatchDraft {
+  readonly id: string
+  readonly title: string
+  readonly objective: string
+  readonly dependsOn?: readonly string[]
+}
+
+/** Semantic campaign plan supplied with its first independent batch graph. */
+export interface GraphCampaignPlanDraft {
+  readonly objective: string
+  readonly batches: readonly GraphCampaignBatchDraft[]
+}
+
+/** New ordered Batch suffix discovered after every registered Batch is accepted. */
+export interface GraphCampaignPlanExtensionDraft {
+  readonly batches: readonly GraphCampaignBatchDraft[]
+}
+
+/** Batch binding whose plan or planExtension is supplied only while admitting its first listed Batch. */
+export interface GraphCampaignSubmissionDraft {
+  readonly batchId: string
+  readonly plan?: GraphCampaignPlanDraft
+  readonly planExtension?: GraphCampaignPlanExtensionDraft
 }
 
 /** Stable human or controller operation over one durable graph run. */
@@ -1231,14 +1512,17 @@ export class GraphAdmissionController {
   }
 }
 
-const controllerPolicy = (projection: GraphProjection): string => {
+const controllerPolicy = (
+  projection: GraphProjection,
+  environmentPolicy: GraphEnvironmentHostPolicy,
+): string => {
   const controller = projection.config.roles.find(role => role.controller && role.enabled) as GraphRole
   const roles = projection.config.roles.filter(role => role.enabled && !role.controller).map(role => ({
     id: role.id,
     description: role.description,
     maxParallel: role.maxParallel,
   }))
-  return `${controller.prompt}\n\nGraph Mode is active. You are the sole controller. For every HUMAN input, first classify it as new, revise, inspect, control, clarify, or direct. New work and revisions MUST call graph_submit exactly once; do not implement their nodes yourself. Submit the semantic plan only: never calculate or submit graph identifiers, revision numbers, parent revisions, timestamps, changed-node lists, termination policy, ordinary output schemas, node attempt/weight defaults, worker allocation ids, absolute workspace paths, or empty edge/branch-group lists. Graph Mode assigns a safe unused graph id for new work, binds a revision to the current graph, and derives immutable identity, lineage, and structural changes from session state. Create the smallest acyclic graph that preserves real dependencies. Assign only enabled roles, give every node measurable acceptance criteria and an explicit idempotent, reconcile, or manual effect policy. Never relax, reinterpret, or replace an explicit user requirement, locked baseline, or acceptance criterion; ask the user when it cannot be satisfied as written. Add a specialized versioned output schema only when conditions or downstream data require fields beyond the standard result. Combine conditional edges through named all, any, exactly-one, or activated branch groups. Use expansion or subgraph nodes only within the resolved termination policy. Before every revision, reconcile accepted evidence from earlier revisions with the current workspace. Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies so Graph Mode can reuse it; change that node only when a new user requirement or recorded evidence invalidates its result. Never add a preserve, reconcile, or baseline-discovery task merely to rediscover accepted work. Plan only the missing delta and the verification needed to trust it. For broad software work, put architecture in a design node before implementation; Graph pauses after that design node and sends [graph-planning-checkpoint]. At that checkpoint, inspect actual architecture evidence, repository structure, each configured worker model, and its resolved node budget. Replace coarse implementation work with model-sized tasks when needed: each implementation node should represent roughly 10-30 minutes of focused work, own one cohesive module or behavior, have 2-4 independently verifiable acceptance criteria, declare real predecessor edges, and produce an independently verifiable artifact. Every implementation, documentation, integration, or specialist node that can run concurrently with another mutating node must declare a workspace policy with precise relative writeRoots; parallel roots must be disjoint. Workspace roots are normalized source-relative paths: use "." for the whole workspace, never an empty string or an absolute path. Omit readRoots to inherit ["."] and omit cleanup to use the mode default. Feed accepted artifacts into a distinct integration node before review or final verification; artifact hash or source drift conflicts must return to you for a revised ownership plan, never be overwritten. A stalled checkpoint MUST produce a smaller revised task or an explicit role/model/budget change; never approve and redispatch the unchanged node. Ask the user only when the evidence leaves a material product choice. Never claim that an inspect or control classification performed a control action. Never continue an unchanged plan merely because the original graph exists. Inspection, control, clarification, and direct answers do not create a graph. A synthetic [graph-run-complete] message is evidence for your concise synthesis and does not require graph_submit; when it contains error JSON, preserve the exact code, node, and message in your explanation. Enabled roles: ${JSON.stringify(roles)}. Current graph: ${projection.currentGraphId ?? 'none'}.`
+  return `${controller.prompt}\n\nGraph Mode is active. You are the sole controller. For every HUMAN input, first classify it as new, revise, inspect, control, clarify, or direct. New work and revisions MUST call graph_submit exactly once; do not implement their nodes yourself. Submit the semantic plan only: never calculate or submit graph identifiers, revision numbers, parent revisions, timestamps, changed-node lists, termination policy, ordinary output schemas, ordinary node attempt/weight defaults, worker allocation ids, absolute workspace paths, or empty edge/branch-group lists. Graph Mode assigns a safe unused graph id for new work, binds a revision to the current graph, and derives immutable identity, lineage, and structural changes from session state. Create the smallest acyclic graph that preserves real dependencies. Assign only enabled roles, give every node measurable acceptance criteria and an explicit idempotent, reconcile, or manual effect policy. Never relax, reinterpret, or replace an explicit user requirement, locked baseline, or acceptance criterion; ask the user when it cannot be satisfied as written. Add a specialized versioned output schema only when conditions or downstream data require fields beyond the standard result. Combine conditional edges through named all, any, exactly-one, or activated branch groups. Use expansion or subgraph nodes only within the resolved termination policy. Before every revision, reconcile accepted evidence from earlier revisions with the current workspace. Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies so Graph Mode can reuse it; change that node only when a new user requirement or recorded evidence invalidates its result. Never add a preserve, reconcile, or baseline-discovery task merely to rediscover accepted work. Plan only the missing delta and the verification needed to trust it. When one long objective naturally divides into ordered batches, submit the first batch as intent=new with campaign.plan and campaign.batchId, and set campaign.batchId exactly to campaign.plan.batches[0].id. That first batch graph contains only the first batch's nodes. A Campaign plan is an immutable prefix with audited suffix extensions. After [graph-batch-complete], start an already registered ready batch as another intent=new graph with campaign.batchId only and include only that batch's nodes. If accepted evidence reveals batches that are not registered, start the first new batch with campaign.batchId plus campaign.planExtension containing the complete newly discovered ordered suffix; omit campaign.plan. Graph Mode records the top-level reason and predecessor Run and Settlement evidence as the next plan revision. Never change, insert, reorder, or remove a registered batch. Revise only the active batch graph for repair, omit campaign from that revision, and consume predecessor settlement summaries from Campaign input instead of copying historical nodes. For broad software work, put architecture in a design node before implementation; Graph pauses after that design node and sends [graph-planning-checkpoint]. At that checkpoint, inspect actual architecture evidence, repository structure, toolchain prerequisites, each configured worker model, and its resolved node budget. Replace coarse implementation work with model-sized tasks when needed: each implementation node should represent roughly 10-30 minutes of focused work, own one cohesive module or behavior, have 2-4 independently verifiable acceptance criteria, declare real predecessor edges, and produce an independently verifiable artifact. Never hide environment mutation inside an implementation node. When a missing toolchain, host package, network fetch, or Docker operation is necessary, prefer project-local wrappers and existing services; add an environment node only for the remaining exact host commands, assign the environment role when available, set effectPolicy=manual, omit maxAttempts and workspace, and declare requiredCapabilities, the narrowest sandboxMode, exact ordered commands, descriptions, and documentary rollback commands. Environment commands require a human checkpoint before execution. A rollbackCommand is evidence only; executing it requires another approved environment node. Never put credential values, access tokens, passwords, or private keys in an environment command; refer only to Host-managed environment variables or credential references. Never create speculative environment mutations: use repository evidence or an earlier analysis/design checkpoint, and connect every dependent implementation after the environment node. Scope Docker commands to this project's named Compose project, containers, volumes, or labels; never use broad prune or unrelated deletion. Every implementation, documentation, integration, or specialist node that can run concurrently with another mutating node must declare a workspace policy with precise relative writeRoots; parallel roots must be disjoint. Inspect the repository before naming roots, and use its actual source-relative directory names rather than a path inferred from prose or an objective. Workspace roots are normalized source-relative paths: use "." for the whole workspace, never an empty string or an absolute path. Omit readRoots to inherit ["."] and omit cleanup to use the mode default. Feed accepted artifacts into a distinct integration node before review or final verification; artifact hash or source drift conflicts must return to you for a revised ownership plan, never be overwritten. For user-facing Web work or an explicit browser-test request, place a verification node after the integrated runnable build and assign the browser-tester role when available. Give it the exact target origin, critical flows, viewport and locale assumptions, and measurable DOM and visual assertions. Require page-snapshot interaction, screenshot evidence on an image-capable model route, and relevant console and failed-network inspection. Treat a reachable target supplied by the user as an existing test environment; do not add an environment node merely to restart it. If the target is unavailable, preserve that blocker instead of reporting a product failure. A stalled or non-retryable workspace checkpoint MUST revise the node's granularity, role, model, budget, or workspace ownership; never approve and redispatch the unchanged node. An environment approval checkpoint is different: report its exact commands and wait for human approval or rejection without revising or dispatching them. Ask the user only when the evidence leaves a material product choice. Never claim that an inspect or control classification performed a control action. Never continue an unchanged plan merely because the original graph exists. Inspection, control, clarification, and direct answers do not create a graph. A synthetic [graph-run-complete] message is evidence for your concise synthesis and does not require graph_submit; when it contains error JSON, preserve the exact code, node, and message in your explanation. Enabled environment policy: ${JSON.stringify(environmentPolicy)}. Enabled roles: ${JSON.stringify(roles)}. Current graph: ${projection.currentGraphId ?? 'none'}. Current campaign: ${projection.currentCampaignId === undefined ? 'none' : JSON.stringify(projection.campaigns[projection.currentCampaignId])}.`
 }
 
 const planningNodeDefinition = (node: GraphNode) => ({
@@ -1251,6 +1535,7 @@ const planningNodeDefinition = (node: GraphNode) => ({
   effectPolicy: node.effectPolicy,
   ...node.expansion === undefined ? {} : { expansion: node.expansion },
   ...node.subgraph === undefined ? {} : { subgraph: node.subgraph },
+  ...node.environment === undefined ? {} : { environment: node.environment },
   ...node.workspace === undefined ? {} : { workspace: node.workspace },
 })
 
@@ -1403,15 +1688,15 @@ const directRevisionChanges = (previous: GraphRevision, next: GraphRevision, dec
   const changed = new Set<GraphNodeId>(declared.filter(id => nextIds.has(id)))
   const priorNodes = new Map(previous.nodes.map(node => [node.id, node]))
   for (const node of next.nodes) {
-    if (JSON.stringify(priorNodes.get(node.id)) !== JSON.stringify(node)) changed.add(node.id)
+    if (!isDeepStrictEqual(priorNodes.get(node.id), node)) changed.add(node.id)
     const priorIncoming = previous.edges.filter(edge => edge.to === node.id)
     const nextIncoming = next.edges.filter(edge => edge.to === node.id)
-    if (JSON.stringify(priorIncoming) !== JSON.stringify(nextIncoming)) changed.add(node.id)
+    if (!isDeepStrictEqual(priorIncoming, nextIncoming)) changed.add(node.id)
     const priorGroups = previous.branchGroups.filter(group => group.to === node.id)
     const nextGroups = next.branchGroups.filter(group => group.to === node.id)
-    if (JSON.stringify(priorGroups) !== JSON.stringify(nextGroups)) changed.add(node.id)
+    if (!isDeepStrictEqual(priorGroups, nextGroups)) changed.add(node.id)
   }
-  if (JSON.stringify(previous.terminationPolicy) !== JSON.stringify(next.terminationPolicy)) {
+  if (!isDeepStrictEqual(previous.terminationPolicy, next.terminationPolicy)) {
     for (const node of next.nodes) changed.add(node.id)
   }
   const removed = new Set(previous.nodes.map(node => node.id).filter(id => !nextIds.has(id)))
@@ -1419,6 +1704,120 @@ const directRevisionChanges = (previous: GraphRevision, next: GraphRevision, dec
     if (removed.has(edge.from) && nextIds.has(edge.to)) changed.add(edge.to)
   }
   return [...changed]
+}
+
+const normalizedLineageText = (value: string, field: string): string => {
+  const normalized = value.trim()
+  if (normalized.length === 0 || normalized !== value || normalized.length > 4_000) {
+    throw new Error(`revision lineage ${field} must be normalized and at most 4,000 characters`)
+  }
+  return normalized
+}
+
+const resolveRevisionLineage = (
+  state: GraphProjection,
+  submission: GraphSubmission,
+  graph: GraphRevision,
+  changedNodeIds: readonly GraphNodeId[],
+  invalidatedNodeIds: readonly GraphNodeId[],
+  previous: GraphRevision | undefined,
+  previousRun: GraphRun | undefined,
+  campaign: GraphCampaign | undefined,
+  requestedAt: number,
+): GraphRevisionLineage => {
+  const checkpoint = previousRun === undefined ? undefined : Object.values(state.checkpoints)
+    .filter(item => item.runId === previousRun.id)
+    .sort((left, right) => right.createdAt - left.createdAt)[0]
+  const control = previousRun === undefined ? undefined : Object.values(state.controls)
+    .filter(item => item.runId === previousRun.id && ['modify-task', 'rollback', 'reject-checkpoint'].includes(item.action))
+    .sort((left, right) => right.completedAt - left.completedAt)[0]
+  const inferredSource: GraphRevisionLineage['trigger']['source'] = checkpoint?.kind === 'planning'
+    ? 'planning_checkpoint'
+    : checkpoint?.kind === 'repair' ? 'review_rejection'
+      : control !== undefined ? 'human_control'
+        : previousRun?.error !== undefined || ['failed', 'exhausted'].includes(previousRun?.phase ?? '')
+          ? 'run_failure'
+          : 'user'
+  const inferredKind: GraphRevisionKind = submission.intent === 'new'
+    ? 'new_task'
+    : ['run_failure', 'review_rejection', 'recovery'].includes(inferredSource)
+      ? 'execution_correction'
+      : 'analysis_refactor'
+  const kind = submission.lineage?.kind ?? inferredKind
+  if ((submission.intent === 'new') !== (kind === 'new_task')) {
+    throw new Error('new submissions require new_task lineage; revisions require analysis_refactor or execution_correction lineage')
+  }
+  const triggerSource = submission.lineage?.trigger.source ?? inferredSource
+  const triggerRunId = submission.lineage?.trigger.runId === undefined
+    ? previousRun?.id
+    : GraphRunId(submission.lineage.trigger.runId)
+  if (triggerRunId !== undefined && state.runs[triggerRunId] === undefined) {
+    throw new Error(`revision lineage trigger names unknown run ${JSON.stringify(triggerRunId)}`)
+  }
+  const triggerNodeId = submission.lineage?.trigger.nodeId === undefined
+    ? checkpoint?.nodeId
+    : [...graph.nodes, ...(previous?.nodes ?? [])]
+      .find(node => node.id === submission.lineage?.trigger.nodeId)?.id
+  if (submission.lineage?.trigger.nodeId !== undefined && triggerNodeId === undefined) {
+    throw new Error(`revision lineage trigger names unknown node ${JSON.stringify(submission.lineage.trigger.nodeId)}`)
+  }
+  const previousIds = new Set(previous?.nodes.map(node => node.id) ?? [])
+  const nextIds = new Set(graph.nodes.map(node => node.id))
+  const changed = new Set(changedNodeIds)
+  const relationships: GraphRevisionLineage['relationships'][number][] = []
+  if (previous !== undefined) {
+    relationships.push({
+      kind: kind === 'execution_correction' ? 'corrects' : 'refactors',
+      graphId: previous.graphId,
+      revision: previous.revision,
+      reason: kind === 'execution_correction' ? 'Corrects the preceding execution revision.' : 'Refactors the preceding analyzed plan.',
+    })
+  }
+  const batch = campaign?.batches.find(item => item.graphId === graph.graphId)
+  for (const dependencyId of batch?.dependsOn ?? []) {
+    const dependency = campaign?.batches.find(item => item.id === dependencyId)
+    const execution = dependency?.executions.at(-1)
+    if (execution === undefined) continue
+    relationships.push({
+      kind: 'depends_on', graphId: execution.graphId, revision: execution.revision,
+      reason: `Depends on completed campaign batch ${dependency?.title ?? dependencyId}.`,
+    })
+  }
+  const defaultEvidence = [checkpoint?.reason, previousRun?.error?.message, control?.reason]
+    .filter((item): item is string => item !== undefined)
+  const successCriteria = [...new Set(submission.lineage?.successCriteria
+    ?? graph.nodes.flatMap(node => node.acceptanceCriteria))]
+    .map((item, index) => normalizedLineageText(item, `successCriteria[${String(index)}]`))
+  if (successCriteria.length === 0) throw new Error('revision lineage requires at least one success criterion')
+  const triggerErrorCode = submission.lineage?.trigger.errorCode ?? previousRun?.error?.code
+  return {
+    version: 1,
+    taskId: GraphTaskId(graph.graphId),
+    kind,
+    title: normalizedLineageText(submission.lineage?.title ?? graph.objective, 'title'),
+    objective: graph.objective,
+    reason: normalizedLineageText(submission.reason, 'reason'),
+    creator: triggerSource === 'human_control' ? 'human_control' : triggerSource === 'recovery' ? 'recovery' : 'controller',
+    createdAt: requestedAt,
+    trigger: {
+      source: triggerSource,
+      summary: normalizedLineageText(submission.lineage?.trigger.summary ?? submission.reason, 'trigger.summary'),
+      ...triggerRunId === undefined ? {} : { runId: triggerRunId },
+      ...triggerNodeId === undefined ? {} : { nodeId: triggerNodeId },
+      ...triggerErrorCode === undefined ? {} : { errorCode: triggerErrorCode },
+      evidence: (submission.lineage?.trigger.evidence ?? defaultEvidence)
+        .map((item, index) => normalizedLineageText(item, `trigger.evidence[${String(index)}]`)),
+    },
+    relationships,
+    successCriteria,
+    changes: {
+      addedNodeIds: graph.nodes.filter(node => !previousIds.has(node.id)).map(node => node.id),
+      changedNodeIds: graph.nodes.filter(node => previousIds.has(node.id) && changed.has(node.id)).map(node => node.id),
+      removedNodeIds: previous?.nodes.filter(node => !nextIds.has(node.id)).map(node => node.id) ?? [],
+      preservedNodeIds: graph.nodes.filter(node => previousIds.has(node.id) && !changed.has(node.id)).map(node => node.id),
+      invalidatedNodeIds,
+    },
+  }
 }
 
 const outputOf = (value: unknown, node: GraphNode): GraphNodeOutput => {
@@ -1540,6 +1939,8 @@ export class GraphModeController extends Service {
   private readonly schedulerProvider: string | undefined
   private readonly schedulerHeartbeatMs: number
   private readonly externalOperationTimeoutMs: number
+  private readonly recoveryScanIntervalMs: number
+  private readonly environmentPolicy: GraphEnvironmentHostPolicy
   private readonly schedulerOwnerId = GraphSchedulerOwnerId(randomUUID())
   private templateSource: () => GraphTemplateSettings
   private readonly admission = new GraphAdmissionController()
@@ -1547,6 +1948,10 @@ export class GraphModeController extends Service {
   private readonly nodeAborts = new Map<string, AbortController>()
   private readonly workerRuns = new Map<string, GraphWorkerRun>()
   private readonly executions = new Map<string, Promise<void>>()
+  private readonly activatingSubmissions = new Set<GraphSubmissionId>()
+  private readonly recoveries = new Map<Agent, Promise<void>>()
+  private readonly recoveryTimers = new Map<Agent, ReturnType<typeof setInterval>>()
+  private readonly liveAgents = new Set<Agent>()
   private readonly pauseRequests = new Map<string, GraphCheckpoint>()
   private readonly toolDisposers = new Map<Agent, () => void>()
   private readonly controlLocks = new Map<string, Promise<void>>()
@@ -1563,6 +1968,16 @@ export class GraphModeController extends Service {
     this.schedulerProvider = config.schedulerProvider
     this.schedulerHeartbeatMs = config.schedulerHeartbeatMs ?? 5_000
     this.externalOperationTimeoutMs = config.externalOperationTimeoutMs ?? 60_000
+    this.recoveryScanIntervalMs = config.recoveryScanIntervalMs ?? 15_000
+    const capabilities = config.environmentCapabilities ?? ['network', 'host-package-install', 'docker']
+    if (new Set(capabilities).size !== capabilities.length) {
+      throw new Error('graph-mode environmentCapabilities must not contain duplicates')
+    }
+    this.environmentPolicy = {
+      enabled: config.environmentEnabled ?? true,
+      capabilities,
+      dangerFullAccess: config.environmentDangerFullAccess ?? true,
+    }
     const defaults = defaultGraphModeConfig()
     const templateDefaults = { roles: defaults.roles, limits: defaults.limits, executionPolicy: defaults.executionPolicy }
     this.templateSource = () => templateDefaults
@@ -1585,15 +2000,15 @@ export class GraphModeController extends Service {
       order: 45,
       text: (context) => {
         if (context.agent === undefined) return ''
-        const projection = foldGraph(context.agent.session.events)
-        return projection.config.active ? controllerPolicy(projection) : ''
+        const projection = this.state(context.agent)
+        return projection.config.active ? controllerPolicy(projection, this.environmentPolicy) : ''
       },
     })
 
     ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
       const assembled = await next()
       if (context.agent === undefined) return assembled
-      const projection = foldGraph(context.agent.session.events)
+      const projection = this.state(context.agent)
       if (!projection.config.active) return assembled
       const controller = projection.config.roles.find(role => role.controller && role.enabled) as GraphRole
       return {
@@ -1608,7 +2023,7 @@ export class GraphModeController extends Service {
 
     ctx.on('agent/request', async ({ agent }, next) => {
       const resolved = await next()
-      const projection = foldGraph(agent.session.events)
+      const projection = this.state(agent)
       if (!projection.config.active) return resolved
       const controller = projection.config.roles.find(role => role.controller && role.enabled) as GraphRole
       return {
@@ -1627,7 +2042,7 @@ export class GraphModeController extends Service {
       input: { hint: '[off|message]' },
       handler: async ({ agent, rawInput }) => {
         const input = rawInput.trim()
-        const projection = foldGraph(agent.session.events)
+        const projection = this.state(agent)
         if (input.startsWith('control ')) {
           let control: unknown
           try {
@@ -1679,13 +2094,19 @@ export class GraphModeController extends Service {
     }))
 
     ctx.on('agent/created', ({ agent }) => {
-      if (!foldGraph(agent.session.events).config.active) return
+      this.liveAgents.add(agent)
+      this.installRecoveryWatch(agent)
+      if (!this.state(agent).config.active) return
       this.syncSubmitTool(agent, true)
       void this.recover(agent).catch((error: unknown) => {
         this.ctx.logger.error('dsh-graph-mode: recovery failed for agent %s: %o', agent.id, error)
       })
     })
-    ctx.on('agent/disposed', ({ agent }) => { this.syncSubmitTool(agent, false) })
+    ctx.on('agent/disposed', ({ agent }) => {
+      this.liveAgents.delete(agent)
+      this.clearRecoveryWatch(agent)
+      this.syncSubmitTool(agent, false)
+    })
 
     const installDependencyQuiescence = (dependency: 'graphCoordination' | 'graphResources' | 'graphScheduler' | 'graphArtifacts'): void => {
       ctx.inject([dependency], (scope) => {
@@ -1701,6 +2122,9 @@ export class GraphModeController extends Service {
     ctx.effect(() => async () => {
       for (const dispose of this.toolDisposers.values()) dispose()
       this.toolDisposers.clear()
+      for (const timer of this.recoveryTimers.values()) clearInterval(timer)
+      this.recoveryTimers.clear()
+      this.liveAgents.clear()
       if (!this.dependencyOwnsQuiescence) await this.quiesce()
     }, 'dsh-graph-mode: quiesce background runs')
   }
@@ -1734,9 +2158,87 @@ export class GraphModeController extends Service {
       parameters: {
         intent: { type: 'string', required: true, enum: ['new', 'revise', 'inspect', 'control', 'clarify', 'direct'] },
         reason: { type: 'string', required: true, description: 'Concise rationale shown in the audit trail.' },
+        lineage: {
+          type: 'object',
+          additionalProperties: false,
+          description: 'Optional explicit revision classification and trigger evidence. The Host validates and completes relationships and structural changes.',
+          properties: {
+            kind: { type: 'string', required: true, enum: ['new_task', 'analysis_refactor', 'execution_correction'] },
+            title: { type: 'string', required: true },
+            trigger: {
+              type: 'object',
+              required: true,
+              additionalProperties: false,
+              properties: {
+                source: { type: 'string', required: true, enum: ['user', 'planning_checkpoint', 'run_failure', 'review_rejection', 'human_control', 'recovery'] },
+                summary: { type: 'string', required: true },
+                runId: { type: 'string' },
+                nodeId: { type: 'string' },
+                errorCode: { type: 'string' },
+                evidence: { type: 'array', items: { type: 'string' } },
+              },
+            },
+            successCriteria: { type: 'array', items: { type: 'string' } },
+          },
+        },
         graph: {
           ...graphRevisionToolSchema,
           description: 'Semantic graph plan for new or revised work. Supply tasks, real dependencies, role assignments, acceptance criteria, and effect policies. Graph Mode owns graph identity, revision lineage, and policy fields.',
+        },
+        campaign: {
+          type: 'object',
+          additionalProperties: false,
+          description: 'Optional independent-batch campaign binding. Include plan for the first registered batch, batchId only for an existing ready batch, or planExtension when accepted evidence discovers a new ordered suffix. Existing batches are immutable.',
+          properties: {
+            batchId: {
+              type: 'string',
+              description: 'Exactly the first batch in plan or planExtension, or an existing ready batch id when both are omitted.',
+              required: true,
+            },
+            plan: {
+              type: 'object',
+              additionalProperties: false,
+              description: 'Immutable ordered campaign plan supplied only while starting its first listed batch.',
+              properties: {
+                objective: { type: 'string', required: true },
+                batches: {
+                  type: 'array',
+                  required: true,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      id: { type: 'string', required: true },
+                      title: { type: 'string', required: true },
+                      objective: { type: 'string', required: true },
+                      dependsOn: { type: 'array', items: { type: 'string' } },
+                    },
+                  },
+                },
+              },
+            },
+            planExtension: {
+              type: 'object',
+              additionalProperties: false,
+              description: 'Ordered Batch suffix appended after all currently registered batches are accepted. The Host records the top-level reason and predecessor Run/Settlement evidence as the next plan revision.',
+              properties: {
+                batches: {
+                  type: 'array',
+                  required: true,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      id: { type: 'string', required: true },
+                      title: { type: 'string', required: true },
+                      objective: { type: 'string', required: true },
+                      dependsOn: { type: 'array', items: { type: 'string' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       output: {
@@ -1763,6 +2265,8 @@ export class GraphModeController extends Service {
           intent: args.intent,
           reason: args.reason,
           ...args.graph === undefined ? {} : { graph: args.graph as unknown as GraphControllerPlanDraft },
+          ...args.campaign === undefined ? {} : { campaign: args.campaign as unknown as GraphCampaignSubmissionDraft },
+          ...args.lineage === undefined ? {} : { lineage: args.lineage as unknown as GraphRevisionLineageDraft },
         }
         if (submission.intent !== 'new' && submission.intent !== 'revise') {
           return await this.submit(caller, { intent: submission.intent, reason: submission.reason }, exec.signal)
@@ -1770,11 +2274,20 @@ export class GraphModeController extends Service {
         const projection = this.state(caller)
         const graph = submission.graph === undefined
           ? undefined
-          : resolveGraphControllerPlanDraft(submission.graph, submission.intent, projection, projection.config)
+          : resolveGraphControllerPlanDraft(
+            submission.graph,
+            submission.intent,
+            projection,
+            projection.config,
+            Date.now(),
+            this.environmentPolicy,
+          )
         return await this.submit(caller, {
           intent: submission.intent,
           reason: submission.reason,
           ...graph === undefined ? {} : { graph },
+          ...submission.campaign === undefined ? {} : { campaign: submission.campaign },
+          ...submission.lineage === undefined ? {} : { lineage: submission.lineage },
         }, exec.signal)
       },
     }))
@@ -1787,7 +2300,49 @@ export class GraphModeController extends Service {
    * @returns current graph-mode projection.
    */
   state(agent: Agent): GraphProjection {
-    return foldGraph(agent.session.events)
+    return this.ctx.get('sessionProjections')?.stateOf(agent.session, 'graph')
+      ?? foldGraph(agent.session.events)
+  }
+
+  private clearRecoveryWatch(agent: Agent): void {
+    const timer = this.recoveryTimers.get(agent)
+    if (timer !== undefined) clearInterval(timer)
+    this.recoveryTimers.delete(agent)
+  }
+
+  private installRecoveryWatch(agent: Agent): void {
+    this.clearRecoveryWatch(agent)
+    const inspect = (): void => {
+      try {
+        if (!this.liveAgents.has(agent)) return
+        const projection = this.state(agent)
+        const pendingSubmission = Object.values(projection.submissions).some(item => item.outcome === 'pending')
+        const orphanRun = Object.values(projection.runs).some(run => (
+          ['queued', 'running'].includes(run.phase) && !this.executions.has(run.id)
+        ))
+        if (!pendingSubmission && !orphanRun) return
+        void this.recover(agent).catch((error: unknown) => {
+          this.ctx.logger.warn('dsh-graph-mode: recovery scan failed for agent %s: %o', agent.id, error)
+        })
+      } catch (error) {
+        this.ctx.logger.error('dsh-graph-mode: recovery scan could not read agent %s: %o', agent.id, error)
+      }
+    }
+    const timer = setInterval(inspect, this.recoveryScanIntervalMs)
+    timer.unref()
+    this.recoveryTimers.set(agent, timer)
+  }
+
+  private trackExecution(runId: GraphRunId, execution: Promise<void>): Promise<void> {
+    const tracked = execution.catch((error: unknown) => {
+      this.ctx.logger.error('dsh-graph-mode: execution failed for run %s: %o', runId, error)
+    }).finally(() => {
+      if (this.executions.get(runId) !== tracked) return
+      this.aborts.delete(runId)
+      this.executions.delete(runId)
+    })
+    this.executions.set(runId, tracked)
+    return tracked
   }
 
   private externalOperationSignal(signal?: AbortSignal): AbortSignal {
@@ -1967,63 +2522,69 @@ export class GraphModeController extends Service {
   }
 
   private async resumePendingSubmission(agent: Agent, pending: GraphRevisionSubmissionRecord): Promise<void> {
-    if (agent.session.header.cwd === undefined) throw new Error('Graph execution requires a session working directory')
-    const ownership = await this.ownRun(agent, pending.run, this.externalOperationSignal())
-    let handedOff = false
+    if (this.activatingSubmissions.has(pending.id)) return
+    this.activatingSubmissions.add(pending.id)
     try {
-      const coordination = this.ctx.get('graphCoordination')
-      if (coordination !== undefined) {
-        await coordination.prepare(
+      const current = this.state(agent).submissions[pending.id]
+      if (current?.outcome !== 'pending' || this.state(agent).runs[pending.run.id] !== undefined
+        || this.executions.has(pending.run.id)) return
+      if (agent.session.header.cwd === undefined) throw new Error('Graph execution requires a session working directory')
+      const ownership = await this.ownRun(agent, pending.run, this.externalOperationSignal())
+      let handedOff = false
+      try {
+        const coordination = this.ctx.get('graphCoordination')
+        if (coordination !== undefined) {
+          await coordination.prepare(
+            pending.graph,
+            pending.run.configSnapshot.roles,
+            agent.session.header.cwd,
+            this.externalOperationSignal(),
+          )
+        }
+        agent.session.append('graph/change', {
+          kind: 'graph/revision', version: 2, graph: pending.graph, current: true,
+        })
+        if (pending.intent === 'revise') {
+          for (const checkpoint of Object.values(this.state(agent).checkpoints)) {
+            if (checkpoint.graphId !== pending.graph.graphId
+              || checkpoint.revision !== pending.graph.revision - 1
+              || checkpoint.status !== 'pending') continue
+            agent.session.append('graph/checkpoint', {
+              ...checkpoint,
+              status: 'resolved',
+              resolvedAt: Date.now(),
+              replacementRevision: pending.graph.revision,
+            })
+          }
+        }
+        const run = ownership.run
+        agent.session.append('graph/run', run)
+        for (const node of pending.graph.nodes) {
+          const nodeRun = run.nodes[node.id] as GraphNodeRun
+          if (nodeRun.reusedFrom === undefined) this.appendOperation(agent, run, node, 'planned')
+        }
+        if (pending.campaign !== undefined) agent.session.append('graph/campaign', pending.campaign)
+        agent.session.append('graph/submission', { ...pending, outcome: 'accepted', completedAt: Date.now() })
+        await this.flushBeforeExternal(agent, this.externalOperationSignal())
+        const controller = new AbortController()
+        this.aborts.set(run.id, controller)
+        const execution = this.driveOwned(
+          agent,
           pending.graph,
-          pending.run.configSnapshot.roles,
-          agent.session.header.cwd,
-          this.externalOperationSignal(),
+          run,
+          run.configSnapshot,
+          controller.signal,
+          ownership.lease,
         )
-      }
-      agent.session.append('graph/change', {
-        kind: 'graph/revision', version: 2, graph: pending.graph, current: true,
-      })
-      if (pending.intent === 'revise') {
-        for (const checkpoint of Object.values(this.state(agent).checkpoints)) {
-          if (checkpoint.graphId !== pending.graph.graphId
-            || checkpoint.revision !== pending.graph.revision - 1
-            || checkpoint.status !== 'pending') continue
-          agent.session.append('graph/checkpoint', {
-            ...checkpoint,
-            status: 'resolved',
-            resolvedAt: Date.now(),
-            replacementRevision: pending.graph.revision,
-          })
+        void this.trackExecution(run.id, execution)
+        handedOff = true
+      } finally {
+        if (!handedOff && ownership.lease !== undefined) {
+          await this.releaseSchedulerLease(agent, ownership.lease, `pending submission ${pending.id}`)
         }
       }
-      const run = ownership.run
-      agent.session.append('graph/run', run)
-      for (const node of pending.graph.nodes) {
-        const nodeRun = run.nodes[node.id] as GraphNodeRun
-        if (nodeRun.reusedFrom === undefined) this.appendOperation(agent, run, node, 'planned')
-      }
-      agent.session.append('graph/submission', { ...pending, outcome: 'accepted', completedAt: Date.now() })
-      await this.flushBeforeExternal(agent, this.externalOperationSignal())
-      const controller = new AbortController()
-      this.aborts.set(run.id, controller)
-      const execution = this.driveOwned(
-        agent,
-        pending.graph,
-        run,
-        run.configSnapshot,
-        controller.signal,
-        ownership.lease,
-      ).finally(() => {
-        this.aborts.delete(run.id)
-        this.executions.delete(run.id)
-      })
-      this.executions.set(run.id, execution)
-      void execution
-      handedOff = true
     } finally {
-      if (!handedOff && ownership.lease !== undefined) {
-        await this.releaseSchedulerLease(agent, ownership.lease, `pending submission ${pending.id}`)
-      }
+      this.activatingSubmissions.delete(pending.id)
     }
   }
 
@@ -2033,6 +2594,19 @@ export class GraphModeController extends Service {
    * @param requestedRunId optional exact run selected for manual reconciliation.
    */
   async recover(agent: Agent, requestedRunId?: GraphRunId): Promise<void> {
+    const previous = this.recoveries.get(agent) ?? Promise.resolve()
+    const current = previous.catch(() => {
+      // A later recovery request is independent and must still inspect durable state.
+    }).then(async () => { await this.recoverDurable(agent, requestedRunId) })
+    this.recoveries.set(agent, current)
+    try {
+      await current
+    } finally {
+      if (this.recoveries.get(agent) === current) this.recoveries.delete(agent)
+    }
+  }
+
+  private async recoverDurable(agent: Agent, requestedRunId?: GraphRunId): Promise<void> {
     const initialProjection = this.state(agent)
     for (const pending of Object.values(initialProjection.submissions)
       .filter(item => item.outcome === 'pending')
@@ -2048,7 +2622,7 @@ export class GraphModeController extends Service {
     for (const prior of Object.values(projection.runs)) {
       const targeted = requestedRunId === prior.id
       const recoverablePhase = ['queued', 'running'].includes(prior.phase)
-        || (targeted && prior.phase === 'awaiting_user')
+        || (targeted && ['paused', 'awaiting_user'].includes(prior.phase))
       if (!recoverablePhase || (requestedRunId !== undefined && !targeted) || this.executions.has(prior.id)) continue
       const graph = projection.graphs[prior.graphId]?.find(item => item.revision === prior.revision)
       if (graph === undefined) throw new Error(`cannot recover graph run ${prior.id}: revision is missing`)
@@ -2149,7 +2723,9 @@ export class GraphModeController extends Service {
             decisions.set(node.id, 'attempt budget exhausted during recovery')
             continue
           }
+          const undispatched = worker === undefined
           let recoverable = node.effectPolicy === 'idempotent'
+            || (node.effectPolicy === 'reconcile' && undispatched)
           const cleanupEvidence: string[] = []
           if (worker !== undefined && workspace !== undefined) {
             const settlementId = settlementIdOf(previous.workId, prior.generationId, `worker-reconcile:${worker.id}:${workspace.id}`)
@@ -2317,12 +2893,8 @@ export class GraphModeController extends Service {
         }
         const controller = new AbortController()
         this.aborts.set(run.id, controller)
-        const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, schedulerLease).finally(() => {
-          this.aborts.delete(run.id)
-          this.executions.delete(run.id)
-        })
-        this.executions.set(run.id, execution)
-        void execution
+        const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, schedulerLease)
+        void this.trackExecution(run.id, execution)
       } catch (error) {
         if (schedulerLease !== undefined) {
           const scheduler = this.ctx.get('graphScheduler')
@@ -2440,12 +3012,8 @@ export class GraphModeController extends Service {
       }
       const controller = new AbortController()
       this.aborts.set(run.id, controller)
-      const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, ownership.lease).finally(() => {
-        this.aborts.delete(run.id)
-        this.executions.delete(run.id)
-      })
-      this.executions.set(run.id, execution)
-      void execution
+      const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, ownership.lease)
+      void this.trackExecution(run.id, execution)
       handedOff = true
       return run
     } finally {
@@ -2506,12 +3074,8 @@ export class GraphModeController extends Service {
       }
       const controller = new AbortController()
       this.aborts.set(run.id, controller)
-      const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, ownership.lease).finally(() => {
-        this.aborts.delete(run.id)
-        this.executions.delete(run.id)
-      })
-      this.executions.set(run.id, execution)
-      void execution
+      const execution = this.driveOwned(agent, graph, run, run.configSnapshot, controller.signal, ownership.lease)
+      void this.trackExecution(run.id, execution)
       handedOff = true
       return run
     } finally {
@@ -2529,6 +3093,10 @@ export class GraphModeController extends Service {
   setConfig(agent: Agent, config: GraphModeConfig): void {
     validateGraphModeConfig(config)
     agent.session.append('graph/change', { kind: 'graph/config', version: 2, config })
+    if (config.active) {
+      this.liveAgents.add(agent)
+      if (!this.recoveryTimers.has(agent)) this.installRecoveryWatch(agent)
+    }
     this.syncSubmitTool(agent, config.active)
   }
 
@@ -3015,7 +3583,12 @@ export class GraphModeController extends Service {
           if (replacementRun !== undefined) impact = controlImpact(replacementRun)
         } else {
           if (checkpoint.kind === 'repair') failControl('repair checkpoint approval requires a replacement revision')
-          agent.session.append('graph/checkpoint', { ...checkpoint, status: 'resolved', resolvedAt: Date.now() })
+          agent.session.append('graph/checkpoint', {
+            ...checkpoint,
+            status: 'resolved',
+            resolvedAt: Date.now(),
+            ...checkpoint.kind === 'environment' ? { authorizedGeneration: run.generation + 1 } : {},
+          })
           const resumed = await this.resumePausedGeneration(agent, run, request.reason)
           resultingGeneration = resumed.generation
           impact = controlImpact(resumed)
@@ -3062,8 +3635,12 @@ export class GraphModeController extends Service {
         break
       }
       case 'reconcile-run': {
-        if (this.executions.has(run.id) || !['paused', 'awaiting_user'].includes(run.phase)) {
-          failControl(`run ${run.id} must be paused or awaiting user before manual reconciliation`)
+        if (!['queued', 'running', 'paused', 'awaiting_user'].includes(run.phase)) {
+          failControl(`run ${run.id} has no nonterminal execution to reconcile`)
+        }
+        if (this.executions.has(run.id)) {
+          result = { outcome: 'no-op', detail: `run ${run.id} already has a live local executor` }
+          break
         }
         await this.recover(agent, run.id)
         const reconciled = this.state(agent).runs[run.id] as GraphRun
@@ -3116,6 +3693,218 @@ export class GraphModeController extends Service {
     return record
   }
 
+  private resolveCampaignSubmission(
+    projection: GraphProjection,
+    graph: GraphRevision,
+    run: GraphRun,
+    binding?: GraphCampaignSubmissionDraft,
+    reason?: string,
+  ): GraphCampaign | undefined {
+    let campaign: GraphCampaign | undefined
+    if (binding?.plan !== undefined && binding.planExtension !== undefined) {
+      throw new Error('campaign submission cannot carry both plan and planExtension')
+    }
+    if (binding?.plan !== undefined) {
+      if (graph.revision !== 1) throw new Error('a campaign plan must be submitted with its first batch graph')
+      if (!binding.plan.objective.trim() || binding.plan.batches.length === 0) throw new Error('campaign plan requires an objective and at least one batch')
+      const ids = new Set<string>()
+      const batches = binding.plan.batches.map((batch, index) => {
+        if (!batch.id.trim() || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(batch.id) || ids.has(batch.id)
+          || !batch.title.trim() || !batch.objective.trim()) throw new Error(`campaign batch at index ${String(index)} is invalid`)
+        const dependsOn = [...batch.dependsOn ?? []]
+        if (dependsOn.some(id => !ids.has(id)) || new Set(dependsOn).size !== dependsOn.length) {
+          throw new Error(`campaign batch ${batch.id} dependencies must name unique earlier batches`)
+        }
+        ids.add(batch.id)
+        return {
+          id: GraphCampaignBatchId(batch.id),
+          ordinal: index + 1,
+          title: batch.title,
+          objective: batch.objective,
+          dependsOn: dependsOn.map(GraphCampaignBatchId),
+          status: 'planned' as const,
+          executions: [],
+        }
+      })
+      const now = Date.now()
+      campaign = {
+        version: 1,
+        id: allocateCampaignId(binding.plan, projection),
+        objective: binding.plan.objective,
+        createdAt: now,
+        updatedAt: now,
+        phase: 'planned',
+        batches,
+        planRevision: 1,
+        planExtensions: [],
+      }
+      const firstBatchId = batches[0]?.id
+      if (binding.batchId !== firstBatchId) {
+        throw new Error(
+          `campaign.batchId ${JSON.stringify(binding.batchId)} must equal campaign.plan.batches[0].id ${JSON.stringify(firstBatchId)} when creating a campaign; `
+          + 'to start a later batch after [graph-batch-complete], omit campaign.plan and submit only campaign.batchId',
+        )
+      }
+    } else if (binding?.planExtension !== undefined) {
+      campaign = projection.currentCampaignId === undefined ? undefined : projection.campaigns[projection.currentCampaignId]
+      if (campaign === undefined) throw new Error('campaign planExtension requires an active campaign')
+      if (campaign.phase !== 'succeeded' || campaign.activeBatchId !== undefined
+        || campaign.batches.some(batch => !['approved', 'approved_with_findings'].includes(batch.status))) {
+        throw new Error('campaign planExtension requires every registered batch to be accepted and no active batch')
+      }
+      if (binding.planExtension.batches.length === 0) throw new Error('campaign planExtension requires at least one batch')
+      const existingBatchCount = campaign.batches.length
+      const ids = new Set<string>(campaign.batches.map(batch => batch.id))
+      const appended = binding.planExtension.batches.map((batch, index) => {
+        if (!batch.id.trim() || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(batch.id) || ids.has(batch.id)
+          || !batch.title.trim() || !batch.objective.trim()) throw new Error(`campaign planExtension batch at index ${String(index)} is invalid`)
+        const dependsOn = [...batch.dependsOn ?? []]
+        if (dependsOn.some(id => !ids.has(id)) || new Set(dependsOn).size !== dependsOn.length) {
+          throw new Error(`campaign planExtension batch ${batch.id} dependencies must name unique earlier batches`)
+        }
+        ids.add(batch.id)
+        return {
+          id: GraphCampaignBatchId(batch.id),
+          ordinal: existingBatchCount + index + 1,
+          title: batch.title,
+          objective: batch.objective,
+          dependsOn: dependsOn.map(GraphCampaignBatchId),
+          status: 'planned' as const,
+          executions: [],
+        }
+      })
+      const firstBatchId = appended[0]?.id
+      if (binding.batchId !== firstBatchId) {
+        throw new Error(
+          `campaign.batchId ${JSON.stringify(binding.batchId)} must equal campaign.planExtension.batches[0].id ${JSON.stringify(firstBatchId)} when extending a campaign`,
+        )
+      }
+      const sourceBatch = campaign.batches.findLast(batch => ['approved', 'approved_with_findings'].includes(batch.status))
+      const sourceExecution = sourceBatch?.executions.findLast(execution => execution.status === 'succeeded')
+      const now = Date.now()
+      campaign = {
+        ...campaign,
+        updatedAt: now,
+        phase: 'planned',
+        batches: [...campaign.batches, ...appended],
+        planRevision: (campaign.planRevision ?? 1) + 1,
+        planExtensions: [...(campaign.planExtensions ?? []), {
+          revision: (campaign.planRevision ?? 1) + 1,
+          createdAt: now,
+          reason: reason?.trim() || 'Append newly discovered campaign batches.',
+          addedBatchIds: appended.map(batch => batch.id),
+          ...sourceBatch === undefined ? {} : { sourceBatchId: sourceBatch.id },
+          ...sourceExecution === undefined ? {} : { sourceRunId: sourceExecution.runId },
+          settlementIds: [...sourceExecution?.settlementIds ?? []],
+        }],
+      }
+    } else if (binding !== undefined) {
+      campaign = projection.currentCampaignId === undefined ? undefined : projection.campaigns[projection.currentCampaignId]
+      if (campaign === undefined) throw new Error('campaign batch binding requires an active campaign or an initial campaign plan')
+    } else {
+      campaign = Object.values(projection.campaigns).find(candidate => (
+        candidate.batches.some(batch => batch.graphId === graph.graphId)
+      ))
+    }
+    if (campaign === undefined) return undefined
+    const batchId = binding?.batchId ?? campaign.batches.find(batch => batch.graphId === graph.graphId)?.id
+    const batch = campaign.batches.find(candidate => candidate.id === batchId)
+    if (batch === undefined) throw new Error(`campaign does not contain batch ${String(batchId)}`)
+    if (batch.graphId !== undefined && batch.graphId !== graph.graphId) throw new Error(`campaign batch ${batch.id} already owns graph ${batch.graphId}`)
+    if (batch.dependsOn.some((id) => {
+      const dependency = campaign.batches.find(candidate => candidate.id === id)
+      return dependency === undefined || !['approved', 'approved_with_findings'].includes(dependency.status)
+    })) throw new Error(`campaign batch ${batch.id} has unfinished dependencies`)
+    if (graph.revision === 1 && batch.executions.length > 0) throw new Error(`campaign batch ${batch.id} already has a graph execution`)
+    const execution = {
+      graphId: graph.graphId,
+      revision: graph.revision,
+      runId: run.id,
+      status: 'running' as const,
+      startedAt: run.createdAt,
+      settlementIds: [],
+    }
+    return {
+      ...campaign,
+      updatedAt: Date.now(),
+      phase: 'running',
+      activeBatchId: batch.id,
+      batches: campaign.batches.map(candidate => candidate.id === batch.id
+        ? { ...candidate, graphId: graph.graphId, status: 'running', executions: [...candidate.executions, execution] }
+        : candidate),
+    }
+  }
+
+  private settleCampaignRun(
+    agent: Agent,
+    run: GraphRun,
+  ): { readonly campaign: GraphCampaign; readonly batchId: GraphCampaignBatchId; readonly nextBatchId?: GraphCampaignBatchId } | undefined {
+    const projection = this.state(agent)
+    const campaign = Object.values(projection.campaigns).find(candidate => candidate.batches.some(batch => (
+      batch.executions.some(execution => execution.runId === run.id)
+    )))
+    if (campaign === undefined) return undefined
+    const batch = campaign.batches.find(candidate => candidate.executions.some(execution => execution.runId === run.id))
+    if (batch === undefined) return undefined
+    const hasFindings = Object.values(run.nodes).some((node) => {
+      const data = node.output?.data
+      if (data === null || typeof data !== 'object' || Array.isArray(data)) return false
+      const issues = (data as { readonly issues?: unknown }).issues
+      return Array.isArray(issues) && issues.length > 0
+    })
+    const status: GraphCampaign['batches'][number]['status'] = run.phase === 'succeeded'
+      ? hasFindings ? 'approved_with_findings' : 'approved'
+      : run.phase === 'paused' || run.phase === 'awaiting_user' ? 'needs_user'
+        : run.phase === 'canceled' ? 'blocked' : 'rejected'
+    const executionStatus: GraphCampaign['batches'][number]['executions'][number]['status'] = run.phase === 'paused' || run.phase === 'awaiting_user'
+      ? 'awaiting_user' as const
+      : run.phase === 'running' || run.phase === 'queued'
+        ? 'failed' as const
+        : run.phase
+    const settlements = Object.values(projection.settlements)
+      .map(records => records.at(-1))
+      .filter(record => record?.runId === run.id && record.outcome === 'confirmed')
+      .map(record => (record as GraphSettlementRecord).id)
+    const summary = Object.values(run.nodes).flatMap(node => node.output?.summary ?? []).join(' | ').slice(0, 2_000)
+    const completedAt = run.terminal?.acceptedAt ?? run.updatedAt
+    const batches = campaign.batches.map(candidate => candidate.id !== batch.id
+      ? candidate
+      : {
+        ...candidate,
+        status,
+        executions: candidate.executions.map(execution => execution.runId !== run.id
+          ? execution
+          : {
+            ...execution,
+            status: executionStatus,
+            completedAt,
+            settlementIds: settlements,
+            ...summary ? { summary } : {},
+          }),
+      })
+    const next = ['approved', 'approved_with_findings'].includes(status)
+      ? batches.find(candidate => candidate.status === 'planned' && candidate.dependsOn.every((id) => {
+        const dependency = batches.find(item => item.id === id)
+        return dependency !== undefined && ['approved', 'approved_with_findings'].includes(dependency.status)
+      }))
+      : undefined
+    const allApproved = batches.every(candidate => ['approved', 'approved_with_findings'].includes(candidate.status))
+    const { activeBatchId: _activeBatchId, ...campaignWithoutActiveBatch } = campaign
+    const nextCampaign: GraphCampaign = {
+      ...campaignWithoutActiveBatch,
+      updatedAt: completedAt,
+      phase: allApproved
+        ? 'succeeded'
+        : status === 'needs_user'
+          ? 'awaiting_user'
+          : ['approved', 'approved_with_findings'].includes(status) ? 'running' : 'failed',
+      batches,
+      ...next === undefined ? {} : { activeBatchId: next.id },
+    }
+    agent.session.append('graph/campaign', nextCampaign)
+    return { campaign: nextCampaign, batchId: batch.id, ...next === undefined ? {} : { nextBatchId: next.id } }
+  }
+
   /**
    * Accept one controller decision and start background work when needed.
    * @param agent controller agent and durable session owner.
@@ -3132,14 +3921,18 @@ export class GraphModeController extends Service {
     if (!state.config.active) throw new Error('graph_submit is available only while graph mode is active')
     if (!submission.reason.trim()) throw new Error('controller reason must be non-empty')
     if (submission.intent !== 'new' && submission.intent !== 'revise') {
-      if (submission.graph !== undefined || submission.changedNodeIds !== undefined) throw new Error(`${submission.intent} classification cannot carry a graph`)
+      if (submission.graph !== undefined || submission.changedNodeIds !== undefined || submission.campaign !== undefined || submission.lineage !== undefined) throw new Error(`${submission.intent} classification cannot carry a graph`)
       return { accepted: true, intent: submission.intent }
     }
     const draft = submission.graph
     if (draft === undefined) throw new Error(`${submission.intent} classification requires a graph revision`)
-    const graph = resolveGraphRevisionDraft(draft, state.config)
+    const graph = resolveGraphRevisionDraft(draft, state.config, Date.now(), this.environmentPolicy)
+    if (submission.intent === 'revise' && submission.campaign !== undefined) {
+      throw new Error('campaign binding is inherited by revisions; omit campaign when revising a batch graph')
+    }
     let changed: GraphNodeId[]
     let previousRun: GraphRun | undefined
+    let previousRevision: GraphRevision | undefined
     if (submission.intent === 'new') {
       if (graph.revision !== 1 || state.graphs[graph.graphId] !== undefined) throw new Error('new work requires revision one of a new graph id')
       changed = graph.nodes.map(node => node.id)
@@ -3147,6 +3940,7 @@ export class GraphModeController extends Service {
       if (state.currentGraphId === undefined || graph.graphId !== state.currentGraphId) throw new Error('revision must target the current graph')
       const previous = state.graphs[graph.graphId]?.at(-1)
       if (previous === undefined || graph.revision !== previous.revision + 1) throw new Error('revision must immediately follow the current graph revision')
+      previousRevision = previous
       changed = directRevisionChanges(previous, graph, submission.changedNodeIds ?? [])
       if (changed.length === 0) throw new Error('revision must change at least one node or incoming dependency')
       previousRun = Object.values(state.runs)
@@ -3175,6 +3969,15 @@ export class GraphModeController extends Service {
     if (agent.session.header.cwd === undefined) throw new Error('Graph execution requires a session working directory')
     const affected = downstreamInvalidation(graph, changed)
     const initial = this.initialRun(agent, graph, affected, previousRun, state.config)
+    // Waiting for the predecessor to become quiescent may append its terminal
+    // Campaign state. The replacement must retain that accepted execution,
+    // not the projection captured before cancellation began.
+    const admissionProjection = this.state(agent)
+    const campaign = this.resolveCampaignSubmission(admissionProjection, graph, initial, submission.campaign, submission.reason)
+    const requestedAt = Date.now()
+    const lineage = resolveRevisionLineage(
+      admissionProjection, submission, graph, changed, affected, previousRevision, previousRun, campaign, requestedAt,
+    )
     const pendingSubmission: GraphRevisionSubmissionRecord = {
       version: 1,
       id: GraphSubmissionId(randomUUID()),
@@ -3183,10 +3986,18 @@ export class GraphModeController extends Service {
       run: initial,
       changedNodeIds: changed,
       outcome: 'pending',
-      requestedAt: Date.now(),
+      requestedAt,
+      ...campaign === undefined ? {} : { campaign },
+      lineage,
     }
-    agent.session.append('graph/submission', pendingSubmission)
-    await this.flushBeforeExternal(agent, signal)
+    this.activatingSubmissions.add(pendingSubmission.id)
+    try {
+      agent.session.append('graph/submission', pendingSubmission)
+      await this.flushBeforeExternal(agent, signal)
+    } catch (error) {
+      this.activatingSubmissions.delete(pendingSubmission.id)
+      throw error
+    }
 
     const coordination = this.ctx.get('graphCoordination')
     let ownership: { readonly run: GraphRun; readonly lease?: GraphSchedulerLease } | undefined
@@ -3196,15 +4007,19 @@ export class GraphModeController extends Service {
         await coordination.prepare(graph, state.config.roles, agent.session.header.cwd, this.externalOperationSignal(signal))
       }
     } catch (error) {
-      agent.session.append('graph/submission', {
-        ...pendingSubmission,
-        outcome: 'failed',
-        completedAt: Date.now(),
-        error: { code: 'GRAPH_SUBMISSION_ACTIVATION_FAILED', message: errorMessage(error) },
-      })
-      await this.flushBeforeExternal(agent, signal)
-      if (ownership?.lease !== undefined) {
-        await this.releaseSchedulerLease(agent, ownership.lease, `failed submission ${pendingSubmission.id}`)
+      try {
+        agent.session.append('graph/submission', {
+          ...pendingSubmission,
+          outcome: 'failed',
+          completedAt: Date.now(),
+          error: { code: 'GRAPH_SUBMISSION_ACTIVATION_FAILED', message: errorMessage(error) },
+        })
+        await this.flushBeforeExternal(agent, signal)
+      } finally {
+        if (ownership?.lease !== undefined) {
+          await this.releaseSchedulerLease(agent, ownership.lease, `failed submission ${pendingSubmission.id}`)
+        }
+        this.activatingSubmissions.delete(pendingSubmission.id)
       }
       throw error
     }
@@ -3228,6 +4043,7 @@ export class GraphModeController extends Service {
         const state = run.nodes[node.id] as GraphNodeRun
         if (state.reusedFrom === undefined) this.appendOperation(agent, run, node, 'planned')
       }
+      if (campaign !== undefined) agent.session.append('graph/campaign', campaign)
       agent.session.append('graph/submission', {
         ...pendingSubmission,
         outcome: 'accepted',
@@ -3236,15 +4052,12 @@ export class GraphModeController extends Service {
       await this.flushBeforeExternal(agent, signal)
       const controller = new AbortController()
       this.aborts.set(run.id, controller)
-      const execution = this.driveOwned(agent, graph, run, state.config, controller.signal, ownership.lease).finally(() => {
-        this.aborts.delete(run.id)
-        this.executions.delete(run.id)
-      })
-      this.executions.set(run.id, execution)
-      void execution
+      const execution = this.driveOwned(agent, graph, run, state.config, controller.signal, ownership.lease)
+      void this.trackExecution(run.id, execution)
       handedOff = true
       return { accepted: true, intent: submission.intent, graphId: graph.graphId, runId: run.id }
     } finally {
+      this.activatingSubmissions.delete(pendingSubmission.id)
       if (!handedOff && ownership.lease !== undefined) {
         await this.releaseSchedulerLease(agent, ownership.lease, `submission ${pendingSubmission.id}`)
       }
@@ -3320,6 +4133,220 @@ export class GraphModeController extends Service {
       ...options.terminalOutcome === undefined ? {} : { terminalOutcome: options.terminalOutcome },
       ...options.detail === undefined ? {} : { detail: options.detail },
     })
+  }
+
+  private environmentAuthorization(
+    agent: Agent,
+    run: GraphRun,
+    node: GraphNode,
+  ): GraphCheckpoint | undefined {
+    return Object.values(this.state(agent).checkpoints).find(checkpoint => (
+      checkpoint.kind === 'environment'
+      && checkpoint.graphId === run.graphId
+      && checkpoint.revision === run.revision
+      && checkpoint.runId === run.id
+      && checkpoint.nodeId === node.id
+      && checkpoint.status === 'resolved'
+      && checkpoint.authorizedGeneration === run.generation
+    ))
+  }
+
+  private environmentApprovalCheckpoint(
+    agent: Agent,
+    graph: GraphRevision,
+    run: GraphRun,
+    node: GraphNode,
+  ): GraphCheckpoint {
+    const environment = node.environment as GraphEnvironmentPlan
+    const projection = this.state(agent)
+    const iteration = Object.values(projection.checkpoints).filter(item => item.graphId === graph.graphId).length + 1
+    const plan = graphEnvironmentApprovalText(environment)
+    const checkpoint: GraphCheckpoint = {
+      id: GraphCheckpointId(stableId('checkpoint', [run.id, run.generationId, node.id, 'environment'])),
+      graphId: graph.graphId,
+      revision: graph.revision,
+      runId: run.id,
+      nodeId: node.id,
+      kind: 'environment',
+      status: 'pending',
+      createdAt: Date.now(),
+      iteration,
+      reason: `Environment node ${node.id} requires human approval. Approve only these exact commands; rollback commands are documentary and require a separate approved node to execute.\n${plan}`,
+    }
+    validateGraphCheckpoint(checkpoint, projection)
+    return checkpoint
+  }
+
+  private async executeEnvironmentNode(
+    agent: Agent,
+    node: GraphNode,
+    signal: AbortSignal,
+    readRun: () => GraphRun,
+    read: () => GraphNodeRun | undefined,
+    update: (id: GraphNodeId, state: GraphNodeRun) => void,
+    assertAuthority: () => void,
+  ): Promise<void> {
+    const environment = node.environment as GraphEnvironmentPlan
+    const run = readRun()
+    const nodeRun = read() as GraphNodeRun
+    const startedAt = Date.now()
+    const attempt: GraphAttempt = {
+      id: GraphAttemptId(randomUUID()),
+      number: nodeRun.attempts.length + 1,
+      startedAt,
+    }
+    const references: GraphExternalReference[] = environment.operations.map(operation => ({
+      kind: 'environment',
+      provider: 'shell',
+      id: stableId('environment-operation', [nodeRun.workId, run.generationId, operation.id]),
+    }))
+    this.appendOperation(agent, run, node, 'admitted', undefined, {
+      detail: `environment approval authorized generation ${String(run.generation)}`,
+    })
+    update(node.id, { ...nodeRun, phase: 'running', attempts: [...nodeRun.attempts, attempt] })
+    this.appendOperation(agent, readRun(), node, 'started', undefined, { references })
+    try {
+      const shell = this.ctx.get('shell')
+      if (shell === undefined) {
+        throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_SHELL_MISSING', node.id, new Error('approved environment execution requires the shell service'))
+      }
+      const cwd = agent.session.header.cwd
+      if (cwd === undefined) {
+        throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_WORKSPACE_MISSING', node.id, new Error('approved environment execution requires a session workspace'))
+      }
+      const results: GraphJsonValue[] = []
+      for (const [index, operation] of environment.operations.entries()) {
+        signal.throwIfAborted()
+        const externalReference = references[index] as GraphExternalReference
+        const settlement = this.beginSettlement(agent, {
+          id: settlementIdOf(nodeRun.workId, run.generationId, `environment:${operation.id}`),
+          operationId: operationIdOf(nodeRun.workId, run.generationId),
+          workId: nodeRun.workId,
+          runId: run.id,
+          generationId: run.generationId,
+          ownerEpoch: run.ownerEpoch,
+          kind: 'environment',
+          externalReference,
+        })
+        if (settlement === undefined) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_SETTLEMENT_CONFLICT', node.id, new Error(`environment operation ${operation.id} already has a confirmed settlement`))
+        }
+        this.appendOperation(agent, readRun(), node, 'settlement-pending', undefined, {
+          references: [externalReference],
+          detail: `environment operation ${operation.id} approved and pending`,
+        })
+        await this.flushBeforeExternal(agent, signal)
+        let result: Awaited<ReturnType<typeof shell.run>>
+        try {
+          result = await shell.run(shell.resolve({
+            command: operation.command,
+            workdir: cwd,
+            timeoutMs: node.executionBudget.maxWallTimeMs,
+            stdoutMaxBytes: node.outputSchema.maxBytes,
+            signal,
+            sandboxPolicy: {
+              mode: environment.sandboxMode,
+              workspaceRoot: cwd,
+              sessionId: agent.session.id,
+            },
+          }))
+        } catch (error) {
+          assertAuthority()
+          agent.session.append('graph/settlement', {
+            ...settlement,
+            outcome: 'failed',
+            completedAt: Date.now(),
+            error: { code: 'GRAPH_ENVIRONMENT_EXECUTION_FAILED', message: errorMessage(error) },
+          })
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_EXECUTION_FAILED', node.id, error)
+        }
+        assertAuthority()
+        const stdoutBytes = Buffer.byteLength(result.stdout.text, 'utf8')
+        const stderrBytes = Buffer.byteLength(result.stderr.text, 'utf8')
+        const evidence = `operation ${operation.id} settled: exit=${String(result.exitCode)}, signal=${result.signal ?? 'none'}, timedOut=${String(result.timedOut)}, aborted=${String(result.aborted)}, stdoutBytes=${String(stdoutBytes)}, stderrBytes=${String(stderrBytes)}`
+        agent.session.append('graph/settlement', {
+          ...settlement,
+          outcome: 'confirmed',
+          completedAt: Date.now(),
+          evidence,
+        })
+        this.appendOperation(agent, readRun(), node, 'progress', undefined, {
+          references: [externalReference],
+          detail: evidence,
+        })
+        results.push({
+          id: operation.id,
+          exitCode: result.exitCode,
+          signal: result.signal,
+          timedOut: result.timedOut,
+          aborted: result.aborted,
+          stdoutBytes,
+          stderrBytes,
+          stdoutTruncated: result.stdout.truncated,
+          stderrTruncated: result.stderr.truncated,
+          sandboxMode: result.sandbox?.mode ?? environment.sandboxMode,
+          sandboxDenied: result.sandbox?.denied ?? false,
+          sandboxRunnerFailed: result.sandbox?.runnerFailed ?? false,
+        })
+        if (result.sandbox?.runnerFailed === true) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_SANDBOX_FAILED', node.id, new Error(`environment operation ${operation.id} sandbox runner failed`))
+        }
+        if (result.sandbox?.denied === true) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_SANDBOX_DENIED', node.id, new Error(`environment operation ${operation.id} was denied by ${environment.sandboxMode}`))
+        }
+        if (result.timedOut) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_COMMAND_TIMEOUT', node.id, new Error(`environment operation ${operation.id} timed out`))
+        }
+        if (result.aborted) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_COMMAND_ABORTED', node.id, new Error(`environment operation ${operation.id} was aborted`))
+        }
+        if (result.exitCode !== 0) {
+          throw new GraphRunExecutionError('GRAPH_ENVIRONMENT_COMMAND_FAILED', node.id, new Error(`environment operation ${operation.id} exited with code ${String(result.exitCode)}`))
+        }
+      }
+      const output: GraphNodeOutput = {
+        summary: `Executed ${String(environment.operations.length)} approved environment operations.`,
+        data: {
+          sandboxMode: environment.sandboxMode,
+          requiredCapabilities: environment.requiredCapabilities,
+          operations: results,
+        },
+        artifacts: [],
+      }
+      validateGraphNodeOutput(output, node.outputSchema)
+      this.appendOperation(agent, readRun(), node, 'output-staged', undefined, { outputHash: outputHashOf(output) })
+      const finished = read() as GraphNodeRun
+      update(node.id, {
+        ...finished,
+        phase: 'succeeded',
+        attempts: finished.attempts.map(item => item.id === attempt.id ? { ...item, finishedAt: Date.now() } : item),
+        output,
+      })
+      this.appendOperation(agent, readRun(), node, 'terminal', undefined, { terminalOutcome: 'succeeded' })
+    } catch (error) {
+      assertAuthority()
+      const canceled = signal.aborted
+      const detail = {
+        code: canceled ? 'GRAPH_NODE_CANCELED'
+          : error instanceof GraphRunExecutionError ? error.code : 'GRAPH_ENVIRONMENT_EXECUTION_FAILED',
+        message: errorMessage(canceled ? signal.reason : error),
+      }
+      const failed = read() as GraphNodeRun
+      update(node.id, {
+        ...failed,
+        phase: canceled ? 'canceled' : 'failed',
+        attempts: failed.attempts.map(item => item.id === attempt.id
+          ? { ...item, finishedAt: Date.now(), error: detail }
+          : item),
+      })
+      const head = this.state(agent).operations[nodeRun.workId]?.at(-1)
+      if (head?.stage !== 'terminal') {
+        this.appendOperation(agent, readRun(), node, 'terminal', undefined, {
+          terminalOutcome: canceled ? 'canceled' : 'failed',
+          detail: detail.message,
+        })
+      }
+    }
   }
 
   private checkpointForOutput(
@@ -3525,7 +4552,7 @@ export class GraphModeController extends Service {
         }
 
         const readyNodes = graph.nodes.filter(node => current.nodes[node.id]?.phase === 'ready' && !active.has(node.id))
-        const gate = readyNodes.find(node => ['expansion', 'review', 'verification'].includes(node.kind))
+        const gate = readyNodes.find(node => ['environment', 'expansion', 'review', 'verification'].includes(node.kind))
         for (const node of gate === undefined ? readyNodes : [gate]) {
           const conflicts = [...active.keys()].some((activeId) => {
             const activeNode = graph.nodes.find(item => item.id === activeId)
@@ -3610,6 +4637,7 @@ export class GraphModeController extends Service {
       this.ctx.logger.warn('dsh-graph-mode: run %s ended with %s: %o', current.id, phase, error)
     }
     if (!notify) return
+    const campaignResult = this.settleCampaignRun(agent, current)
     if (current.phase === 'paused' || current.phase === 'awaiting_user') {
       const checkpoint = pauseRequest?.checkpoint
       let planningContext: string | undefined
@@ -3626,7 +4654,9 @@ export class GraphModeController extends Service {
           let modelProfile: GraphModelExecutionProfile | undefined
           let effectiveBudget = override?.executionBudget ?? node.executionBudget
           let modelProfileError: string | undefined
-          if (configuredRole === undefined) {
+          if (node.kind === 'environment') {
+            modelProfileError = undefined
+          } else if (configuredRole === undefined) {
             modelProfileError = `role ${roleId} is not configured`
           } else {
             const role = effectiveGraphRole(configuredRole, override, agent.options)
@@ -3659,8 +4689,10 @@ export class GraphModeController extends Service {
             workerProvider: override?.workerProvider ?? configuredRole?.workerProvider ?? this.workerProvider,
             executionBudget: effectiveBudget,
             workspace: node.workspace ?? { mode: this.workspaceMode },
+            ...node.environment === undefined ? {} : { environment: node.environment },
             latestHealth: state.attempts.at(-1)?.health,
             latestCheckpoint: state.attempts.at(-1)?.checkpoints?.at(-1),
+            latestError: state.attempts.at(-1)?.error,
           }
         }))
         planningContext = JSON.stringify({
@@ -3675,10 +4707,13 @@ export class GraphModeController extends Service {
       const taskModification = checkpoint?.kind === 'awaiting_user'
         && checkpoint.issues?.some(issue => issue.id === `modify-${checkpoint.nodeId}`)
       if (!taskModification) {
+        const guidance = checkpoint?.kind === 'environment'
+          ? 'Present the exact environment capabilities, sandbox mode, commands, and rollback commands to the user. Wait for the existing checkpoint to be approved or rejected; do not call graph_submit, revise the graph, execute a command, or claim approval.'
+          : 'Treat priorAcceptedEvidence as completed work. Preserve its still-valid node ids, semantic definitions, and incoming dependencies so Graph Mode can reuse them. Do not create preserve or baseline-discovery nodes for accepted work. Reconcile the remaining evidence with worker capability and actual repository paths, then submit intent=revise with only missing model-sized tasks or corrected workspace ownership; do not approve unchanged stalled or non-retryable work.'
         agent.followup(createUserMessage({
           content: [{
             type: 'text',
-            text: `[graph-planning-checkpoint]\ngraph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}\ncheckpoint=${checkpoint?.id ?? 'unknown'} kind=${checkpoint?.kind ?? 'unknown'}\n${checkpoint?.reason ?? 'Graph execution requires a controller or user decision.'}${planningContext === undefined ? '' : `\nplanningContext=${planningContext}\nTreat priorAcceptedEvidence as completed work. Preserve its still-valid node ids, semantic definitions, and incoming dependencies so Graph Mode can reuse them. Do not create preserve or baseline-discovery nodes for accepted work. Reconcile the remaining evidence with worker capability, then submit intent=revise with only missing model-sized implementation tasks when the current granularity or budget is unsafe; do not approve unchanged stalled work.`}`,
+            text: `[graph-planning-checkpoint]\ngraph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}\ncheckpoint=${checkpoint?.id ?? 'unknown'} kind=${checkpoint?.kind ?? 'unknown'}\n${checkpoint?.reason ?? 'Graph execution requires a controller or user decision.'}${planningContext === undefined ? '' : `\nplanningContext=${planningContext}`}\n${guidance}`,
           }],
           source: { kind: 'plugin', plugin: 'graph-mode' },
         }))
@@ -3689,10 +4724,22 @@ export class GraphModeController extends Service {
         return state?.output === undefined ? [] : [`${node.title}: ${state.output.summary}`]
       })
       const errors = current.error === undefined ? [] : [`error=${JSON.stringify(current.error)}`]
+      const completionHeader = campaignResult === undefined
+        ? '[graph-run-complete]'
+        : '[graph-batch-complete]'
+      const campaignLines = campaignResult === undefined
+        ? []
+        : [
+          `campaign=${campaignResult.campaign.id} batch=${campaignResult.batchId}`,
+          `nextBatch=${campaignResult.nextBatchId ?? 'none'}`,
+          campaignResult.nextBatchId === undefined
+            ? 'Do not copy historical batch nodes into a revision.'
+            : `Create a new graph with intent=new and campaign.batchId=${campaignResult.nextBatchId}; include only that batch's nodes and consume predecessor evidence from the campaign record.`,
+        ]
       agent.followup(createUserMessage({
         content: [{
           type: 'text',
-          text: ['[graph-run-complete]', `graph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}`, ...errors, ...summaries].join('\n'),
+          text: [completionHeader, `graph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}`, ...campaignLines, ...errors, ...summaries].join('\n'),
         }],
         source: { kind: 'plugin', plugin: 'graph-mode' },
       }))
@@ -4000,6 +5047,18 @@ export class GraphModeController extends Service {
       assertAuthority()
       agent.session.append('graph/settlement', record)
     }
+    if (node.kind === 'environment') {
+      const run = readRun()
+      if (this.environmentAuthorization(agent, run, node) === undefined) {
+        requestPause({
+          checkpoint: this.environmentApprovalCheckpoint(agent, graph, run, node),
+          phase: 'awaiting_user',
+        })
+        return
+      }
+      await this.executeEnvironmentNode(agent, node, signal, readRun, read, update, assertAuthority)
+      return
+    }
     if (node.kind === 'subgraph') {
       try {
         await this.executeSubgraphNode(
@@ -4155,9 +5214,17 @@ export class GraphModeController extends Service {
         await this.flushBeforeExternal(agent, signal)
         try {
           const operationSignal = this.externalOperationSignal(signal)
-          claim = coordination === undefined
+          const disposition = coordination === undefined
             ? undefined
             : await this.waitForExternal(coordination.claim(coordinationRequest, operationSignal), operationSignal)
+          if (disposition?.terminal !== undefined) {
+            throw new GraphRunExecutionError(
+              'GRAPH_COORDINATION_ALREADY_TERMINAL',
+              node.id,
+              new Error(`coordination activation already settled as ${disposition.terminal.outcome}: ${disposition.terminal.evidence}`),
+            )
+          }
+          claim = disposition
           if (claim !== undefined) {
             appendOperation(agent, readRun(), node, 'claimed', undefined, {
               references: [
@@ -4167,7 +5234,9 @@ export class GraphModeController extends Service {
             })
           }
         } catch (error) {
-          throw new GraphRunExecutionError('GRAPH_COORDINATION_CLAIM_FAILED', node.id, error)
+          throw error instanceof GraphRunExecutionError
+            ? error
+            : new GraphRunExecutionError('GRAPH_COORDINATION_CLAIM_FAILED', node.id, error)
         }
         attempt = {
           id: GraphAttemptId(randomUUID()),
@@ -4367,11 +5436,37 @@ export class GraphModeController extends Service {
         const executionProtocol = node.kind === 'review' || node.kind === 'verification'
           ? ''
           : '\nExecution protocol: keep the visible plan brief; perform a file read, edit, write, or focused verification early; persist one coherent deliverable before planning another; verify each persisted increment; and do not draft several complete files in hidden reasoning before using tools. Hidden reasoning and failed verification are not recoverable progress. If a Windows sandboxed dependency or build command fails with spawn EPERM because piped process I/O is unavailable, retry that exact command once through the tool\'s narrow sandbox-escalation option with a justification. Do not patch dependencies, package-manager caches, or build tools to evade the sandbox.'
-        const initialPrompt = `Graph objective: ${graph.objective}\nAssigned node: ${node.title}\nObjective: ${node.objective}\nAcceptance criteria:\n${node.acceptanceCriteria.map(item => `- ${item}`).join('\n')}\nRuntime subgraph input: ${JSON.stringify(runtimeInput ?? {})}\nPredecessor outputs: ${JSON.stringify(predecessors)}\nCoordination observation: ${claim?.observation ?? 'No external coordination provider is mounted.'}${executionProtocol}\nReturn the required structured result with a concise summary, JSON data for downstream conditions, artifact paths, and an optional public-safe coordinationSummary of at most 2,000 characters.${controlOutput} Never put credentials, private paths, or hidden reasoning in coordinationSummary.`
+        const workspaceMode = node.workspace?.mode ?? this.workspaceMode
+        const workspaceReadRoots = node.workspace?.readRoots ?? ['.']
+        const workspaceWriteRoots = node.workspace?.writeRoots ?? (workspaceMode === 'read-only-snapshot' ? [] : ['.'])
+        const workspaceProtocol = `\nWorkspace policy: mode=${workspaceMode}; readRoots=${JSON.stringify(workspaceReadRoots)}; writeRoots=${JSON.stringify(workspaceWriteRoots)}. Treat these as exact source-relative paths inside the current runtime workspace. Paths mentioned by the graph objective, node objective, predecessor output, or coordination evidence are descriptive source paths, not alternate write targets. Never write through an absolute source-workspace path or outside writeRoots. In isolated-copy and read-only-snapshot modes, the runtime workspace is the only workspace you may access. If the requested result cannot be produced within this policy, return a concise limitation instead of attempting the same write elsewhere.`
+        const campaign = Object.values(this.state(agent).campaigns).find(candidate => (
+          candidate.batches.some(batch => batch.graphId === graph.graphId)
+        ))
+        const campaignBatch = campaign?.batches.find(batch => batch.graphId === graph.graphId)
+        const campaignContext = campaign === undefined || campaignBatch === undefined
+          ? {}
+          : {
+            campaignId: campaign.id,
+            batchId: campaignBatch.id,
+            predecessorBatches: campaignBatch.dependsOn.map((id) => {
+              const predecessor = campaign.batches.find(batch => batch.id === id)
+              const execution = predecessor?.executions.at(-1)
+              return {
+                batchId: id,
+                status: predecessor?.status,
+                graphId: predecessor?.graphId,
+                runId: execution?.runId,
+                revision: execution?.revision,
+                settlementIds: execution?.settlementIds ?? [],
+                summary: execution?.summary,
+              }
+            }),
+          }
+        const initialPrompt = `Graph objective: ${graph.objective}\nAssigned node: ${node.title}\nObjective: ${node.objective}\nAcceptance criteria:\n${node.acceptanceCriteria.map(item => `- ${item}`).join('\n')}\nCampaign input: ${JSON.stringify(campaignContext)}\nRuntime subgraph input: ${JSON.stringify(runtimeInput ?? {})}\nPredecessor outputs: ${JSON.stringify(predecessors)}\nCoordination observation: ${claim?.observation ?? 'No external coordination provider is mounted.'}${workspaceProtocol}${executionProtocol}\nReturn the required structured result with a concise summary, JSON data for downstream conditions, artifact paths, and an optional public-safe coordinationSummary of at most 2,000 characters.${controlOutput} Never put credentials, private paths, or hidden reasoning in coordinationSummary.`
         const startWorker = async (activation: number, prompt: string) => {
           const currentRun = readRun()
           const currentNode = currentRun.nodes[node.id] as GraphNodeRun
-          const workspaceMode = node.workspace?.mode ?? this.workspaceMode
           const assignment: GraphWorkerAssignment = {
             protocolVersion: 1,
             workId: currentNode.workId,
@@ -4391,8 +5486,8 @@ export class GraphModeController extends Service {
             workspace: {
               mode: workspaceMode,
               sourceRoot: cwd as string,
-              readRoots: node.workspace?.readRoots ?? ['.'],
-              writeRoots: node.workspace?.writeRoots ?? (workspaceMode === 'read-only-snapshot' ? [] : ['.']),
+              readRoots: workspaceReadRoots,
+              writeRoots: workspaceWriteRoots,
               cleanup: node.workspace?.cleanup ?? (workspaceMode === 'shared' ? 'retain' : 'retain-on-failure'),
             },
             deadline: Date.now() + Math.min(effectiveBudget.maxWallTimeMs, graph.terminationPolicy.maxWallTimeMs),
@@ -4522,9 +5617,13 @@ export class GraphModeController extends Service {
               : result.outcome === 'capacity' || result.outcome === 'unavailable' ? 'capacity'
                 : result.error?.code === 'RATE_LIMITED' ? 'rate-limited' : 'worker-lost'
             resourceRetryAfterMs = result.error?.retryAfterMs
+            if (result.error?.retryable === false) {
+              throw new GraphWorkerRevisionRequiredError(result.error.code, result.error.message)
+            }
             throw new Error(result.error?.message ?? `worker stopped with ${result.outcome}`)
           }
           const output = outputOf(result.structured, node)
+          const checkpoint = this.checkpointForOutput(agent, graph, readRun(), node, output)
           if (result.artifactManifest !== undefined) {
             const artifactManifest = result.artifactManifest
             const captured = read() as GraphNodeRun
@@ -4730,7 +5829,6 @@ export class GraphModeController extends Service {
               return
             }
           }
-          const checkpoint = this.checkpointForOutput(agent, graph, readRun(), node, output)
           update(node.id, {
             ...finished,
             phase: 'succeeded',
@@ -4748,17 +5846,19 @@ export class GraphModeController extends Service {
         const failed = read() as GraphNodeRun
         const canceled = signal.aborted
         const stalled = error instanceof GraphWorkerStalledError
+        const revisionRequired = error instanceof GraphWorkerRevisionRequiredError
         const executionError = error instanceof GraphRunExecutionError
         const detail = {
           code: canceled ? 'GRAPH_NODE_CANCELED'
             : stalled ? 'GRAPH_NODE_STALLED'
-              : executionError ? error.code : 'GRAPH_NODE_ATTEMPT_FAILED',
+              : revisionRequired ? error.code
+                : executionError ? error.code : 'GRAPH_NODE_ATTEMPT_FAILED',
           message: errorMessage(canceled ? signal.reason : error),
         }
-        const terminal = canceled || stalled || executionError || attemptNumber === node.maxAttempts
+        const terminal = canceled || stalled || revisionRequired || executionError || attemptNumber === node.maxAttempts
         update(node.id, {
           ...failed,
-          phase: canceled ? 'canceled' : stalled || executionError || attemptNumber === node.maxAttempts ? 'failed' : 'ready',
+          phase: canceled ? 'canceled' : stalled || revisionRequired || executionError || attemptNumber === node.maxAttempts ? 'failed' : 'ready',
           attempts: failed.attempts.map(item => item.id === attempt.id ? { ...item, finishedAt: Date.now(), error: detail } : item),
         })
         appendOperation(agent, readRun(), node, terminal ? 'terminal' : 'reconciled', undefined, terminal
@@ -4789,6 +5889,31 @@ export class GraphModeController extends Service {
           validateGraphCheckpoint(checkpoint, projection)
           requestPause({ checkpoint, phase: 'paused' })
         }
+        if (revisionRequired) {
+          const projection = this.state(agent)
+          const iteration = Object.values(projection.checkpoints).filter(item => item.graphId === graph.graphId).length + 1
+          const checkpoint: GraphCheckpoint = {
+            id: GraphCheckpointId(stableId('checkpoint', [readRun().id, node.id, iteration, error.code])),
+            graphId: graph.graphId,
+            revision: graph.revision,
+            runId: readRun().id,
+            nodeId: node.id,
+            kind: 'planning',
+            status: 'pending',
+            createdAt: Date.now(),
+            iteration,
+            reason: `Worker for node ${node.id} reported non-retryable error ${error.code}. The controller must correct the task or workspace ownership before dispatching replacement work.`,
+            issues: [{
+              id: `worker-revision-${node.id}-${String(attemptNumber)}`,
+              severity: 'blocking',
+              summary: `The unchanged node cannot succeed after ${error.code}.`,
+              evidence: [error.workerMessage],
+              ownerNodeIds: [node.id],
+            }],
+          }
+          validateGraphCheckpoint(checkpoint, projection)
+          requestPause({ checkpoint, phase: 'paused' })
+        }
         if (terminal && coordination !== undefined && cwd !== undefined && claim !== undefined) {
           const settlementId = settlementIdOf(failed.workId, readRun().generationId, `coordination:${claim.claimId}`)
           const settlement = this.beginSettlement(agent, {
@@ -4806,7 +5931,9 @@ export class GraphModeController extends Service {
               ? `dsh graph node ${node.id} canceled: ${errorMessage(signal.reason)}`
               : stalled
                 ? `dsh graph node ${node.id} stalled without recoverable progress: ${error.reason}`
-                : `dsh graph node ${node.id} exhausted its bounded attempts`
+                : revisionRequired
+                  ? `dsh graph node ${node.id} requires revision after ${error.code}: ${error.workerMessage}`
+                  : `dsh graph node ${node.id} exhausted its bounded attempts`
             if (await this.flushCleanupIntent(agent, `failed coordination claim ${claim.claimId}`)) {
               try {
                 const currentLease = await this.latestCoordinationLease(coordination, {

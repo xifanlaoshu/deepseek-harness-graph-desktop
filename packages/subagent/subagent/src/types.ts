@@ -12,6 +12,7 @@
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { ObjectJsonSchema, ToolRestriction } from '@deepseek-ai/dsh-tools'
 import type { SubagentDescriptorData } from './descriptor.ts'
@@ -81,13 +82,14 @@ export interface SubagentRunEndInfo {
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * to `maxDepth`, `sandboxMode` to `sandboxModeCap`; the other names match.
  */
 export interface SubagentCapabilities {
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  readonly sandboxMode?: boolean
 }
 
 /**
@@ -153,6 +155,13 @@ export interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional upper bound on the child's sandbox authority. Requires
+   * {@link SubagentCapabilities.sandboxMode}; an in-process provider resolves
+   * the parent's effective mode and records the more restrictive value on the
+   * child before publication. The cap never widens a restrictive parent.
+   */
+  readonly sandboxModeCap?: SandboxMode
 }
 
 /**

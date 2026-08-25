@@ -426,6 +426,17 @@ Source: [`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain
 
 ### `graph/*`
 
+<a id="graphcampaign--log-only"></a>
+
+#### `graph/campaign` — log-only
+
+```ts persistence-catalog
+/** Whole campaign snapshot linking independent batch graphs. */
+'graph/campaign': GraphCampaign
+```
+
+Source: [`packages/graph/graph/src/index.ts:59`](../packages/graph/graph/src/index.ts)
+
 <a id="graphchange--log-only"></a>
 
 #### `graph/change` — log-only
@@ -435,7 +446,7 @@ Source: [`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain
 'graph/change': GraphDefinitionChange
 ```
 
-Source: [`packages/graph/graph/src/index.ts:42`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:45`](../packages/graph/graph/src/index.ts)
 
 <a id="graphcheckpoint--log-only"></a>
 
@@ -446,7 +457,7 @@ Source: [`packages/graph/graph/src/index.ts:42`](../packages/graph/graph/src/ind
 'graph/checkpoint': GraphCheckpoint
 ```
 
-Source: [`packages/graph/graph/src/index.ts:52`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:55`](../packages/graph/graph/src/index.ts)
 
 <a id="graphcontrol--log-only"></a>
 
@@ -457,7 +468,7 @@ Source: [`packages/graph/graph/src/index.ts:52`](../packages/graph/graph/src/ind
 'graph/control': GraphControlRecord
 ```
 
-Source: [`packages/graph/graph/src/index.ts:54`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:57`](../packages/graph/graph/src/index.ts)
 
 <a id="graphoperation--log-only"></a>
 
@@ -468,7 +479,7 @@ Source: [`packages/graph/graph/src/index.ts:54`](../packages/graph/graph/src/ind
 'graph/operation': GraphOperationTransition
 ```
 
-Source: [`packages/graph/graph/src/index.ts:46`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:49`](../packages/graph/graph/src/index.ts)
 
 <a id="graphrun--log-only"></a>
 
@@ -479,7 +490,7 @@ Source: [`packages/graph/graph/src/index.ts:46`](../packages/graph/graph/src/ind
 'graph/run': GraphRun
 ```
 
-Source: [`packages/graph/graph/src/index.ts:44`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:47`](../packages/graph/graph/src/index.ts)
 
 <a id="graphsettlement--log-only"></a>
 
@@ -490,7 +501,7 @@ Source: [`packages/graph/graph/src/index.ts:44`](../packages/graph/graph/src/ind
 'graph/settlement': GraphSettlementRecord
 ```
 
-Source: [`packages/graph/graph/src/index.ts:48`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:51`](../packages/graph/graph/src/index.ts)
 
 <a id="graphsubmission--log-only"></a>
 
@@ -501,7 +512,7 @@ Source: [`packages/graph/graph/src/index.ts:48`](../packages/graph/graph/src/ind
 'graph/submission': GraphRevisionSubmissionRecord
 ```
 
-Source: [`packages/graph/graph/src/index.ts:50`](../packages/graph/graph/src/index.ts)
+Source: [`packages/graph/graph/src/index.ts:53`](../packages/graph/graph/src/index.ts)
 
 ### `hook/*`
 

@@ -4,6 +4,7 @@
  * @module @deepseek-ai/dsh-graph
  */
 
+import { isDeepStrictEqual } from 'node:util'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
@@ -16,8 +17,10 @@ import {
   GraphNodeId,
   GraphRoleId,
   type GraphExecutionPolicy,
+  type GraphEnvironmentPlan,
   type GraphNodeExecutionBudget,
   type GraphCheckpoint,
+  type GraphCampaign,
   type GraphControlRecord,
   type GraphModeConfig,
   type GraphOutputSchema,
@@ -52,6 +55,8 @@ declare module '@deepseek-ai/dsh-session/types' {
     'graph/checkpoint': GraphCheckpoint
     /** Accepted human or controller operation over one graph run. */
     'graph/control': GraphControlRecord
+    /** Whole campaign snapshot linking independent batch graphs. */
+    'graph/campaign': GraphCampaign
   }
 }
 
@@ -87,9 +92,11 @@ export function defaultGraphModeConfig(): GraphModeConfig {
       role('controller', 'Controller', 'Classifies each user input and owns graph revisions.', 'Classify the input as new work, revision, inspection, control, clarification, or direct response. Create the smallest auditable DAG that preserves real dependencies. Never implement a delegated task yourself. Synthesize only from published node outputs and evidence.', 1, true),
       role('analyst', 'Analyst', 'Clarifies requirements, constraints, and acceptance criteria.', 'Turn ambiguous requests into explicit requirements, risks, and acceptance criteria. Cite repository evidence and identify questions only when the answer changes the implementation materially.', 2),
       role('architect', 'Architect', 'Defines component responsibilities and integration contracts.', 'Design the smallest coherent change across existing extension points. State APIs, durable state, failure behavior, migration impact, and verification obligations before implementation begins.', 1),
+      role('environment', 'Environment Operator', 'Inspects toolchain prerequisites and plans bounded host changes.', 'Prefer project-local toolchains and reversible operations. Name exact commands, required host capabilities, affected resources, verification, and rollback evidence; never broaden a Docker or package-manager operation beyond the assigned project.', 1),
       role('engineer', 'Engineer', 'Implements scoped code changes.', 'Implement only the assigned node. Preserve unrelated work, follow repository instructions, add focused tests, and publish changed files plus verification evidence.', 1),
       role('reviewer', 'Reviewer', 'Finds correctness, security, lifecycle, and maintainability defects.', 'Review the assigned change against its acceptance criteria and repository contracts. Report actionable findings with exact evidence; do not rewrite code unless the task explicitly assigns remediation.', 2),
       role('verifier', 'Verifier', 'Runs focused checks and diagnoses failures.', 'Select the smallest checks that prove the assigned behavior. Distinguish product failures from environment failures and publish commands, results, and residual risk.', 2),
+      role('browser-tester', 'Browser Tester', 'Validates web flows with DOM, visual, console, and network evidence.', 'Test only the assigned target origin and acceptance criteria. Keep one explicit browser page id, use page snapshots and element identifiers for ordinary actions, and use screenshots for visual assertions when the selected model accepts images. Inspect console errors and failed network requests after critical actions. Never enter real secrets or perform destructive or production actions. Report pass only from observed evidence, publish a structured decision and actionable issues, and close only the page you created.', 1),
       role('writer', 'Writer', 'Maintains user and developer documentation.', 'Update the authoritative documentation and public API prose for the implemented behavior. Keep current-state contracts synchronized with code and avoid review-history narration.', 1),
     ],
     limits: { globalMaxParallel: 8, controllerReserve: 1, models: [] },
@@ -167,7 +174,7 @@ export function defaultGraphOutputSchema(id = 'dsh.graph.node-output'): GraphOut
 export function emptyGraphProjection(): GraphProjection {
   return {
     config: defaultGraphModeConfig(), graphs: {}, runs: {}, operations: {}, settlements: {},
-    submissions: {}, checkpoints: {}, controls: {},
+    submissions: {}, checkpoints: {}, controls: {}, campaigns: {},
   }
 }
 
@@ -191,8 +198,122 @@ export class GraphValidationError extends Error {
 const fail = (code: string, message: string): never => { throw new GraphValidationError(code, message) }
 const normalized = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0 && value === value.trim()
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
+const isVersionOne = (value: number): boolean => value === 1
 const isVersionTwo = (value: number): boolean => value === 2
-const TASK_KINDS = new Set(['analysis', 'design', 'implementation', 'review', 'verification', 'documentation', 'integration', 'specialist', 'expansion', 'subgraph'])
+const TASK_KINDS = new Set(['analysis', 'design', 'environment', 'implementation', 'review', 'verification', 'documentation', 'integration', 'specialist', 'expansion', 'subgraph'])
+const ENVIRONMENT_CAPABILITIES = new Set(['network', 'host-package-install', 'docker'])
+const CAMPAIGN_BATCH_STATUSES = new Set(['planned', 'running', 'approved', 'approved_with_findings', 'rejected', 'needs_user', 'blocked'])
+const CAMPAIGN_PHASES = new Set(['planned', 'running', 'awaiting_user', 'succeeded', 'failed', 'canceled'])
+/** Protocol bound that keeps one approved environment node reviewable. */
+export const MAX_GRAPH_ENVIRONMENT_OPERATIONS = 16
+/** Protocol bound reserved below the checkpoint reason limit for approval framing. */
+export const MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES = 3_500
+
+const validateCampaignShape = (campaign: GraphCampaign, state?: GraphProjection): void => {
+  if (!isVersionOne(campaign.version) || !normalized(campaign.id) || !SAFE_ID.test(campaign.id)) {
+    fail('GRAPH_CAMPAIGN_IDENTITY', 'campaign requires version 1 and a normalized safe id')
+  }
+  if (!normalized(campaign.objective) || !Number.isSafeInteger(campaign.createdAt)
+    || !Number.isSafeInteger(campaign.updatedAt) || campaign.updatedAt < campaign.createdAt
+    || !CAMPAIGN_PHASES.has(campaign.phase) || campaign.batches.length === 0) {
+    fail('GRAPH_CAMPAIGN_FIELDS', 'campaign requires an objective, ordered batches, valid timestamps, and a known phase')
+  }
+  const ids = new Set<string>()
+  for (const [index, batch] of campaign.batches.entries()) {
+    if (!normalized(batch.id) || !SAFE_ID.test(batch.id) || ids.has(batch.id)
+      || batch.ordinal !== index + 1 || !normalized(batch.title) || !normalized(batch.objective)
+      || !CAMPAIGN_BATCH_STATUSES.has(batch.status)) {
+      fail('GRAPH_CAMPAIGN_BATCH', `campaign batch at index ${String(index)} has invalid identity, order, text, or status`)
+    }
+    if (batch.dependsOn.some(id => !ids.has(id)) || new Set(batch.dependsOn).size !== batch.dependsOn.length) {
+      fail('GRAPH_CAMPAIGN_DEPENDENCY', `campaign batch ${JSON.stringify(batch.id)} dependencies must name unique earlier batches`)
+    }
+    ids.add(batch.id)
+    if (batch.graphId !== undefined && batch.executions.some(execution => execution.graphId !== batch.graphId)) {
+      fail('GRAPH_CAMPAIGN_EXECUTION', `campaign batch ${JSON.stringify(batch.id)} changed graph identity`)
+    }
+    for (const execution of batch.executions) {
+      if (!Number.isSafeInteger(execution.revision) || execution.revision < 1
+        || !Number.isSafeInteger(execution.startedAt) || (execution.completedAt !== undefined
+          && (!Number.isSafeInteger(execution.completedAt) || execution.completedAt < execution.startedAt))) {
+        fail('GRAPH_CAMPAIGN_EXECUTION', `campaign batch ${JSON.stringify(batch.id)} has invalid execution timing`)
+      }
+      if (state !== undefined) {
+        const graph = state.graphs[execution.graphId]?.find(revision => revision.revision === execution.revision)
+        const run = state.runs[execution.runId]
+        if (graph === undefined || run === undefined || run.graphId !== execution.graphId || run.revision !== execution.revision) {
+          fail('GRAPH_CAMPAIGN_EXECUTION', `campaign batch ${JSON.stringify(batch.id)} names an unknown graph execution`)
+        }
+        if (execution.settlementIds.some(id => state.settlements[id]?.at(-1)?.outcome !== 'confirmed')) {
+          fail('GRAPH_CAMPAIGN_EXECUTION', `campaign batch ${JSON.stringify(batch.id)} names an unconfirmed settlement`)
+        }
+      }
+    }
+  }
+  const planRevision = campaign.planRevision ?? 1
+  const planExtensions = campaign.planExtensions ?? []
+  if (!Number.isSafeInteger(planRevision) || planRevision < 1 || planExtensions.length !== planRevision - 1) {
+    fail('GRAPH_CAMPAIGN_PLAN', 'campaign plan revision must match its ordered extension history')
+  }
+  const extendedBatchCount = planExtensions.reduce((total, extension) => total + extension.addedBatchIds.length, 0)
+  let extensionOffset = campaign.batches.length - extendedBatchCount
+  if (extensionOffset < 1) fail('GRAPH_CAMPAIGN_PLAN', 'campaign plan extensions must retain a non-empty initial batch prefix')
+  for (const [index, extension] of planExtensions.entries()) {
+    const added = campaign.batches.slice(extensionOffset, extensionOffset + extension.addedBatchIds.length)
+    if (extension.revision !== index + 2 || !Number.isSafeInteger(extension.createdAt)
+      || extension.createdAt < campaign.createdAt || extension.createdAt > campaign.updatedAt
+      || !normalized(extension.reason) || extension.addedBatchIds.length === 0
+      || !isDeepStrictEqual(added.map(batch => batch.id), extension.addedBatchIds)
+      || new Set(extension.addedBatchIds).size !== extension.addedBatchIds.length
+      || extension.settlementIds.some(id => !normalized(id))) {
+      fail('GRAPH_CAMPAIGN_PLAN', `campaign plan extension ${String(index + 2)} is invalid`)
+    }
+    if (extension.sourceBatchId !== undefined) {
+      const sourceIndex = campaign.batches.findIndex(batch => batch.id === extension.sourceBatchId)
+      const source = campaign.batches[sourceIndex]
+      const execution = source?.executions.find(item => item.runId === extension.sourceRunId)
+      if (sourceIndex < 0 || sourceIndex >= extensionOffset || extension.sourceRunId === undefined
+        || execution === undefined || !isDeepStrictEqual(execution.settlementIds, extension.settlementIds)) {
+        fail('GRAPH_CAMPAIGN_PLAN', `campaign plan extension ${String(index + 2)} has invalid source evidence`)
+      }
+    } else if (extension.sourceRunId !== undefined || extension.settlementIds.length > 0) {
+      fail('GRAPH_CAMPAIGN_PLAN', `campaign plan extension ${String(index + 2)} has source evidence without a source batch`)
+    }
+    if (state !== undefined && extension.settlementIds.some(id => state.settlements[id]?.at(-1)?.outcome !== 'confirmed')) {
+      fail('GRAPH_CAMPAIGN_PLAN', `campaign plan extension ${String(index + 2)} names an unconfirmed settlement`)
+    }
+    extensionOffset += extension.addedBatchIds.length
+  }
+  if (campaign.activeBatchId !== undefined && !ids.has(campaign.activeBatchId)) {
+    fail('GRAPH_CAMPAIGN_ACTIVE_BATCH', 'campaign activeBatchId must name one of its batches')
+  }
+  if (campaign.phase === 'succeeded' && campaign.batches.some(batch => !['approved', 'approved_with_findings'].includes(batch.status))) {
+    fail('GRAPH_CAMPAIGN_PHASE', 'a succeeded campaign requires every batch to be approved')
+  }
+}
+
+/**
+ * Validate a whole campaign snapshot against graph and run evidence already in the projection.
+ * @param campaign immutable Campaign snapshot to validate.
+ * @param state projection containing every referenced graph, run, and settlement.
+ * @returns nothing after successful validation.
+ */
+export function validateGraphCampaign(campaign: GraphCampaign, state: GraphProjection): void {
+  validateCampaignShape(campaign, state)
+}
+
+/**
+ * Render the exact environment plan shown at its mandatory approval checkpoint.
+ * @param plan immutable capabilities, authority, commands, and documentary rollback commands.
+ * @returns stable JSON text suitable for the checkpoint card and audit log.
+ */
+export function graphEnvironmentApprovalText(plan: GraphEnvironmentPlan): string {
+  return JSON.stringify({
+    requiredCapabilities: plan.requiredCapabilities,
+    sandboxMode: plan.sandboxMode,
+    operations: plan.operations,
+  }, null, 2)
+}
 const EDGE_KINDS = new Set(['control', 'data', 'conditional'])
 const CONDITION_OPERATORS = new Set(['exists', 'truthy', 'equals', 'not-equals'])
 const BRANCH_MODES = new Set(['all', 'any', 'exactly-one', 'activated'])
@@ -301,6 +422,17 @@ const workspaceSchema = zod.object({
   writeRoots: zod.array(zod.string()),
   cleanup: zod.enum(['delete-on-settlement', 'retain-on-failure', 'retain']),
 }).strict()
+const environmentOperationSchema = zod.object({
+  id: zod.string(),
+  description: zod.string(),
+  command: zod.string(),
+  rollbackCommand: zod.string().optional(),
+}).strict()
+const environmentPlanSchema = zod.object({
+  requiredCapabilities: zod.array(zod.enum(['network', 'host-package-install', 'docker'])),
+  sandboxMode: zod.enum(['workspace-write', 'danger-full-access']),
+  operations: zod.array(environmentOperationSchema),
+}).strict()
 const nodeSchema = zod.object({
   id: zod.string(),
   title: zod.string(),
@@ -314,6 +446,7 @@ const nodeSchema = zod.object({
   executionBudget: executionBudgetSchema,
   expansion: expansionSchema.optional(),
   subgraph: subgraphSchema.optional(),
+  environment: environmentPlanSchema.optional(),
   workspace: workspaceSchema.optional(),
   skippable: zod.boolean(),
   effectPolicy: zod.enum(['idempotent', 'reconcile', 'manual']),
@@ -478,7 +611,7 @@ const runSchema = zod.object({
   }).strict().optional(),
 }).strict()
 const externalReferenceSchema = zod.object({
-  kind: zod.enum(['coordination', 'worker', 'workspace', 'model', 'child-session', 'artifact']),
+  kind: zod.enum(['coordination', 'worker', 'workspace', 'model', 'child-session', 'artifact', 'environment']),
   provider: zod.string(),
   id: zod.string(),
   fencingToken: zod.number().optional(),
@@ -511,13 +644,85 @@ const settlementRecordSchema = zod.object({
   runId: zod.string(),
   generationId: zod.string(),
   ownerEpoch: zod.number(),
-  kind: zod.enum(['coordination', 'resource-release', 'artifact', 'cancellation', 'compensation']),
+  kind: zod.enum(['coordination', 'resource-release', 'artifact', 'environment', 'cancellation', 'compensation']),
   outcome: zod.enum(['pending', 'confirmed', 'failed', 'conflict']),
   requestedAt: zod.number(),
   completedAt: zod.number().optional(),
   externalReference: externalReferenceSchema.optional(),
   evidence: zod.string().optional(),
   error: zod.object({ code: zod.string(), message: zod.string() }).strict().optional(),
+}).strict()
+const campaignExecutionSchema = zod.object({
+  graphId: zod.string(),
+  revision: zod.number(),
+  runId: zod.string(),
+  status: zod.enum(['running', 'succeeded', 'failed', 'canceled', 'exhausted', 'awaiting_user']),
+  startedAt: zod.number(),
+  completedAt: zod.number().optional(),
+  settlementIds: zod.array(zod.string()),
+  summary: zod.string().optional(),
+}).strict()
+const campaignBatchSchema = zod.object({
+  id: zod.string(),
+  ordinal: zod.number(),
+  title: zod.string(),
+  objective: zod.string(),
+  dependsOn: zod.array(zod.string()),
+  status: zod.enum(['planned', 'running', 'approved', 'approved_with_findings', 'rejected', 'needs_user', 'blocked']),
+  graphId: zod.string().optional(),
+  executions: zod.array(campaignExecutionSchema),
+}).strict()
+const campaignSchema = zod.object({
+  version: zod.literal(1),
+  id: zod.string(),
+  objective: zod.string(),
+  createdAt: zod.number(),
+  updatedAt: zod.number(),
+  phase: zod.enum(['planned', 'running', 'awaiting_user', 'succeeded', 'failed', 'canceled']),
+  batches: zod.array(campaignBatchSchema),
+  activeBatchId: zod.string().optional(),
+  planRevision: zod.number().optional(),
+  planExtensions: zod.array(zod.object({
+    revision: zod.number(),
+    createdAt: zod.number(),
+    reason: zod.string(),
+    addedBatchIds: zod.array(zod.string()),
+    sourceBatchId: zod.string().optional(),
+    sourceRunId: zod.string().optional(),
+    settlementIds: zod.array(zod.string()),
+  }).strict()).optional(),
+}).strict()
+const revisionLineageSchema = zod.object({
+  version: zod.literal(1),
+  taskId: zod.string(),
+  kind: zod.enum(['new_task', 'analysis_refactor', 'execution_correction']),
+  title: zod.string(),
+  objective: zod.string(),
+  reason: zod.string(),
+  creator: zod.enum(['controller', 'human_control', 'recovery']),
+  createdAt: zod.number(),
+  trigger: zod.object({
+    source: zod.enum(['user', 'planning_checkpoint', 'run_failure', 'review_rejection', 'human_control', 'recovery']),
+    summary: zod.string(),
+    runId: zod.string().optional(),
+    nodeId: zod.string().optional(),
+    errorCode: zod.string().optional(),
+    evidence: zod.array(zod.string()),
+  }).strict(),
+  relationships: zod.array(zod.object({
+    kind: zod.enum(['derived_from', 'refactors', 'corrects', 'supersedes', 'depends_on']),
+    graphId: zod.string(),
+    revision: zod.number().optional(),
+    reason: zod.string(),
+  }).strict()),
+  successCriteria: zod.array(zod.string()),
+  changes: zod.object({
+    addedNodeIds: zod.array(zod.string()),
+    changedNodeIds: zod.array(zod.string()),
+    removedNodeIds: zod.array(zod.string()),
+    preservedNodeIds: zod.array(zod.string()),
+    invalidatedNodeIds: zod.array(zod.string()),
+  }).strict(),
 }).strict()
 const revisionSubmissionRecordSchema = zod.object({
   version: zod.literal(1),
@@ -530,6 +735,8 @@ const revisionSubmissionRecordSchema = zod.object({
   requestedAt: zod.number(),
   completedAt: zod.number().optional(),
   error: zod.object({ code: zod.string(), message: zod.string() }).strict().optional(),
+  campaign: campaignSchema.optional(),
+  lineage: revisionLineageSchema.optional(),
 }).strict()
 const reviewIssueSchema = zod.object({
   id: zod.string(),
@@ -552,7 +759,7 @@ const checkpointSchema = zod.object({
   revision: zod.number(),
   runId: zod.string(),
   nodeId: zod.string(),
-  kind: zod.enum(['expansion', 'repair', 'planning', 'awaiting_user']),
+  kind: zod.enum(['expansion', 'repair', 'planning', 'environment', 'awaiting_user']),
   status: zod.enum(['pending', 'resolved', 'superseded', 'canceled']),
   createdAt: zod.number(),
   iteration: zod.number(),
@@ -561,6 +768,7 @@ const checkpointSchema = zod.object({
   issues: zod.array(reviewIssueSchema).optional(),
   resolvedAt: zod.number().optional(),
   replacementRevision: zod.number().optional(),
+  authorizedGeneration: zod.number().optional(),
 }).strict()
 const controlRecordSchema = zod.object({
   version: zod.literal(2),
@@ -835,7 +1043,8 @@ export function validateGraphRevision(value: unknown, config: GraphModeConfig): 
       fail('GRAPH_OUTPUT_SCHEMA', `node ${JSON.stringify(node.id)} has unsupported output schema: ${error instanceof Error ? error.message : String(error)}`)
     }
     if ((node.kind === 'expansion') !== (node.expansion !== undefined)
-      || (node.kind === 'subgraph') !== (node.subgraph !== undefined)) {
+      || (node.kind === 'subgraph') !== (node.subgraph !== undefined)
+      || (node.kind === 'environment') !== (node.environment !== undefined)) {
       fail('GRAPH_NODE_SPECIALIZATION', `node ${JSON.stringify(node.id)} must carry only the specification required by its kind`)
     }
     if (node.expansion !== undefined) {
@@ -855,6 +1064,35 @@ export function validateGraphRevision(value: unknown, config: GraphModeConfig): 
         || !Number.isSafeInteger(node.subgraph.revision) || node.subgraph.revision < 1
         || mappings.some(([key, path]) => !normalized(key) || path.some(part => !normalized(part)))) {
         fail('GRAPH_SUBGRAPH', `node ${JSON.stringify(node.id)} has an invalid subgraph reference or mapping`)
+      }
+    }
+    if (node.environment !== undefined) {
+      const capabilitySet = new Set(node.environment.requiredCapabilities)
+      const operationIds = new Set<string>()
+      if (capabilitySet.size === 0 || capabilitySet.size !== node.environment.requiredCapabilities.length
+        || node.environment.requiredCapabilities.some(capability => !ENVIRONMENT_CAPABILITIES.has(capability))) {
+        fail('GRAPH_ENVIRONMENT_CAPABILITIES', `node ${JSON.stringify(node.id)} has invalid or duplicate environment capabilities`)
+      }
+      if (node.environment.operations.length === 0
+        || node.environment.operations.length > MAX_GRAPH_ENVIRONMENT_OPERATIONS) {
+        fail('GRAPH_ENVIRONMENT_OPERATIONS', `node ${JSON.stringify(node.id)} must declare between 1 and ${String(MAX_GRAPH_ENVIRONMENT_OPERATIONS)} environment operations`)
+      }
+      for (const operation of node.environment.operations) {
+        if (!normalized(operation.id) || !SAFE_ID.test(operation.id) || operationIds.has(operation.id)
+          || !normalized(operation.description) || !normalized(operation.command)
+          || (operation.rollbackCommand !== undefined && !normalized(operation.rollbackCommand))) {
+          fail('GRAPH_ENVIRONMENT_OPERATIONS', `node ${JSON.stringify(node.id)} has an invalid or duplicate environment operation`)
+        }
+        operationIds.add(operation.id)
+      }
+      if (new TextEncoder().encode(graphEnvironmentApprovalText(node.environment)).byteLength
+        > MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES) {
+        fail('GRAPH_ENVIRONMENT_APPROVAL_SIZE', `node ${JSON.stringify(node.id)} environment approval text exceeds ${String(MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES)} bytes`)
+      }
+      const workspace = node.workspace
+      if (node.effectPolicy !== 'manual' || node.maxAttempts !== 1 || workspace === undefined
+        || workspace.mode !== 'shared' || workspace.cleanup !== 'retain') {
+        fail('GRAPH_ENVIRONMENT_POLICY', `node ${JSON.stringify(node.id)} environment effects require maxAttempts 1, manual recovery, and a retained shared workspace`)
       }
     }
     if (node.workspace !== undefined) {
@@ -1259,6 +1497,54 @@ function validateRevisionSubmissionRecord(value: unknown, state: GraphProjection
       || submission.changedNodeIds.some(nodeId => !nodes.has(nodeId))) {
       fail('GRAPH_SUBMISSION_CHANGES', `submission ${JSON.stringify(submission.id)} has invalid changed node ids`)
     }
+    if (submission.campaign !== undefined) {
+      validateCampaignShape(submission.campaign)
+      const execution = submission.campaign.batches.flatMap(batch => batch.executions)
+        .find(item => item.runId === submission.run.id)
+      if (execution === undefined || execution.graphId !== submission.graph.graphId
+        || execution.revision !== submission.graph.revision || execution.status !== 'running') {
+        fail('GRAPH_SUBMISSION_CAMPAIGN', `submission ${JSON.stringify(submission.id)} campaign does not bind its queued run`)
+      }
+    }
+    if (submission.lineage !== undefined) {
+      const { lineage } = submission
+      const text = [lineage.title, lineage.objective, lineage.reason, lineage.trigger.summary,
+        ...lineage.successCriteria, ...lineage.trigger.evidence, ...lineage.relationships.map(item => item.reason)]
+      const nodeLists = Object.values(lineage.changes)
+      if (!normalized(lineage.taskId) || !SAFE_ID.test(lineage.taskId)
+        || lineage.createdAt !== submission.requestedAt
+        || text.some(item => !normalized(item) || item.length > 4_000)
+        || lineage.successCriteria.length === 0
+        || nodeLists.some(items => new Set(items).size !== items.length)) {
+        fail('GRAPH_SUBMISSION_LINEAGE', 'revision lineage has invalid identity, time, text, criteria, or duplicate node ids')
+      }
+      const graphNodeIds = new Set(submission.graph.nodes.map(node => node.id))
+      const previous = submission.graph.parentRevision === undefined
+        ? undefined
+        : state.graphs[submission.graph.graphId]?.find(item => item.revision === submission.graph.parentRevision)
+      const previousNodeIds = new Set(previous?.nodes.map(node => node.id) ?? [])
+      if (lineage.changes.addedNodeIds.some(id => !graphNodeIds.has(id) || previousNodeIds.has(id))
+        || lineage.changes.changedNodeIds.some(id => !graphNodeIds.has(id) || !previousNodeIds.has(id))
+        || lineage.changes.removedNodeIds.some(id => graphNodeIds.has(id) || !previousNodeIds.has(id))
+        || lineage.changes.preservedNodeIds.some(id => !graphNodeIds.has(id) || !previousNodeIds.has(id))
+        || lineage.changes.invalidatedNodeIds.some(id => !graphNodeIds.has(id))
+        || new Set(lineage.changes.invalidatedNodeIds).size !== lineage.changes.invalidatedNodeIds.length) {
+        fail('GRAPH_SUBMISSION_LINEAGE', 'revision lineage node changes do not match the immutable revisions')
+      }
+      if ((submission.intent === 'new') !== (lineage.kind === 'new_task')
+        || (submission.intent === 'new' && lineage.relationships.some(item => item.kind !== 'depends_on'))
+        || (submission.intent === 'revise' && !lineage.relationships.some(item => (
+          item.graphId === submission.graph.graphId && item.revision === submission.graph.parentRevision
+        )))) {
+        fail('GRAPH_SUBMISSION_LINEAGE', 'revision lineage classification or parent relationship does not match the submission')
+      }
+      for (const relationship of lineage.relationships) {
+        if (!normalized(relationship.graphId) || !SAFE_ID.test(relationship.graphId)
+          || (relationship.revision !== undefined && (!Number.isSafeInteger(relationship.revision) || relationship.revision < 1))) {
+          fail('GRAPH_SUBMISSION_LINEAGE', 'revision lineage relationship has an invalid target')
+        }
+      }
+    }
   }
   if ((submission.outcome === 'pending') !== (submission.completedAt === undefined)
     || (submission.outcome === 'failed') !== (submission.error !== undefined)) {
@@ -1296,6 +1582,13 @@ export function validateGraphCheckpoint(value: unknown, state: GraphProjection):
     || (checkpoint.replacementRevision !== undefined && (checkpoint.status !== 'resolved'
       || checkpoint.replacementRevision !== checkpoint.revision + 1))) {
     fail('GRAPH_CHECKPOINT_RESOLUTION', 'checkpoint resolution fields do not match its status')
+  }
+  if ((checkpoint.kind === 'environment' && checkpoint.status === 'resolved')
+    !== (checkpoint.authorizedGeneration !== undefined)
+    || (checkpoint.authorizedGeneration !== undefined
+      && (!Number.isSafeInteger(checkpoint.authorizedGeneration)
+        || checkpoint.authorizedGeneration !== run.generation + 1))) {
+    fail('GRAPH_CHECKPOINT_AUTHORIZATION', 'exactly resolved environment checkpoints authorize one positive execution generation')
   }
   if ((checkpoint.kind === 'expansion') !== (checkpoint.proposal !== undefined)) {
     fail('GRAPH_CHECKPOINT_PROPOSAL', 'exactly expansion checkpoints carry a proposal')
@@ -1601,7 +1894,9 @@ export function applyGraphEvent(state: GraphProjection, event: SessionEvent): Gr
         || submission.intent !== prior.intent || submission.requestedAt !== prior.requestedAt
         || JSON.stringify(submission.graph) !== JSON.stringify(prior.graph)
         || JSON.stringify(submission.run) !== JSON.stringify(prior.run)
-        || JSON.stringify(submission.changedNodeIds) !== JSON.stringify(prior.changedNodeIds)) {
+        || JSON.stringify(submission.changedNodeIds) !== JSON.stringify(prior.changedNodeIds)
+        || JSON.stringify(submission.campaign) !== JSON.stringify(prior.campaign)
+        || JSON.stringify(submission.lineage) !== JSON.stringify(prior.lineage)) {
         fail('GRAPH_SUBMISSION_SEQUENCE', `submission ${JSON.stringify(submission.id)} changed identity or was settled twice`)
       }
     }
@@ -1622,6 +1917,68 @@ export function applyGraphEvent(state: GraphProjection, event: SessionEvent): Gr
       fail('GRAPH_CHECKPOINT_SEQUENCE', `checkpoint ${JSON.stringify(checkpoint.id)} changed identity or was resolved twice`)
     }
     return { ...state, checkpoints: { ...state.checkpoints, [checkpoint.id]: checkpoint } }
+  }
+  if (event.type === 'graph/campaign') {
+    const campaign = event.data
+    validateGraphCampaign(campaign, state)
+    const prior = state.campaigns[campaign.id]
+    if (prior !== undefined) {
+      if (campaign.createdAt !== prior.createdAt || campaign.objective !== prior.objective
+        || campaign.updatedAt < prior.updatedAt || campaign.batches.length < prior.batches.length) {
+        fail('GRAPH_CAMPAIGN_REPLACEMENT', `campaign ${JSON.stringify(campaign.id)} changed identity or moved backward`)
+      }
+      const priorPlanRevision = prior.planRevision ?? 1
+      const planRevision = campaign.planRevision ?? 1
+      const priorExtensions = prior.planExtensions ?? []
+      const planExtensions = campaign.planExtensions ?? []
+      const appended = campaign.batches.length > prior.batches.length
+      if ((!appended && (planRevision !== priorPlanRevision || !isDeepStrictEqual(planExtensions, priorExtensions)))
+        || (appended && (planRevision !== priorPlanRevision + 1
+          || planExtensions.length !== priorExtensions.length + 1
+          || !isDeepStrictEqual(planExtensions.slice(0, priorExtensions.length), priorExtensions)
+          || !isDeepStrictEqual(
+            planExtensions.at(-1)?.addedBatchIds,
+            campaign.batches.slice(prior.batches.length).map(batch => batch.id),
+          )))) {
+        fail('GRAPH_CAMPAIGN_REPLACEMENT', `campaign ${JSON.stringify(campaign.id)} has an invalid plan extension`)
+      }
+      for (const [index, previous] of prior.batches.entries()) {
+        const batch = campaign.batches[index]
+        if (batch === undefined) throw new GraphValidationError('GRAPH_CAMPAIGN_REPLACEMENT', `campaign ${JSON.stringify(campaign.id)} removed an accepted batch`)
+        const retainedExecutions = batch.executions.length === previous.executions.length
+          ? Math.max(0, batch.executions.length - 1)
+          : previous.executions.length
+        if (batch.id !== previous.id || batch.ordinal !== previous.ordinal
+          || batch.title !== previous.title || batch.objective !== previous.objective
+          || JSON.stringify(batch.dependsOn) !== JSON.stringify(previous.dependsOn)
+          || batch.executions.length < previous.executions.length
+          || !isDeepStrictEqual(batch.executions.slice(0, retainedExecutions), previous.executions.slice(0, retainedExecutions))) {
+          fail('GRAPH_CAMPAIGN_REPLACEMENT', `campaign ${JSON.stringify(campaign.id)} changed an accepted batch definition or execution`)
+        }
+        if (batch.executions.length === previous.executions.length && batch.executions.length > 0) {
+          const execution = batch.executions.at(-1)
+          const priorExecution = previous.executions.at(-1)
+          if (execution === undefined || priorExecution === undefined
+            || execution.graphId !== priorExecution.graphId || execution.revision !== priorExecution.revision
+            || execution.runId !== priorExecution.runId || execution.startedAt !== priorExecution.startedAt
+            || execution.completedAt !== undefined && execution.completedAt < priorExecution.startedAt
+            || priorExecution.completedAt !== undefined
+              && (execution.completedAt === undefined || execution.completedAt < priorExecution.completedAt)
+            || execution.settlementIds.length < priorExecution.settlementIds.length
+            || !isDeepStrictEqual(
+              execution.settlementIds.slice(0, priorExecution.settlementIds.length),
+              priorExecution.settlementIds,
+            )) {
+            fail('GRAPH_CAMPAIGN_REPLACEMENT', `campaign ${JSON.stringify(campaign.id)} changed an active batch execution identity`)
+          }
+        }
+      }
+    }
+    return {
+      ...state,
+      campaigns: { ...state.campaigns, [campaign.id]: campaign },
+      currentCampaignId: campaign.id,
+    }
   }
   if (event.type === 'graph/control') {
     const control = validateControlRecord(event.data, state)
@@ -1661,7 +2018,7 @@ export const graphProjectionDefinition = {
     viewSchema: graphProjectionSchema,
     view: (state: GraphProjection): GraphProjection => state,
   },
-  stateVersion: 5,
+  stateVersion: 8,
 } as const
 
 /**

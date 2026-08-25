@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-coordination-loopx/README.md
-README.md: a47d996c62e68af183576c7a77ec9ac11b5a0cdb
-README.zh.md: e71268a2af4b1506171a030d92b1f713f0d44e7e
+README.md: ae2acbc0a216ae1d449a6cb4ee02681e2b01238f
+README.zh.md: f5d67dacb41d1c0981c5ff50c7acf70f49868afe

@@ -101,6 +101,9 @@ export function runGraphCoordinationContract(
       }
       await coordination.settle(settlement, signal)
       await coordination.settle(settlement, signal)
+      await expect(coordination.claim(base, signal)).resolves.toMatchObject({
+        terminal: { outcome: 'canceled', evidence: 'operator cancellation confirmed' },
+      })
       await expect(async () => { await coordination.settle({ ...settlement, evidence: 'conflicting terminal evidence' }, signal) })
         .rejects.toThrow(/conflict/i)
       const reconciled = await coordination.reconcile({

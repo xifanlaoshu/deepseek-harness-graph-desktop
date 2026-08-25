@@ -186,6 +186,29 @@ describe('in-process policy inheritance', () => {
     }
   })
 
+  it('caps a danger-full-access parent without widening a restrictive parent', async () => {
+    const script: Script = [textResponse('first child done'), textResponse('second child done')]
+    const { ctx, parent } = await setupWalled(script)
+    setSandboxMode(parent.session, 'danger-full-access')
+
+    const capped = await startInProcessRun({ ...spawnRequest(parent), sandboxModeCap: 'workspace-write' }, {})
+    try {
+      await capped.result
+      expect(ctx.sandboxPolicy.overrideOf((capped.localAgent as Agent).session)).toBe('workspace-write')
+    } finally {
+      await capped.dispose()
+    }
+
+    setSandboxMode(parent.session, 'read-only')
+    const restrictive = await startInProcessRun({ ...spawnRequest(parent), sandboxModeCap: 'workspace-write' }, {})
+    try {
+      await restrictive.result
+      expect(ctx.sandboxPolicy.overrideOf((restrictive.localAgent as Agent).session)).toBe('read-only')
+    } finally {
+      await restrictive.dispose()
+    }
+  })
+
   it('leaves an unswitched sandbox on the deployment default while still pinning approval', async () => {
     const script: Script = []
     const { parent } = await setupWalled(script)

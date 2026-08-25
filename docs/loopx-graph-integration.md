@@ -412,9 +412,9 @@ Historical revisions and run snapshots never change. A new global role template 
 
 ## Process and transport behavior
 
-The LoopX provider resolves the configured executable once and invokes a new subprocess for each CLI operation. `executableArgs` are inserted after the executable and before LoopX arguments; an optional registry path is passed to every invocation. The subprocess inherits the graph cancellation signal, uses a configurable termination grace period, ignores stdin, captures at most 1 MiB of stdout and 128 KiB of stderr, and requires exit code zero plus one JSON object on stdout.
+The LoopX provider supports per-operation processes and a persistent stdio broker. Persistent transport starts one launcher process for the Provider lifetime and sends versioned requests over its piped stdin and stdout. The broker serializes LoopX CLI children, applies each operation's deadline, cancellation, termination grace, and output limits independently, and stops all owned children during disposal. An unexpected broker exit rejects in-flight operations; a later call starts a fresh broker without replaying an uncertain mutation. The default limits retain at most 8 MiB of stdout and 1 MiB of stderr, and a successful response requires exit code zero plus one JSON object on stdout.
 
-`pathStyle: wsl` converts configured Windows drive paths to `/mnt/<drive>/...` for arguments interpreted by a LoopX process running inside WSL. The executable prefix can therefore use `wsl.exe`, a distribution selector, `--`, and the WSL LoopX path without the provider rewriting that prefix.
+`pathStyle: wsl` converts configured Windows drive paths to `/mnt/<drive>/...` for the Registry and operation working directories. With persistent transport, `executable` and `executableArgs` start the WSL execution environment, while `brokerPythonExecutable` and `brokerCommand` name Python and LoopX inside it.
 
 ```yaml
 - id: graph-coordination-loopx
@@ -429,7 +429,10 @@ The LoopX provider resolves the configured executable once and invokes a new sub
       verifier: verifier-peer
       writer: writer-peer
     executable: wsl.exe
-    executableArgs: [-d, Ubuntu, --, /root/.local/bin/loopx]
+    executableArgs: [-d, Ubuntu, --exec]
+    transport: persistent
+    brokerPythonExecutable: python3
+    brokerCommand: /root/.local/bin/loopx
     pathStyle: wsl
     registry: D:\project\.loopx\registry.json
     graceMs: 10000

@@ -50,6 +50,7 @@ const settlementScenarioDir = join(snapshotsDir, 'subagent-settlement')
 const settlementConfigPath = fileURLToPath(new URL('../subagent-settlement.cordis.snapshot.yml', import.meta.url))
 const teamConfigPath = fileURLToPath(new URL('../team.cordis.snapshot.yml', import.meta.url))
 const graphScenarioDir = join(snapshotsDir, 'graph-mode')
+const graphEnvironmentScenarioDir = join(snapshotsDir, 'graph-environment-approval')
 const graphConfigPath = fileURLToPath(new URL('../graph-mode.cordis.snapshot.yml', import.meta.url))
 const startupFailureConfigPath = fileURLToPath(new URL('./fixtures/startup-activation-error/cordis.yml', import.meta.url))
 const startupFailureExpected = join(snapshotsDir, 'startup-activation-error', 'stderr.expected.txt')
@@ -1037,6 +1038,8 @@ describe('headless stream-json snapshots', () => {
           .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['graph_submit', 'graph_submit'])
         expect(parent.content).toContain('nodes[0].workspace.readRoots[0]: use \\".\\" for the whole workspace')
         expect(parent.content).toContain("Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies")
+        expect(parent.content).toContain('campaign.planExtension containing the complete newly discovered ordered suffix')
+        expect(parent.content).toContain('assign the browser-tester role when available')
         expect(parseJsonl(child.content).filter(record => record.type === 'tool/call')
           .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['structured_output'])
       },
@@ -1044,6 +1047,56 @@ describe('headless stream-json snapshots', () => {
 
     expect(result.stderr).toBe('')
     expect(parseJsonl(result.stdout).at(-1)).toMatchObject({ type: 'result', output: 'GRAPH_SNAPSHOT_OK' })
+    const normalized = normalizeGraphStream(result.stdout, runCwd)
+    if (refreshing) await writeFile(streamExpected, normalized)
+    expect(normalized).toBe(await readFile(streamExpected, 'utf8'))
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
+  it('pauses an exact Graph environment plan for human approval', async () => {
+    const parentReplay = join(graphEnvironmentScenarioDir, 'parent.replay.jsonl')
+    const parentOverride = join(graphEnvironmentScenarioDir, 'parent.override.json')
+    const streamExpected = join(graphEnvironmentScenarioDir, 'stream-json.expected.jsonl')
+    const task = 'Install Maven before implementation, but require approval for every host command.'
+    let runCwd = ''
+    const result = await runLoaderSmoke({
+      label: 'graph environment approval headless stream-json snapshot',
+      tempDirPrefix: 'headless-snapshot-graph-environment-approval-',
+      binScript,
+      libBinScript: binScript,
+      configPath: graphConfigPath,
+      binArgs: [graphConfigPath, task],
+      tsconfigPath,
+      env: {
+        DSH_SNAPSHOT: 'replay',
+        DSH_SNAPSHOT_FILE: parentReplay,
+        DSH_SNAPSHOT_OVERRIDE: parentOverride,
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+      },
+      prepare: (cwd) => { runCwd = cwd },
+      inspect: async (cwd) => {
+        const logs = await persistedLogs(cwd)
+        expect(logs).toHaveLength(1)
+        const parentRecords = parseJsonl(logs[0]?.content ?? '')
+        expect(parentRecords.filter(record => record.type === 'tool/call')
+          .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['graph_submit', 'graph_submit'])
+        const run = parentRecords.filter(record => record.type === 'graph/run').at(-1)?.data
+        expect(run).toMatchObject({
+          phase: 'awaiting_user',
+          nodes: { prepareMaven: { phase: 'awaiting_user', attempts: [] } },
+        })
+        const checkpoint = parentRecords.filter(record => record.type === 'graph/checkpoint').at(-1)?.data
+        expect(checkpoint).toMatchObject({ kind: 'environment', status: 'pending', nodeId: 'prepareMaven' })
+        expect(JSON.stringify(checkpoint)).toContain('winget install --id Apache.Maven --exact')
+        expect(JSON.stringify(checkpoint)).toContain('winget uninstall --id Apache.Maven --exact')
+        expect(JSON.stringify(checkpoint)).toContain('danger-full-access')
+      },
+    })
+
+    expect(result.stderr).toBe('')
+    expect(parseJsonl(result.stdout).at(-1)).toMatchObject({
+      type: 'result',
+      output: 'ENVIRONMENT_APPROVAL_REQUIRED',
+    })
     const normalized = normalizeGraphStream(result.stdout, runCwd)
     if (refreshing) await writeFile(streamExpected, normalized)
     expect(normalized).toBe(await readFile(streamExpected, 'utf8'))

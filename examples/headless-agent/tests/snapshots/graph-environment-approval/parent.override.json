@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "reject-environment-policy", "name": "graph_submit", "argumentsDelta": "{\"intent\":\"new\",\"reason\":\"Exercise environment policy admission.\",\"graph\":{\"objective\":\"Prepare Maven before implementation.\",\"userInput\":\"Install Maven before implementation, but require approval for every host command.\",\"nodes\":[{\"id\":\"prepareMaven\",\"title\":\"Prepare Maven\",\"objective\":\"Install the required Maven toolchain.\",\"kind\":\"environment\",\"roleId\":\"environment\",\"acceptanceCriteria\":[\"The approved installation command exits successfully.\"],\"environment\":{\"requiredCapabilities\":[\"network\",\"host-package-install\"],\"sandboxMode\":\"danger-full-access\",\"operations\":[{\"id\":\"installMaven\",\"description\":\"Install Maven with the configured Windows package manager.\",\"command\":\"winget install --id Apache.Maven --exact\",\"rollbackCommand\":\"winget uninstall --id Apache.Maven --exact\"}]},\"effectPolicy\":\"idempotent\"}]}}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "reject-environment-policy", "name": "graph_submit", "arguments": "{\"intent\":\"new\",\"reason\":\"Exercise environment policy admission.\",\"graph\":{\"objective\":\"Prepare Maven before implementation.\",\"userInput\":\"Install Maven before implementation, but require approval for every host command.\",\"nodes\":[{\"id\":\"prepareMaven\",\"title\":\"Prepare Maven\",\"objective\":\"Install the required Maven toolchain.\",\"kind\":\"environment\",\"roleId\":\"environment\",\"acceptanceCriteria\":[\"The approved installation command exits successfully.\"],\"environment\":{\"requiredCapabilities\":[\"network\",\"host-package-install\"],\"sandboxMode\":\"danger-full-access\",\"operations\":[{\"id\":\"installMaven\",\"description\":\"Install Maven with the configured Windows package manager.\",\"command\":\"winget install --id Apache.Maven --exact\",\"rollbackCommand\":\"winget uninstall --id Apache.Maven --exact\"}]},\"effectPolicy\":\"idempotent\"}]}}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "submit-environment-plan", "name": "graph_submit", "argumentsDelta": "{\"intent\":\"new\",\"reason\":\"The host prerequisite must be isolated from implementation and explicitly approved.\",\"graph\":{\"objective\":\"Prepare Maven before implementation.\",\"userInput\":\"Install Maven before implementation, but require approval for every host command.\",\"nodes\":[{\"id\":\"prepareMaven\",\"title\":\"Prepare Maven\",\"objective\":\"Install the required Maven toolchain.\",\"kind\":\"environment\",\"roleId\":\"environment\",\"acceptanceCriteria\":[\"The approved installation command exits successfully.\"],\"environment\":{\"requiredCapabilities\":[\"network\",\"host-package-install\"],\"sandboxMode\":\"danger-full-access\",\"operations\":[{\"id\":\"installMaven\",\"description\":\"Install Maven with the configured Windows package manager.\",\"command\":\"winget install --id Apache.Maven --exact\",\"rollbackCommand\":\"winget uninstall --id Apache.Maven --exact\"}]},\"effectPolicy\":\"manual\"}]}}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "submit-environment-plan", "name": "graph_submit", "arguments": "{\"intent\":\"new\",\"reason\":\"The host prerequisite must be isolated from implementation and explicitly approved.\",\"graph\":{\"objective\":\"Prepare Maven before implementation.\",\"userInput\":\"Install Maven before implementation, but require approval for every host command.\",\"nodes\":[{\"id\":\"prepareMaven\",\"title\":\"Prepare Maven\",\"objective\":\"Install the required Maven toolchain.\",\"kind\":\"environment\",\"roleId\":\"environment\",\"acceptanceCriteria\":[\"The approved installation command exits successfully.\"],\"environment\":{\"requiredCapabilities\":[\"network\",\"host-package-install\"],\"sandboxMode\":\"danger-full-access\",\"operations\":[{\"id\":\"installMaven\",\"description\":\"Install Maven with the configured Windows package manager.\",\"command\":\"winget install --id Apache.Maven --exact\",\"rollbackCommand\":\"winget uninstall --id Apache.Maven --exact\"}]},\"effectPolicy\":\"manual\"}]}}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "text-delta", "index": 0, "text": "ENVIRONMENT_APPROVAL_REQUIRED" },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "ENVIRONMENT_APPROVAL_REQUIRED" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 5 } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]

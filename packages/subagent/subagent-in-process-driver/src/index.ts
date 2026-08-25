@@ -114,7 +114,7 @@ export async function startInProcessRun(
 
   // Capture before the first await: a later parent switch belongs to the
   // parent's future.
-  const inherited = captureDelegatedPolicyOverrides(parent)
+  const inherited = captureDelegatedPolicyOverrides(parent, request.sandboxModeCap)
 
   let structured: StructuredAttachment | undefined
   const setup = (childCtx: Context): void => {

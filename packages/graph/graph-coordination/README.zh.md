@@ -6,6 +6,8 @@
 
 Protocol Version 3 同时携带稳定逻辑 `workId` 与 Generation 作用域的 `activationId`。Provider 按 Activation 为可变 Claim、Lease、Progress、Cancellation、Observation 和终态建立 Key；逻辑 Work 仍是 Graph 失效传播与人工控制使用的谱系 Key。终态 Activation 不可变，但不会阻止后续 Generation 以另一个 Activation 认领同一逻辑 Work。
 
+对已经终态的 Activation 重复投递 `claim()` 时，Provider 会把已接受的终态结果与证据作为幂等 Disposition 返回。Consumer 不得为该 Disposition 再次分派 Worker；应由对账判断持久本地 Run 是否已经包含匹配的终态结果。
+
 该接口只传递可公开的摘要。原始提示词、会话轨迹、凭据和私有路径保留在 Harness 会话中，不得复制到协调提供方。
 
 即使工作代理已被取消，Consumer 也必须为终态结算提供可用信号，并在释放提供方之前等待结算完成。这样可以确保取消、修订替换和卸载不会让已认领的外部工作项继续保持可执行状态。

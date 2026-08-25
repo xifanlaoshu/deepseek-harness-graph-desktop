@@ -143,6 +143,11 @@ class LocalGraphWorkerProvider implements GraphWorkerProvider {
         outputSchema: assignment.outputSchema,
         ...assignment.toolFilter === undefined ? {} : { toolFilter: assignment.toolFilter },
         persona: assignment.role.prompt,
+        ...assignment.workspace.mode === 'isolated-copy'
+          ? { sandboxModeCap: 'workspace-write' as const }
+          : assignment.workspace.mode === 'read-only-snapshot'
+            ? { sandboxModeCap: 'read-only' as const }
+            : {},
       })
     } catch (error) {
       try {
@@ -275,7 +280,7 @@ class LocalGraphWorkerProvider implements GraphWorkerProvider {
           outcome: 'error',
           output: childResult.output,
           childSessionId: String(child.id),
-          error: { code: 'GRAPH_WORKER_DELETION_UNSUPPORTED', message: `isolated worker deleted ${deleted}; use an explicit integration task` },
+          error: { code: 'GRAPH_WORKER_DELETION_UNSUPPORTED', message: `isolated worker deleted ${deleted}; use an explicit integration task`, retryable: false },
         }
       }
       const writeRoots = assignment.workspace.writeRoots.map(root => safeRelative(root, 'graph worker write root'))
@@ -285,7 +290,7 @@ class LocalGraphWorkerProvider implements GraphWorkerProvider {
           outcome: 'error',
           output: childResult.output,
           childSessionId: String(child.id),
-          error: { code: 'GRAPH_WORKER_UNDECLARED_WRITE', message: `worker changed undeclared path ${undeclared}` },
+          error: { code: 'GRAPH_WORKER_UNDECLARED_WRITE', message: `worker changed undeclared path ${undeclared}`, retryable: false },
         }
       }
       const artifactManifest = this.config.artifactProvider === undefined

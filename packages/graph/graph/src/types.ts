@@ -31,6 +31,12 @@ export type GraphSubmissionId = Branded<'GraphSubmissionId'>
 export type GraphBranchGroupId = Branded<'GraphBranchGroupId'>
 /** Identity of one durable planning, repair, or human checkpoint. */
 export type GraphCheckpointId = Branded<'GraphCheckpointId'>
+/** Stable identity of one multi-graph campaign. */
+export type GraphCampaignId = Branded<'GraphCampaignId'>
+/** Stable identity of one batch inside a campaign. */
+export type GraphCampaignBatchId = Branded<'GraphCampaignBatchId'>
+/** Stable identity of one user-visible logical task across its revisions. */
+export type GraphTaskId = Branded<'GraphTaskId'>
 
 /**
  * Construct a graph id after validation at the owning parser.
@@ -116,6 +122,24 @@ export const GraphBranchGroupId = (value: string): GraphBranchGroupId => value a
  * @returns branded checkpoint id.
  */
 export const GraphCheckpointId = (value: string): GraphCheckpointId => value as GraphCheckpointId
+/**
+ * Construct a campaign id after validation at the owning parser.
+ * @param value validated campaign id text.
+ * @returns branded campaign id.
+ */
+export const GraphCampaignId = (value: string): GraphCampaignId => value as GraphCampaignId
+/**
+ * Construct a campaign batch id after validation at the owning parser.
+ * @param value validated campaign-batch id text.
+ * @returns branded campaign-batch id.
+ */
+export const GraphCampaignBatchId = (value: string): GraphCampaignBatchId => value as GraphCampaignBatchId
+/**
+ * Construct a logical-task id after validation at the owning parser.
+ * @param value validated logical-task id text.
+ * @returns branded logical-task id.
+ */
+export const GraphTaskId = (value: string): GraphTaskId => value as GraphTaskId
 
 /** Largest millisecond delay Node timers preserve without overflow clamping. */
 export const MAX_GRAPH_TIMER_MS = 2_147_483_647
@@ -208,7 +232,26 @@ export interface GraphNodeExecutionBudget {
 }
 
 /** Task kinds communicate scheduling semantics without parsing prose. */
-export type GraphTaskKind = 'analysis' | 'design' | 'implementation' | 'review' | 'verification' | 'documentation' | 'integration' | 'specialist' | 'expansion' | 'subgraph'
+export type GraphTaskKind = 'analysis' | 'design' | 'environment' | 'implementation' | 'review' | 'verification' | 'documentation' | 'integration' | 'specialist' | 'expansion' | 'subgraph'
+
+/** Host capabilities named by an immutable environment-change plan. */
+export type GraphEnvironmentCapability = 'network' | 'host-package-install' | 'docker'
+
+/** One exact host command presented for approval before execution. */
+export interface GraphEnvironmentOperation {
+  readonly id: string
+  readonly description: string
+  readonly command: string
+  /** Documentary recovery command; execution requires a separate approved environment node. */
+  readonly rollbackCommand?: string
+}
+
+/** Approved host effects executed directly by Graph Mode rather than a model Worker. */
+export interface GraphEnvironmentPlan {
+  readonly requiredCapabilities: readonly GraphEnvironmentCapability[]
+  readonly sandboxMode: 'workspace-write' | 'danger-full-access'
+  readonly operations: readonly GraphEnvironmentOperation[]
+}
 
 /** Versioned enforced output schema stored with one immutable node. */
 export interface GraphOutputSchema {
@@ -264,6 +307,8 @@ export interface GraphNode {
   readonly expansion?: GraphExpansionSpec
   /** Present exactly for a nested-subgraph node. */
   readonly subgraph?: GraphSubgraphSpec
+  /** Present exactly for a host environment-change node. */
+  readonly environment?: GraphEnvironmentPlan
   /** Optional node-specific workspace guarantees; the deployment default applies when omitted. */
   readonly workspace?: GraphNodeWorkspacePolicy
   /** Whether a user may record an explicit skipped result for this node. */
@@ -372,6 +417,97 @@ export interface GraphRevision {
   readonly terminationPolicy: GraphTerminationPolicy
 }
 
+/** User-visible classification of why one immutable revision was created. */
+export type GraphRevisionKind = 'new_task' | 'analysis_refactor' | 'execution_correction'
+
+/** Evidence that caused the controller or Host to create one revision. */
+export interface GraphRevisionTrigger {
+  readonly source: 'user' | 'planning_checkpoint' | 'run_failure' | 'review_rejection' | 'human_control' | 'recovery'
+  readonly summary: string
+  readonly runId?: GraphRunId
+  readonly nodeId?: GraphNodeId
+  readonly errorCode?: string
+  readonly evidence: readonly string[]
+}
+
+/** Typed relationship from one revision to another revision or logical task. */
+export interface GraphRevisionRelationship {
+  readonly kind: 'derived_from' | 'refactors' | 'corrects' | 'supersedes' | 'depends_on'
+  readonly graphId: GraphId
+  readonly revision?: number
+  readonly reason: string
+}
+
+/** Durable controller decision used to explain and render one revision. */
+export interface GraphRevisionLineage {
+  readonly version: 1
+  readonly taskId: GraphTaskId
+  readonly kind: GraphRevisionKind
+  readonly title: string
+  readonly objective: string
+  readonly reason: string
+  readonly creator: 'controller' | 'human_control' | 'recovery'
+  readonly createdAt: number
+  readonly trigger: GraphRevisionTrigger
+  readonly relationships: readonly GraphRevisionRelationship[]
+  readonly successCriteria: readonly string[]
+  readonly changes: {
+    readonly addedNodeIds: readonly GraphNodeId[]
+    readonly changedNodeIds: readonly GraphNodeId[]
+    readonly removedNodeIds: readonly GraphNodeId[]
+    readonly preservedNodeIds: readonly GraphNodeId[]
+    readonly invalidatedNodeIds: readonly GraphNodeId[]
+  }
+}
+
+/** One immutable batch definition and its compact graph-execution history. */
+export interface GraphCampaignBatch {
+  readonly id: GraphCampaignBatchId
+  readonly ordinal: number
+  readonly title: string
+  readonly objective: string
+  readonly dependsOn: readonly GraphCampaignBatchId[]
+  readonly status: 'planned' | 'running' | 'approved' | 'approved_with_findings' | 'rejected' | 'needs_user' | 'blocked'
+  readonly graphId?: GraphId
+  readonly executions: readonly {
+    readonly graphId: GraphId
+    readonly revision: number
+    readonly runId: GraphRunId
+    readonly status: 'running' | 'succeeded' | 'failed' | 'canceled' | 'exhausted' | 'awaiting_user'
+    readonly startedAt: number
+    readonly completedAt?: number
+    readonly settlementIds: readonly GraphSettlementId[]
+    readonly summary?: string
+  }[]
+}
+
+/** One audited append to the ordered Campaign plan. */
+export interface GraphCampaignPlanExtension {
+  readonly revision: number
+  readonly createdAt: number
+  readonly reason: string
+  readonly addedBatchIds: readonly GraphCampaignBatchId[]
+  readonly sourceBatchId?: GraphCampaignBatchId
+  readonly sourceRunId?: GraphRunId
+  readonly settlementIds: readonly GraphSettlementId[]
+}
+
+/** Campaign-level state that links independent batch graphs without copying their nodes. */
+export interface GraphCampaign {
+  readonly version: 1
+  readonly id: GraphCampaignId
+  readonly objective: string
+  readonly createdAt: number
+  readonly updatedAt: number
+  readonly phase: 'planned' | 'running' | 'awaiting_user' | 'succeeded' | 'failed' | 'canceled'
+  readonly batches: readonly GraphCampaignBatch[]
+  readonly activeBatchId?: GraphCampaignBatchId
+  /** Append-only plan revision; omission in an older event means revision one. */
+  readonly planRevision?: number
+  /** Audited suffix additions; omission in an older event means no extensions. */
+  readonly planExtensions?: readonly GraphCampaignPlanExtension[]
+}
+
 /** Controller-reviewable candidate records produced by an expansion worker. */
 export interface GraphExpansionProposal {
   readonly baseRevision: number
@@ -399,7 +535,7 @@ export interface GraphCheckpoint {
   readonly revision: number
   readonly runId: GraphRunId
   readonly nodeId: GraphNodeId
-  readonly kind: 'expansion' | 'repair' | 'planning' | 'awaiting_user'
+  readonly kind: 'expansion' | 'repair' | 'planning' | 'environment' | 'awaiting_user'
   readonly status: 'pending' | 'resolved' | 'superseded' | 'canceled'
   readonly createdAt: number
   readonly iteration: number
@@ -408,6 +544,8 @@ export interface GraphCheckpoint {
   readonly issues?: readonly GraphReviewIssue[]
   readonly resolvedAt?: number
   readonly replacementRevision?: number
+  /** Execution generation authorized by a resolved environment checkpoint. */
+  readonly authorizedGeneration?: number
 }
 
 /** Durable lifecycle of a node in one run. */
@@ -579,7 +717,7 @@ export type GraphOperationStage = 'planned' | 'admitted' | 'claimed' | 'started'
 
 /** Bounded external reference retained for recovery and diagnostics. */
 export interface GraphExternalReference {
-  readonly kind: 'coordination' | 'worker' | 'workspace' | 'model' | 'child-session' | 'artifact'
+  readonly kind: 'coordination' | 'worker' | 'workspace' | 'model' | 'child-session' | 'artifact' | 'environment'
   readonly provider: string
   readonly id: string
   readonly fencingToken?: number
@@ -617,7 +755,7 @@ export interface GraphSettlementRecord {
   readonly runId: GraphRunId
   readonly generationId: GraphRunGenerationId
   readonly ownerEpoch: number
-  readonly kind: 'coordination' | 'resource-release' | 'artifact' | 'cancellation' | 'compensation'
+  readonly kind: 'coordination' | 'resource-release' | 'artifact' | 'environment' | 'cancellation' | 'compensation'
   readonly outcome: 'pending' | 'confirmed' | 'failed' | 'conflict'
   readonly requestedAt: number
   readonly completedAt?: number
@@ -638,6 +776,10 @@ export interface GraphRevisionSubmissionRecord {
   readonly requestedAt: number
   readonly completedAt?: number
   readonly error?: { readonly code: string; readonly message: string }
+  /** Campaign snapshot committed with the accepted revision and run. */
+  readonly campaign?: GraphCampaign
+  /** Explanation and typed relationships for this revision; absent on historical records. */
+  readonly lineage?: GraphRevisionLineage
 }
 
 /** Identity retained for the principal that requested a graph control operation. */
@@ -696,10 +838,18 @@ export interface GraphProjection {
   readonly checkpoints: Readonly<Record<string, GraphCheckpoint>>
   /** Accepted human and controller operations keyed by stable operation id. */
   readonly controls: Readonly<Record<string, GraphControlRecord>>
+  /** Multi-graph campaigns keyed by stable campaign id. */
+  readonly campaigns: Readonly<Record<string, GraphCampaign>>
   readonly currentGraphId?: GraphId
+  readonly currentCampaignId?: GraphCampaignId
 }
 
 declare module '@deepseek-ai/dsh-session-projection/types' {
+  interface SessionProjectionStateMap {
+    /** Live host fold state for durable graph-mode execution. */
+    graph: GraphProjection
+  }
+
   interface SessionProjectionMap {
     /** Durable graph-mode configuration, graph revisions, and execution snapshots. */
     graph: GraphProjection

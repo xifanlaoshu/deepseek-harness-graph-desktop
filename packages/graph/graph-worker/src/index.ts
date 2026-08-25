@@ -204,7 +204,13 @@ export interface GraphWorkerResult {
   readonly structured?: unknown
   readonly childSessionId?: string
   readonly artifactManifest?: GraphArtifactManifest
-  readonly error?: { readonly code: string; readonly message: string; readonly retryAfterMs?: number }
+  readonly error?: {
+    readonly code: string
+    readonly message: string
+    /** Whether dispatching the unchanged logical node may succeed. Defaults to true when absent. */
+    readonly retryable?: boolean
+    readonly retryAfterMs?: number
+  }
 }
 
 /** Published worker ownership returned after assignment has been accepted. */

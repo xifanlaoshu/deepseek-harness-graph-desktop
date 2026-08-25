@@ -117,6 +117,7 @@ const resultSchema = z.object({
   error: z.object({
     code: nonEmpty,
     message: z.string().min(1).max(4_000),
+    retryable: z.boolean().optional(),
     retryAfterMs: safePositive.optional(),
   }).strict().optional(),
 }).strict()

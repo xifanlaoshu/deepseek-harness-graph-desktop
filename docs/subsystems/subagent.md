@@ -22,19 +22,20 @@ A provider advertises its **start-time** features on a static descriptor the ser
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * to `maxDepth`, `sandboxMode` to `sandboxModeCap`; the other names match.
  */
 interface SubagentCapabilities {
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  readonly sandboxMode?: boolean
 }
 ```
 
 ## The one-shot start request
 
-The tool layer builds this request from the model input and its own config; the service validates it against the named provider before `start`. Required `parent` supplies the session cwd, lineage, and delegation depth. Optional output schema, depth, tool filter, and persona require matching capability flags. Unsupported schemas fail at start; in-process backends scope filters and personas to child creation and implement the supported object-rooted schema with a forced capture tool.
+The tool layer builds this request from the model input and its own config; the service validates it against the named provider before `start`. Required `parent` supplies the session cwd, lineage, and delegation depth. Optional output schema, depth, tool filter, persona, and sandbox-mode cap require matching capability flags. Unsupported schemas fail at start; in-process backends scope filters and personas to child creation, implement the supported object-rooted schema with a forced capture tool, and may narrow the child's effective sandbox mode without widening the parent.
 
 ```ts type-equiv
 /**
@@ -100,6 +101,13 @@ interface SubagentStartRequest {
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
+  /**
+   * Optional upper bound on the child's sandbox authority. Requires
+   * {@link SubagentCapabilities.sandboxMode}; an in-process provider resolves
+   * the parent's effective mode and records the more restrictive value on the
+   * child before publication. The cap never widens a restrictive parent.
+   */
+  readonly sandboxModeCap?: SandboxMode
 }
 ```
 

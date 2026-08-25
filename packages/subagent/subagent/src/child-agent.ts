@@ -191,19 +191,43 @@ export interface DelegatedPolicyOverrides {
   readonly approvalPolicy: 'never' | undefined
 }
 
+const SANDBOX_MODE_AUTHORITY: Readonly<Record<SandboxMode, number>> = {
+  'read-only': 0,
+  'workspace-write': 1,
+  'danger-full-access': 2,
+}
+
 /**
  * Capture the policy to seed into one delegation. Call synchronously before
  * the child start's first await: a later parent switch belongs to the
- * parent's future, not to this child. Only the parent session's explicit
- * sandbox override is captured — never deployment defaults or one-shot
- * grants — and the approval policy is pinned to `'never'` regardless of the
- * parent's own policy.
+ * parent's future, not to this child. Without a cap, only the parent session's
+ * explicit sandbox override is captured — never deployment defaults or
+ * one-shot grants. With a cap, the effective parent mode is resolved and the
+ * more restrictive value is captured. The approval policy is pinned to
+ * `'never'` regardless of the parent's own policy.
  * @param parent - the delegating parent agent.
+ * @param sandboxModeCap - optional maximum sandbox authority for this child.
  * @returns the sandbox override (or `undefined` without one) and the approval pin.
+ * @throws {Error} when a cap is requested without the sandbox-policy service.
  */
-export function captureDelegatedPolicyOverrides(parent: Agent): DelegatedPolicyOverrides {
+export function captureDelegatedPolicyOverrides(
+  parent: Agent,
+  sandboxModeCap?: SandboxMode,
+): DelegatedPolicyOverrides {
+  const sandboxPolicy = parent.ctx.get('sandboxPolicy')
+  if (sandboxModeCap !== undefined && sandboxPolicy === undefined) {
+    throw new Error('subagent sandboxModeCap requires the sandbox-policy service')
+  }
+  const parentMode = sandboxModeCap === undefined
+    ? sandboxPolicy?.overrideOf(parent.session)
+    : sandboxPolicy?.resolve({ session: parent.session }).mode
+  const sandboxMode = sandboxModeCap === undefined || parentMode === undefined
+    ? parentMode
+    : SANDBOX_MODE_AUTHORITY[parentMode] <= SANDBOX_MODE_AUTHORITY[sandboxModeCap]
+      ? parentMode
+      : sandboxModeCap
   return {
-    sandboxMode: parent.ctx.get('sandboxPolicy')?.overrideOf(parent.session),
+    sandboxMode,
     approvalPolicy: parent.ctx.get('approval') === undefined ? undefined : 'never',
   }
 }

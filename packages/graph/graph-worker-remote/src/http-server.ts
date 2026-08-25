@@ -451,7 +451,12 @@ const durableResultSchema = z.object({
   childSessionId: boundedId.optional(),
   structured: z.unknown().optional(),
   artifactManifest: artifactManifestSchema.optional(),
-  error: z.object({ code: boundedId, message: boundedText, retryAfterMs: safePositive.optional() }).strict().optional(),
+  error: z.object({
+    code: boundedId,
+    message: boundedText,
+    retryable: z.boolean().optional(),
+    retryAfterMs: safePositive.optional(),
+  }).strict().optional(),
 }).strict()
 const durableAuthoritySchema = z.object({
   workId: boundedId,

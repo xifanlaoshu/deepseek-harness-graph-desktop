@@ -31,7 +31,8 @@ afterEach(async () => {
 class WritingProvider implements SubagentProvider {
   readonly name = 'stub'
   readonly inheritsParentContext = false
-  readonly capabilities: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
+  readonly capabilities: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true, sandboxMode: true }
+  readonly requests: ResolvedSubagentStartRequest[] = []
 
   constructor(
     private readonly writePath: string,
@@ -40,6 +41,7 @@ class WritingProvider implements SubagentProvider {
   ) {}
 
   async start(request: ResolvedSubagentStartRequest): Promise<SubagentRun> {
+    this.requests.push(request)
     const cwd = request.workspaceCwd as string
     await mkdir(join(cwd, this.writePath, '..'), { recursive: true })
     await writeFile(join(cwd, this.writePath), this.content, 'utf8')
@@ -114,7 +116,8 @@ async function mounted(writePath: string, waitForAbort = false) {
   roots.push(isolationRoot)
   const ctx = new Context()
   await ctx.plugin(SubagentRuntime).await()
-  ctx.subagents.registerProvider(new WritingProvider(writePath, 'generated', waitForAbort))
+  const provider = new WritingProvider(writePath, 'generated', waitForAbort)
+  ctx.subagents.registerProvider(provider)
   await ctx.plugin(GraphWorkerRuntime).await()
   await ctx.plugin(LocalWorker, {
     providerName: 'local',
@@ -124,7 +127,7 @@ async function mounted(writePath: string, waitForAbort = false) {
     maxArtifactFiles: 10,
     maxArtifactBytes: 1_000_000,
   }).await()
-  return { ctx, source, isolationRoot }
+  return { ctx, source, isolationRoot, provider }
 }
 
 async function mountedWithDefaultExcludes(writePath: string, exclude?: string[]) {
@@ -160,10 +163,11 @@ async function mountedWithDefaultExcludes(writePath: string, exclude?: string[])
 
 describe('local Graph Worker provider', () => {
   it('runs in an isolated copy and publishes changed-file evidence', async () => {
-    const { ctx, source } = await mounted('src/output.txt')
+    const { ctx, source, provider } = await mounted('src/output.txt')
     const run = await ctx.graphWorkers.start('local', assignment(source))
     expect(run.workspace.mode).toBe('isolated-copy')
     expect(run.workspace.root).not.toBe(source)
+    expect(provider.requests[0]?.sandboxModeCap).toBe('workspace-write')
 
     await expect(run.result).resolves.toMatchObject({
       outcome: 'completed',
@@ -194,8 +198,34 @@ describe('local Graph Worker provider', () => {
     const run = await ctx.graphWorkers.start('local', assignment(source))
     await expect(run.result).resolves.toMatchObject({
       outcome: 'error',
-      error: { code: 'GRAPH_WORKER_UNDECLARED_WRITE', message: 'worker changed undeclared path README.md' },
+      error: { code: 'GRAPH_WORKER_UNDECLARED_WRITE', message: 'worker changed undeclared path README.md', retryable: false },
     })
+  })
+
+  it('caps snapshot authority and leaves shared workers on inherited policy', async () => {
+    const snapshot = await mounted('src/output.txt')
+    const snapshotRun = await snapshot.ctx.graphWorkers.start('local', {
+      ...assignment(snapshot.source),
+      workspace: {
+        ...assignment(snapshot.source).workspace,
+        mode: 'read-only-snapshot',
+        writeRoots: [],
+      },
+    })
+    await snapshotRun.result
+    expect(snapshot.provider.requests[0]?.sandboxModeCap).toBe('read-only')
+
+    const shared = await mounted('src/shared.txt')
+    const sharedRun = await shared.ctx.graphWorkers.start('local', {
+      ...assignment(shared.source),
+      workspace: {
+        ...assignment(shared.source).workspace,
+        mode: 'shared',
+        cleanup: 'retain',
+      },
+    })
+    await sharedRun.result
+    expect(shared.provider.requests[0]?.sandboxModeCap).toBeUndefined()
   })
 
   it('omits dependency and package-manager cache trees by default', async () => {
