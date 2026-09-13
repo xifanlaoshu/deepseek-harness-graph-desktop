@@ -266,6 +266,7 @@ const wireAssignmentSchema = z.object({
   generationId: boundedId,
   ownerEpoch: safePositive,
   fencingToken: safePositive,
+  activeSubagentLimit: safePositive.optional(),
   node: nodeSchema,
   role: roleSchema,
   prompt: z.array(contentBlockSchema),

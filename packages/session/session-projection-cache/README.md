@@ -26,13 +26,13 @@ Two mandatory points, throttled in between:
 
 Both `Config` fields are required (no defaults): flush cadence is a deployment choice with no universally correct value, stated in cordis.yml.
 
-## Listing read (`cachedSnapshot(meta)`)
+## Listing read (`cachedSnapshot(meta, options?)`)
 
-The zero-I/O rung: client values viewed straight from the identity-matching stored record (version- and state-schema-matching keys only), returned as a `{asOfSeq, values}` cut — `asOfSeq` is the lowest served-row watermark, so a client seeding its per-session value store under higher-seq-wins can never let a stale list block overwrite a newer push frame. Host-only rows are never returned. `undefined` when no usable client row exists (unknown id, unrelated lifecycle, or no usable rows); the api-proxy list carrier turns that into an absent column.
+The zero-I/O rung: client values viewed straight from the identity-matching stored record (version- and state-schema-matching keys only), returned as a `{asOfSeq, values}` cut — `asOfSeq` is the lowest served-row watermark, so a client seeding its per-session value store under higher-seq-wins can never let a stale list block overwrite a newer push frame. `includeKeys` and `excludeKeys` select rows before state validation and wire projection, which prevents a lightweight carrier from materializing a large domain value only to discard it. Host-only rows are never returned. `undefined` when no usable client row exists (unknown id, unrelated lifecycle, or no usable rows); the api-proxy list carrier turns that into an absent column.
 
-## Cold read (`coldSnapshot(id, signal?)`)
+## Cold read (`coldSnapshot(id, signal?, options?)`)
 
-The read ladder, zero full-log load on the happy path: cached rows → `sessionProjections.restoreFloor` (anchored one event below the lowest usable watermark) → persistence `readFrom(id, floor)` → `sessionProjections.restore` → fail-soft write-back of the refreshed rows. The anchor makes a shrunk log (crash-repair truncation) provable: an overreaching row triggers exactly one full re-read from seq 0 instead of serving a ghost value. No registered units serve `{asOfSeq: -1, values: {}}` without touching persistence; a session with no persisted log rejects with the seam's `not found`.
+The read ladder, zero full-log load on the happy path: cached rows → `sessionProjections.restoreFloor` (anchored one event below the lowest usable watermark) → persistence tail read → `sessionProjections.restore` → fail-soft write-back of the refreshed rows. A selective read applies `includeKeys`/`excludeKeys` to the projection fold and can use `excludeEventTypePrefixes` so an indexed backend skips unrelated payloads before decoding. It never replaces the complete checkpoint record because its rows are deliberately incomplete. The anchor makes a shrunk log (crash-repair truncation) provable: an overreaching row triggers exactly one read from seq 0 instead of serving a ghost value. No registered units serve `{asOfSeq: -1, values: {}}` without touching persistence; a session with no persisted log rejects with the seam's `not found`.
 
 `write(session)` is the synchronous-cut checkpoint both mandatory points use; carriers may call it directly (not fail-soft — the fail-soft wrappers own containment).
 

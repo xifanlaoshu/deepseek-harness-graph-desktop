@@ -224,6 +224,33 @@ pnpm dsh web --no-open
 
 If LoopX coordination becomes required, stop DSH and migrate this deployment to the Windows + WSL layout; the existing DSH home and source checkout can remain in place.
 
+## Windows background service
+
+Both Windows layouts can run DSH as a per-user background service. The installer uses Task Scheduler with the current user's interactive token instead of the Windows Service Control Manager: WSL distributions, the user's DSH home, and visible Chrome automation are unavailable or unreliable from the non-interactive Session 0 used by SCM services.
+
+Stop any manually started DSH process, open PowerShell in the repository root, and install the service:
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 install
+```
+
+The task starts immediately and after every login. A supervisor restarts an unexpectedly exited DSH child after five seconds; Task Scheduler also restarts the supervisor if it exits. The service gives Node an 8,192 MB V8 old-space limit by default. Pass `-MaxOldSpaceSizeMB 12288` to `install` when a machine has enough physical memory and exceptionally large cold sessions require more; this setting limits the JavaScript heap rather than total process memory, and changing it requires `install -Force`. Installation fails when another process already serves the selected port. Check the task, exact PIDs, state paths, configured old-space limit, and HTTP health with:
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 status
+```
+
+Use the same manager for lifecycle operations:
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 restart
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 stop
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 start
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 uninstall
+```
+
+The default task is `DeepSeekHarnessWeb`; runtime state and rotated stdout/stderr logs are under `%LOCALAPPDATA%\DeepSeekHarness\Service`. `uninstall` preserves these diagnostic files. The task records the repository, DSH home, Node executable, and port supplied at installation, so stop the service before moving or updating the checkout and reinstall with `install -Force` after changing Node.js or those paths. The service runs only while that user is logged in; a non-interactive server deployment that does not require WSL or visible Chrome needs a separate SCM wrapper and service-owned DSH home.
+
 ## Linux
 
 The commands below target Ubuntu or Debian. On Fedora or RHEL, install the equivalent `git`, `curl`, `tar`, `python3`, C/C++ compiler, and `make` packages with `dnf` before continuing.

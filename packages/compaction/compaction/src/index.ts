@@ -62,6 +62,26 @@ export interface CompactionAgentContext {
   options: { provider?: string; model?: string }
 }
 
+/** Exact model route selected for a compaction summary call. */
+export interface CompactionSummaryTarget {
+  readonly provider: string
+  readonly model: string
+  readonly reasoningEffort?: string
+}
+
+/** Fully resolved policy passed through the compaction policy waterfall. */
+export interface CompactionRequestPolicy {
+  readonly target: { readonly provider: string; readonly model: string }
+  readonly thresholdRatio: number
+  readonly retainRatio?: number
+  readonly retainTokens?: number
+  readonly maxTokens: number
+  readonly compactionRetries: number
+  readonly maxOverflowRetries: number
+  /** Exact route for the single reconstructable summary call. */
+  readonly summarizationTarget: CompactionSummaryTarget
+}
+
 /**
  * Agent capability required to serialize an explicit idle-session compaction
  * against driver turns. The durable `compaction/start` marker separately excludes
@@ -81,6 +101,23 @@ export interface ManualCompactAgentContext extends CompactionAgentContext {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     compaction: CompactionEngine
+  }
+
+  interface Events {
+    /**
+     * Replace the resolved policy for one session before pressure measurement
+     * or summarization. Listeners must call `next()` before applying a scoped
+     * override so independently composed policies retain deterministic order.
+     * @param agent - agent context whose session owns the compaction.
+     * @param trigger - automatic trigger, or undefined for an explicit region or manual request.
+     * @param next - downstream policy resolver.
+     * @mode waterfall
+     */
+    'compaction/policy'(
+      agent: CompactionAgentContext,
+      trigger: CompactionTrigger | undefined,
+      next: () => Promise<CompactionRequestPolicy>,
+    ): Promise<CompactionRequestPolicy>
   }
 }
 

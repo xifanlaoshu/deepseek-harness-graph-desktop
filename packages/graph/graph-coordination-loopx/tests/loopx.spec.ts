@@ -486,6 +486,45 @@ describe('LoopxGraphCoordination', () => {
     expect(completion).toEqual(expect.arrayContaining(['--task-lease-expected-version', '2']))
   })
 
+  it('reconciles a durably older lease as the same monotonically renewed claim', async () => {
+    const { ctx, runtime, signal } = await setup()
+    const base = request(graph.nodes[0]!)
+    const claim = await ctx.graphCoordination.claim(base, signal)
+    runtime.responses.push({ stdout: { ok: true, lease: { version: 2, expires_at: '2099-01-01T00:00:00.000Z' } } })
+    await ctx.graphCoordination.heartbeat({
+      ...base,
+      claimId: claim.claimId,
+      leaseId: claim.leaseId,
+      fencingToken: claim.fencingToken,
+      progressSequence: 1,
+    }, signal)
+
+    await expect(ctx.graphCoordination.reconcile({
+      protocolVersion: 3,
+      workId: base.workId,
+      activationId: base.activationId,
+      cwd: base.cwd,
+      callerId: base.callerId,
+      claimId: claim.claimId,
+      leaseId: claim.leaseId,
+      fencingToken: claim.fencingToken,
+    }, signal)).resolves.toMatchObject({
+      status: 'confirmed-running',
+      observation: { claim: { claimId: claim.claimId, fencingToken: 2 } },
+    })
+
+    await expect(ctx.graphCoordination.reconcile({
+      protocolVersion: 3,
+      workId: base.workId,
+      activationId: base.activationId,
+      cwd: base.cwd,
+      callerId: base.callerId,
+      claimId: claim.claimId,
+      leaseId: `${claim.todoId}:3`,
+      fencingToken: 3,
+    }, signal)).resolves.toMatchObject({ status: 'conflict' })
+  })
+
   it('rediscovers tagged work and hard leases after provider restart', async () => {
     const prepared = await setup()
     const node = graph.nodes[0]!

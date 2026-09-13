@@ -1461,6 +1461,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the header and the stored events with `seq >= fromSeq`.',
       },
       {
+        signature: 'async readRange( id: SessionId, request: SessionEventRangeRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; events: SessionEvent[] }>',
+        description: 'Read one bounded contiguous logical event interval without preparing or publishing a Session. Backends with range indexes override this method; the default preserves correctness by filtering one immutable inspection.',
+        parameters: [{ name: 'id', description: 'persisted session to read.' }, { name: 'request', description: 'inclusive start and optional exclusive end sequence.' }, { name: 'signal', description: 'optional cancellation for queued and backend read work.' }],
+        returns: 'stored header and events within the requested interval.',
+      },
+      {
+        signature: 'async findEventSequences( id: SessionId, request: SessionEventSequenceRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; sequences: number[] }>',
+        description: 'Find matching logical event positions in newest-first order without returning payloads. Backends with metadata indexes override this method; the default scans one immutable inspection.',
+        parameters: [{ name: 'id', description: 'persisted session to search.' }, { name: 'request', description: 'event types, exclusive upper sequence, and result bound.' }, { name: 'signal', description: 'optional cancellation for queued and backend read work.' }],
+        returns: 'stored header and newest-first matching sequence numbers.',
+      },
+      {
+        signature: 'async readEventPage( id: SessionId, request: SessionEventPageRequest, signal?: AbortSignal, ): Promise<SessionEventPage>',
+        description: 'Read the newest event page that satisfies explicit event-count and serialized-byte budgets. Backends with indexed filtering override this method so excluded domains are never decoded; the default preserves the result contract over one immutable inspection.',
+        parameters: [{ name: 'id', description: 'persisted session to read.' }, { name: 'request', description: 'sequence interval, excluded prefixes, and page budgets.' }, { name: 'signal', description: 'optional cancellation for queued and backend read work.' }],
+        returns: 'one ascending page plus whether an older matching event remains.',
+      },
+      {
         signature: 'abstract list(signal?: AbortSignal): Promise<SessionHeader[]>',
         description: 'Lightweight listing from metadata, without a full-log parse.',
         parameters: [{ name: 'signal', description: 'optional cancellation for backend listing work.' }],
@@ -1480,9 +1498,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The persisted projection cache service. Opens the `session_projcache` domain at init, checkpoints live sessions on a throttled write-behind (count/interval triggers from Config) plus two mandatory points — `turn/end` and session disposal (the live-to-cold moment) — and serves the cold-read ladder: cached row, persistence `readFrom` tail, registry `restore`, durable write-back. Every durable write is fail-soft: failures log a warning and the cache self-heals on the next write or cold read.',
     methods: [
       {
-        signature: 'cachedSnapshot(meta: SessionHeader): ProjectionSnapshot | undefined',
+        signature: 'cachedSnapshot(meta: SessionHeader, options: ProjectionCacheReadOptions = {}): ProjectionSnapshot | undefined',
         description: 'The zero-I/O listing read: whole values viewed straight from the stored rows (version-matching keys only), each cut carried with its watermark so a client value store can seed under its higher-seq-wins rule — as stale as the last durable checkpoint but never wrong, and never from an unrelated log (the caller\'s header is the identity witness). Fresher paths (the history tail baseline, coldSnapshot) supersede these values whenever a session is actually opened.',
-        parameters: [{ name: 'meta', description: 'the listed session\'s header (identity witness; no log read).' }],
+        parameters: [{ name: 'meta', description: 'the listed session\'s header (identity witness; no log read).' }, { name: 'options', description: 'projection keys this listing carrier consumes.' }],
         returns: 'the cut (`asOfSeq` = lowest served-row watermark), or `undefined` when no usable row exists for this lifecycle.',
       },
       {
@@ -1492,9 +1510,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'resolution after durability and event emission.',
       },
       {
-        signature: 'async coldSnapshot(id: SessionId, signal?: AbortSignal): Promise<ProjectionSnapshot>',
-        description: 'Cold-read one persisted session\'s projections with zero full-log load: cached rows + a persistence `readFrom` tail from the registry\'s restore floor, refolded by the registry and written back (fail-soft) so the next cold read starts closer. A cache row invalidated by a shrunk log (crash-repair truncation) triggers one full re-read from seq 0 — the ladder\'s slow rung, still no crash. Rejects when the session has no persisted log (`not found` from the persistence seam).',
-        parameters: [{ name: 'id', description: 'the persisted session to read.' }, { name: 'signal', description: 'optional cancellation for the persistence reads.' }],
+        signature: 'async coldSnapshot( id: SessionId, signal?: AbortSignal, options: ProjectionCacheReadOptions = {}, ): Promise<ProjectionSnapshot>',
+        description: 'Cold-read one persisted session\'s projections with zero full-log load: cached rows + a persistence `readFrom` tail from the registry\'s restore floor, refolded by the registry and written back (fail-soft) so the next cold read starts closer. Selective reads may filter event domains and do not replace the complete checkpoint record. A cache row invalidated by a shrunk log (crash-repair truncation) triggers one full re-read from seq 0 — the ladder\'s slow rung, still no crash. Rejects when the session has no persisted log (`not found` from the persistence seam).',
+        parameters: [{ name: 'id', description: 'the persisted session to read.' }, { name: 'signal', description: 'optional cancellation for the persistence reads.' }, { name: 'options', description: 'projection units and event domains selected for this read.' }],
         returns: 'the snapshot cut at the stored log end.',
       },
     ],
@@ -1541,9 +1559,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'one row per registered key.',
       },
       {
-        signature: 'restoreFloor(checkpoint: ProjectionCheckpoint): number | undefined',
+        signature: 'restoreFloor( checkpoint: ProjectionCheckpoint, selection: { readonly includeKeys?: readonly string[] readonly excludeKeys?: readonly string[] } = {}, ): number | undefined',
         description: 'The stored seq a restore tail read over `checkpoint` must start at: one event BELOW the lowest usable watermark (a row is usable when its `ver` matches the live unit\'s `stateVersion`; an absent or mismatched row pulls the floor to `0` — that key must refold the full log). The one-below anchor is load-bearing: the tail then proves how far the stored log still extends, so restore can detect a log that shrank below a row\'s watermark (crash-repair truncation) instead of serving the stale row as current — an empty tail read from the anchor yields an end below every watermark and the restore rejects for a full re-read.',
-        parameters: [{ name: 'checkpoint', description: 'persisted rows for one session (possibly stale or empty).' }],
+        parameters: [{ name: 'checkpoint', description: 'persisted rows for one session (possibly stale or empty).' }, { name: 'selection', description: 'registered units included in the floor calculation.' }],
         returns: 'the seq to hand the persistence `readFrom`, or `undefined` when no unit is registered (no read needed — {@link restore} would serve empty values regardless).',
       },
       {
@@ -1553,9 +1571,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'whole values per key with a usable row; empty when none.',
       },
       {
-        signature: 'restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: number, ): { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }',
+        signature: 'restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: number, selection: { readonly includeKeys?: readonly string[] readonly excludeKeys?: readonly string[] } = {}, ): { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }',
         description: 'Cold read: fold every persisted unit over a stored log suffix, seeding each from its checkpoint row when usable — the one read recipe (cached state + forward tail replay + `view`) applied without a live `Session`. Call with the events returned by a persistence `readFrom(id, restoreFloor(checkpoint))` and that same floor as `baseSeq`; the floor\'s one-below anchor makes the supplied end honest, so a shrunk log is detected here. A row is usable iff its `ver` matches the live unit\'s `stateVersion`, it does not predate `baseSeq` (`seq >= baseSeq - 1`), and it does not claim events past the supplied end (`seq <= endSeq`); an unusable row is discarded and its key refolds from `init` — which is only sound over the full log, so a discarded row with `baseSeq > 0` throws (the caller re-reads from seq 0, e.g. after a crash-repair truncation shrank the log below a row\'s watermark).',
-        parameters: [{ name: 'checkpoint', description: 'persisted rows for one session (possibly stale or empty).' }, { name: 'events', description: 'the stored events with `seq >= baseSeq`, in seq order.' }, { name: 'baseSeq', description: 'the seq `events` starts at (its first event\'s seq when non-empty).' }],
+        parameters: [{ name: 'checkpoint', description: 'persisted rows for one session (possibly stale or empty).' }, { name: 'events', description: 'the stored events with `seq >= baseSeq`, in seq order.' }, { name: 'baseSeq', description: 'the seq `events` starts at (its first event\'s seq when non-empty).' }, { name: 'selection', description: 'registered units included in this fold.' }],
         returns: 'the snapshot cut at the supplied log end (`asOfSeq` is the last supplied event\'s seq, `baseSeq - 1` for an empty tail) plus the refreshed checkpoint rows at that cut, ready for a durable write-back.',
       },
     ],
@@ -2729,6 +2747,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'compaction/policy',
+    mode: 'waterfall',
+    signature: '\'compaction/policy\'( agent: CompactionAgentContext, trigger: CompactionTrigger | undefined, next: () => Promise<CompactionRequestPolicy>, ): Promise<CompactionRequestPolicy>',
+    summary: 'Replace the resolved policy for one session before pressure measurement or summarization.',
+    description: 'Replace the resolved policy for one session before pressure measurement or summarization. Listeners must call `next()` before applying a scoped override so independently composed policies retain deterministic order.',
+    parameters: [{ name: 'agent', description: 'agent context whose session owns the compaction.' }, { name: 'trigger', description: 'automatic trigger, or undefined for an explicit region or manual request.' }, { name: 'next', description: 'downstream policy resolver.' }],
+  },
+  {
     name: 'cordis/dynamic-package',
     mode: 'emit',
     signature: '\'cordis/dynamic-package\'(pkg: DynamicCordisPackage): void',
@@ -3325,8 +3351,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CompactionId = Branded<\'CompactionId\'>;',
   },
   {
+    name: 'CompactionRequestPolicy',
+    declaration: 'export interface CompactionRequestPolicy {\n    readonly target: {\n        readonly provider: string;\n        readonly model: string;\n    };\n    readonly thresholdRatio: number;\n    readonly retainRatio?: number;\n    readonly retainTokens?: number;\n    readonly maxTokens: number;\n    readonly compactionRetries: number;\n    readonly maxOverflowRetries: number;\n    readonly summarizationTarget: CompactionSummaryTarget;\n}',
+  },
+  {
     name: 'CompactionResult',
     declaration: 'export interface CompactionResult {\n    compactionId: CompactionId;\n    sourceCommandId?: CommandId;\n    startSeq: number;\n    summarySeq: number;\n    endSeq: number;\n    summary: ContentBlock[];\n    shadowedRange: {\n        start: number;\n        end: number;\n    };\n    shadowedSeqs: number[];\n    shadowedTokenCount: number;\n}',
+  },
+  {
+    name: 'CompactionSummaryTarget',
+    declaration: 'export interface CompactionSummaryTarget {\n    readonly provider: string;\n    readonly model: string;\n    readonly reasoningEffort?: string;\n}',
   },
   {
     name: 'CompactionTrigger',
@@ -3378,7 +3412,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ContinuableSubagentDescriptorData',
-    declaration: 'export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly agentProvider?: string;\n    readonly agentModel?: string;\n    readonly reasoningEffort?: ReasoningEffortId;\n    readonly persona?: string;\n    readonly toolFilter?: ToolRestriction;\n}',
+    declaration: 'export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'continuable\';\n    readonly label: string;\n    readonly agentProvider?: string;\n    readonly agentModel?: string;\n    readonly reasoningEffort?: ReasoningEffortId;\n    readonly persona?: string;\n    readonly toolFilter?: ToolRestriction;\n    readonly capacity?: SubagentCapacity;\n}',
   },
   {
     name: 'CordisDynamicPackageId',
@@ -3805,6 +3839,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GraphControlAuthority {\n    readonly actor: GraphControlActor;\n    readonly source: import(\'@deepseek-ai/dsh-graph\').GraphControlRecord[\'source\'];\n}',
   },
   {
+    name: 'GraphControllerCompactionPolicy',
+    declaration: 'export interface GraphControllerCompactionPolicy {\n    readonly enabled: boolean;\n    readonly thresholdRatio: number;\n    readonly retainRatio: number;\n    readonly maxTokens: number;\n    readonly reasoningEffort?: string;\n}',
+  },
+  {
+    name: 'GraphControllerFallbackModel',
+    declaration: 'export interface GraphControllerFallbackModel {\n    readonly provider: string;\n    readonly model: string;\n    readonly reasoningEffort?: string;\n    readonly controller: boolean;\n    readonly compaction: boolean;\n}',
+  },
+  {
+    name: 'GraphControllerResiliencePolicy',
+    declaration: 'export interface GraphControllerResiliencePolicy {\n    readonly enabled: boolean;\n    readonly maxFallbackAttemptsPerTurn: number;\n    readonly retryableFailureCodes: readonly string[];\n    readonly fallbackModels: readonly GraphControllerFallbackModel[];\n    readonly compaction: GraphControllerCompactionPolicy;\n}',
+  },
+  {
     name: 'GraphControlOperationId',
     declaration: 'export type GraphControlOperationId = Branded<\'GraphControlOperationId\'>;',
   },
@@ -3914,7 +3960,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphModeConfig',
-    declaration: 'export interface GraphModeConfig {\n    readonly version: 2;\n    readonly active: boolean;\n    readonly roles: readonly GraphRole[];\n    readonly limits: GraphSchedulerLimits;\n    readonly executionPolicy: GraphExecutionPolicy;\n}',
+    declaration: 'export interface GraphModeConfig {\n    readonly version: 2;\n    readonly active: boolean;\n    readonly roles: readonly GraphRole[];\n    readonly limits: GraphSchedulerLimits;\n    readonly executionPolicy: GraphExecutionPolicy;\n    readonly controllerResilience?: GraphControllerResiliencePolicy;\n}',
   },
   {
     name: 'GraphModelExecutionProfile',
@@ -4114,7 +4160,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphSchedulerLimits',
-    declaration: 'export interface GraphSchedulerLimits {\n    readonly globalMaxParallel: number;\n    readonly controllerReserve: number;\n    readonly models: readonly GraphModelLimit[];\n}',
+    declaration: 'export interface GraphSchedulerLimits {\n    readonly globalMaxParallel: number;\n    readonly controllerReserve: number;\n    readonly maxActiveSubagents?: number;\n    readonly models: readonly GraphModelLimit[];\n}',
   },
   {
     name: 'GraphSchedulerOwnerId',
@@ -4162,7 +4208,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GraphWorkerAssignment',
-    declaration: 'export interface GraphWorkerAssignment {\n    readonly protocolVersion: 1;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly attemptId: GraphAttemptId;\n    readonly activation: number;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly parent: Agent;\n    readonly node: GraphNode;\n    readonly role: GraphRole;\n    readonly prompt: readonly ContentBlock[];\n    readonly outputSchema: ObjectJsonSchema;\n    readonly budget: GraphNodeExecutionBudget;\n    readonly workspace: GraphWorkspaceRequest;\n    readonly deadline: number;\n    readonly signal: AbortSignal;\n    readonly toolFilter?: ToolRestriction;\n}',
+    declaration: 'export interface GraphWorkerAssignment {\n    readonly protocolVersion: 1;\n    readonly workId: GraphWorkId;\n    readonly operationId: GraphControlOperationId;\n    readonly attemptId: GraphAttemptId;\n    readonly activation: number;\n    readonly runId: GraphRunId;\n    readonly generationId: GraphRunGenerationId;\n    readonly ownerEpoch: number;\n    readonly fencingToken: number;\n    readonly activeSubagentLimit?: number;\n    readonly parent: Agent;\n    readonly node: GraphNode;\n    readonly role: GraphRole;\n    readonly prompt: readonly ContentBlock[];\n    readonly outputSchema: ObjectJsonSchema;\n    readonly budget: GraphNodeExecutionBudget;\n    readonly workspace: GraphWorkspaceRequest;\n    readonly deadline: number;\n    readonly signal: AbortSignal;\n    readonly toolFilter?: ToolRestriction;\n}',
   },
   {
     name: 'GraphWorkerCapabilities',
@@ -4621,6 +4667,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PreToolDecision = {\n    kind: \'allow\';\n} | {\n    kind: \'deny\';\n    reason: string;\n} | {\n    kind: \'ask\';\n    reason?: string;\n};',
   },
   {
+    name: 'ProjectionCacheReadOptions',
+    declaration: 'export interface ProjectionCacheReadOptions {\n    readonly includeKeys?: readonly string[];\n    readonly excludeKeys?: readonly string[];\n    readonly excludeEventTypePrefixes?: readonly string[];\n}',
+  },
+  {
     name: 'ProjectionChangeListener',
     declaration: 'export type ProjectionChangeListener = (session: Session, key: Extract<keyof SessionProjectionMap, string>, value: unknown, seq: number) => void;',
   },
@@ -4861,6 +4911,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionEventMetadataFilter = Exclude<SessionEventResultFilter, {\n    kind: \'text\';\n}>;',
   },
   {
+    name: 'SessionEventPage',
+    declaration: 'export interface SessionEventPage {\n    readonly meta: SessionHeader;\n    readonly events: SessionEvent[];\n    readonly hasMore: boolean;\n}',
+  },
+  {
+    name: 'SessionEventPageRequest',
+    declaration: 'export interface SessionEventPageRequest {\n    readonly fromSeq: number;\n    readonly beforeSeq?: number;\n    readonly excludeTypePrefixes: readonly string[];\n    readonly maxEvents: number;\n    readonly maxBytes: number;\n}',
+  },
+  {
+    name: 'SessionEventRangeRequest',
+    declaration: 'export interface SessionEventRangeRequest {\n    readonly fromSeq: number;\n    readonly toSeq?: number;\n}',
+  },
+  {
     name: 'SessionEventReadRequest',
     declaration: 'export interface SessionEventReadRequest {\n    sessionId: SessionId;\n    seq: number;\n    before?: number;\n    after?: number;\n}',
   },
@@ -4887,6 +4949,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionEventSearchRequest',
     declaration: 'export interface SessionEventSearchRequest {\n    sessionId: SessionId;\n    query: string;\n    filters?: readonly SessionEventMetadataFilter[];\n    limit?: number;\n    cursor?: SessionSearchCursor;\n}',
+  },
+  {
+    name: 'SessionEventSequenceRequest',
+    declaration: 'export interface SessionEventSequenceRequest {\n    readonly types: readonly string[];\n    readonly beforeSeq?: number;\n    readonly surfaceOp?: \'append\';\n    readonly limit: number;\n}',
   },
   {
     name: 'SessionEventSurface',
@@ -5234,7 +5300,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly sandboxMode?: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n    readonly sandboxMode?: boolean;\n    readonly activeCapacity?: boolean;\n}',
+  },
+  {
+    name: 'SubagentCapacity',
+    declaration: 'export interface SubagentCapacity {\n    readonly scope: SubagentCapacityScopeId;\n    readonly maxActive: number;\n}',
+  },
+  {
+    name: 'SubagentCapacityScopeId',
+    declaration: 'export type SubagentCapacityScopeId = Branded<\'SubagentCapacityScopeId\'>;',
   },
   {
     name: 'SubagentDescendantListEntry',

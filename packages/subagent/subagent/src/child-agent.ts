@@ -13,6 +13,7 @@ import type { Agent, AgentOptions, CreateAgentOptions } from '@deepseek-ai/dsh-a
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
+import { resolveSubagentCapacity } from './capacity.ts'
 // Type-only: make `ctx.get('sandboxPolicy')` / `ctx.get('approval')` resolve
 // to the policy services when composed — delegation consumes both
 // opportunistically (the documented `ctx.get` pattern), never as a hard dep —
@@ -74,12 +75,14 @@ export function resolveChildAgentOptions(
   const parentModel = parent.options.model
   const parentReasoningEffort = parent.options.reasoningEffort
   const parentMaxTokens = parent.options.maxTokens
+  const capacity = resolveSubagentCapacity(parent, requested)
   return {
     ...parentProvider !== undefined ? { provider: parentProvider } : {},
     ...parentModel !== undefined ? { model: parentModel } : {},
     ...parentReasoningEffort !== undefined ? { reasoningEffort: parentReasoningEffort } : {},
     ...parentMaxTokens !== undefined ? { maxTokens: parentMaxTokens } : {},
     ...requested,
+    ...capacity === undefined ? {} : { subagentCapacity: capacity },
     subagentDepth: childDepth,
   }
 }

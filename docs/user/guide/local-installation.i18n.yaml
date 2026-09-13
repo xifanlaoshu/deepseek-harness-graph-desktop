@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/guide/local-installation.md
-local-installation.md: 1233ee411a16c4f0f7afec9d9da34def68ea31a2
-local-installation.zh.md: cff5f3f269279c2d77078fa923cbd88b25d5bdcd
+local-installation.md: 108a2d69ffa97397e791249752d0ccaa467157c0
+local-installation.zh.md: 1c621e866ff588a577b2c74c30109a192bb42e9a

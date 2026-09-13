@@ -29,7 +29,7 @@ const config = {
     { id: 'controller', label: 'Controller', description: 'Controls work', controller: true, enabled: true, model: { provider: 'main', model: 'planner', reasoningEffort: 'high' }, prompt: 'Control work.', maxParallel: 1 },
     { id: 'engineer', label: 'Engineer', description: 'Implements work', controller: false, enabled: true, model: { provider: 'local', model: 'coder', reasoningEffort: 'medium' }, prompt: 'Implement work.', maxParallel: 2 },
   ],
-  limits: { globalMaxParallel: 4, controllerReserve: 1, models: [{ provider: 'local', model: 'coder', maxParallel: 2 }, { provider: 'remote', model: 'other', maxParallel: 1 }] },
+  limits: { globalMaxParallel: 4, controllerReserve: 1, maxActiveSubagents: 3, models: [{ provider: 'local', model: 'coder', maxParallel: 2 }, { provider: 'remote', model: 'other', maxParallel: 1 }] },
   executionPolicy: {
     maxNodesPerRevision: 64,
     maxAttemptsPerNode: 3,
@@ -570,6 +570,74 @@ describe('GraphAction', () => {
     expect(requests[3]).toMatchObject({ action: 'rollback', graphId: 'g1', runId: 'r2', expectedRevision: 2, expectedGeneration: 1, targetRevision: 1 })
   })
 
+  it('offers node retry for a recovery checkpoint without an invalid approval action', () => {
+    const { control } = setup({
+      config,
+      graphs: { g1: [revision] },
+      currentGraphId: 'g1',
+      runs: {
+        r1: {
+          id: 'r1', graphId: 'g1', revision: 1, generation: 2, generationId: 'generation-2', ownerEpoch: 2,
+          configSnapshot: config, overrides: {}, phase: 'awaiting_user', createdAt: 1, updatedAt: 3,
+          nodes: {
+            a: { workId: 'work-a', nodeId: 'a', phase: 'awaiting_user', attempts: [] },
+            b: { workId: 'work-b', nodeId: 'b', phase: 'awaiting_user', attempts: [] },
+          },
+        },
+      },
+      checkpoints: {
+        recovery: {
+          id: 'recovery', graphId: 'g1', revision: 1, runId: 'r1', nodeId: 'a', kind: 'awaiting_user',
+          status: 'pending', createdAt: 3, iteration: 1, reason: 'Recovery paused node a.',
+          issues: [{
+            id: 'recovery-a-2', severity: 'blocking', summary: 'Attempt budget exhausted.',
+            evidence: ['generation generation-2'], ownerNodeIds: ['a'],
+          }],
+        },
+      },
+    } as unknown as GraphProjection)
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['tab.execution'] }))
+    expect(screen.queryByRole('button', { name: zh['control.approve'] })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }))
+    fireEvent.click(screen.getByRole('button', { name: zh['control.retry'] }))
+    expect(control).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'retry-node', graphId: 'g1', runId: 'r1', expectedRevision: 1, expectedGeneration: 2, nodeId: 'a',
+    }))
+  })
+
+  it('omits approval while a task modification waits for its replacement revision', () => {
+    setup({
+      config,
+      graphs: { g1: [revision] },
+      currentGraphId: 'g1',
+      runs: {
+        r1: {
+          id: 'r1', graphId: 'g1', revision: 1, generation: 1, generationId: 'generation-1', ownerEpoch: 1,
+          configSnapshot: config, overrides: {}, phase: 'awaiting_user', createdAt: 1, updatedAt: 3,
+          nodes: {
+            a: { workId: 'work-a', nodeId: 'a', phase: 'awaiting_user', attempts: [] },
+            b: { workId: 'work-b', nodeId: 'b', phase: 'awaiting_user', attempts: [] },
+          },
+        },
+      },
+      checkpoints: {
+        modification: {
+          id: 'modification', graphId: 'g1', revision: 1, runId: 'r1', nodeId: 'a', kind: 'awaiting_user',
+          status: 'pending', createdAt: 3, iteration: 1, reason: 'Replace the task objective.',
+          issues: [{
+            id: 'modify-a', severity: 'blocking', summary: 'Replace the task objective.',
+            evidence: ['control operation modify-a'], ownerNodeIds: ['a'],
+          }],
+        },
+      },
+    } as unknown as GraphProjection)
+    fireEvent.click(screen.getByRole('button', { name: /Graph/ }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['tab.execution'] }))
+    expect(screen.queryByRole('button', { name: zh['control.approve'] })).toBeNull()
+    expect(screen.getByText('Replace the task objective.')).toBeDefined()
+  })
+
   it('shows durable run failures that occur before a child attempt starts', () => {
     setup({
       config,
@@ -597,6 +665,7 @@ describe('GraphAction', () => {
     fireEvent.click(screen.getByRole('button', { name: zh['settings.open'] }))
     fireEvent.change(screen.getByLabelText(zh.globalLimit), { target: { value: '2' } })
     fireEvent.change(screen.getByLabelText(zh.controllerReserve), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText(zh.activeSubagentLimit), { target: { value: '1' } })
     const modelSelects = screen.getAllByLabelText<HTMLSelectElement>(zh.model)
     const efforts = screen.getAllByLabelText(zh.reasoning)
     const prompts = screen.getAllByLabelText(zh.prompt)
@@ -621,6 +690,7 @@ describe('GraphAction', () => {
       const saved = saveConfig.mock.calls[0]?.[0]
       expect(saved?.limits.globalMaxParallel).toBe(2)
       expect(saved?.limits.controllerReserve).toBe(2)
+      expect(saved?.limits.maxActiveSubagents).toBe(1)
       expect(saved?.roles[0]?.model).toEqual({})
       expect(saved?.roles[1]).toMatchObject({ prompt: 'Implement carefully.', workerProvider: 'remote-worker', maxParallel: 3, model: { provider: 'remote', model: 'coder-v2', reasoningEffort: 'high' } })
     })

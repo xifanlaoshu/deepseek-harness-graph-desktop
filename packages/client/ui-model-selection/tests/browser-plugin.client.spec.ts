@@ -58,15 +58,19 @@ async function bench() {
   const ctx = new Context()
   let current: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
   const calls = { models: 0, select: 0 }
+  let modelsError: Error | undefined
+  let selectError: Error | undefined
   ctx.provide('connection', { api: { sessions: {
     models: () => {
       calls.models += 1
+      if (modelsError !== undefined) return Promise.reject(modelsError)
       return Promise.resolve({
         result: { ok: true as const, value: { current, routable, groups: GROUPS, failures: [] } },
       })
     },
     selectModel: (payload: { provider: string; model: string; reasoningEffort?: string }) => {
       calls.select += 1
+      if (selectError !== undefined) return Promise.reject(selectError)
       current = {
         provider: payload.provider,
         model: payload.model,
@@ -135,6 +139,8 @@ async function bench() {
     setHostCurrent: (selection: ModelSelection) => { current = selection },
     address: (id: SessionId) => { addressed.add(id) },
     setRoutable: (next: boolean) => { routable = next },
+    failModelsWith: (error: Error | undefined) => { modelsError = error },
+    failSelectWith: (error: Error | undefined) => { selectError = error },
     blockOf: (key: string) => blocks.get(sid(key)),
   }
 }
@@ -225,6 +231,37 @@ describe('ui-model-selection dual entry', () => {
     expect(face.directory.getSnapshot()).toMatchObject({
       current: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
       status: 'ready',
+    })
+  })
+
+  it('settles transport failures and preserves the last usable directory state', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const face = b.seat().inject!(sid('s1'))
+    await b.ctx.modelDirectories.directoryFor(sid('s1')).load()
+    const previous = face.directory.getSnapshot()
+
+    b.failModelsWith(new Error('connection unavailable'))
+    await expect(b.ctx.modelDirectories.directoryFor(sid('s1')).load())
+      .rejects.toThrow('session.models failed: connection unavailable')
+    expect(face.directory.getSnapshot()).toMatchObject({
+      current: previous.current,
+      groups: previous.groups,
+      status: 'error',
+      error: 'connection unavailable',
+    })
+
+    b.failModelsWith(undefined)
+    b.failSelectWith(new Error('connection reset'))
+    await expect(b.ctx.modelDirectories.directoryFor(sid('s1')).select({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-pro',
+    })).rejects.toThrow('session.selectModel failed: connection reset')
+    expect(face.directory.getSnapshot()).toMatchObject({
+      current: previous.current,
+      groups: previous.groups,
+      status: 'error',
+      error: 'connection reset',
     })
   })
 

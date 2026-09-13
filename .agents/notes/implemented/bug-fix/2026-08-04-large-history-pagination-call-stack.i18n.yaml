@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-04-large-history-pagination-call-stack.md
-2026-08-04-large-history-pagination-call-stack.md: 28c22121123a227c507c506683ae727d238d98bd
-2026-08-04-large-history-pagination-call-stack.zh.md: 57dde9bdc0a4aa52e1af024eb606bf9258430fa7
+2026-08-04-large-history-pagination-call-stack.md: 04413f454aace6abb712142140492a72fa18a284
+2026-08-04-large-history-pagination-call-stack.zh.md: 6d28cfc4d9f616192c55791efd1a64ed81295335

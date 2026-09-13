@@ -18,6 +18,8 @@
 
 `SessionPersistence.inspect(id)` 会构造一个不可变的逻辑 Session，但不发布它，也不写入恢复内容。冷检查会在内存中配平中断的轮次，同时保持撕裂的物理尾部不变；检查已处于活跃状态的 Session 则借用其当前不可变快照，因此可能包含未闭合的轮次。使用协调器的实现会在有界 LRU 中保留这个精确的冷未发布 Session，因此重复历史读取与后续 `prepare(id)` 可复用同一次读取、解压、验证、冻结及 Session 构造。`prepare(id)` 会预留该 Session、提交待处理修复并返回可 dispose 的发布句柄；`load(id)` 使用相同机制提交修复，但不会发布 Session。该生命周期由 [Session 准备阶段决策](../../.agents/notes/implemented/architecture/2026-08-05-session-preparation.zh.md)定义。
 
+只需要窗口而非可恢复 Session 的只读消费方使用 `readRange`、`findEventSequences` 和 `readEventPage`。最后一个操作会执行排除事件类型前缀、事件数预算和 UTF-8 JSON 字节预算。具备索引的后端会尽可能在解码前过滤；顺序后端即使必须扫描物理介质，也会维持相同的返回页面限制。这使会话记录传输与 Graph 执行状态等大型领域投影保持独立。
+
 ## `SessionLocation`——可选的逐会话产物目标
 
 `SessionPersistence.locate(meta)` 会同步解析一个归后端所有的独立产物，而不会读取、创建或 flush 它。JSONL 返回其项目/会话目录内 transcript（文本记录）的绝对路径；SQLite 因各会话共享一个数据库而返回 `undefined`。因此，返回的路径可能指向尚不存在的文件，或指向还不包含当前尚未 flush 轮次的文件；它是位置提示，不是授权或新鲜度保证。
@@ -232,8 +234,8 @@ interface SessionPersistenceSnapshot {
 
 两者都实现同一个抽象 `SessionPersistence`（在 `SessionEvent` 上执行 locate/create/append/prepare/load/inspect/readFrom/list/listSnapshots，观察方法可选支持取消），并通过共享的 `runPersistenceContract` 套件：
 
-- **[dsh-session-persistence-jsonl](../../packages/session/session-persistence-jsonl)**——逐会话仅追加的逻辑 JSONL 日志，默认存储为带 checksum 的连续 Zstandard frame，也可配置为原始行；支持崩溃安全的原子写入、被中断轮次的恢复以及读取/回放路径。
-- **[dsh-session-persistence-sqlite](../../packages/session/session-persistence-sqlite)**：一个可选启用的 `node:sqlite` 后端，使用 schema 17 把同一分片块中字段完全匹配的 delta 连续段存为有界物理 `text-chunks`、`reasoning-chunks` 与 `tool-call-chunks` 行。它在返回前重建完整逻辑事件流，只打包新增的持久批次，并拒绝旧 schema，而不是执行迁移。
+- **[dsh-session-persistence-jsonl](../../packages/session/session-persistence-jsonl)**——原默认存储和当前迁移来源：逐会话仅追加的逻辑 JSONL 日志，默认存储为带 checksum 的连续 Zstandard frame，也可配置为原始行；支持崩溃安全的原子写入、被中断轮次的恢复以及读取/回放路径。
+- **[dsh-session-persistence-sqlite](../../packages/session/session-persistence-sqlite)**——随产品默认启用的 `node:sqlite` 后端，使用 schema 17 把同一分片块中字段完全匹配的 delta 连续段存为有界物理 `text-chunks`、`reasoning-chunks` 与 `tool-call-chunks` 行。它为冷历史提供过滤、事件数有界和字节有界读取，以每会话事务逐物理 frame 导入尚缺失的旧 JSONL 会话，只打包新增持久批次，并拒绝旧 SQLite schema，而不是执行迁移。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -358,6 +360,40 @@ abstract inspect(id: SessionId, signal?: AbortSignal): Promise<SessionInspection
  * @returns the header and the stored events with `seq >= fromSeq`.
  */
 abstract readFrom(id: SessionId, fromSeq: number, signal?: AbortSignal): Promise<{ meta: SessionHeader; events: SessionEvent[] }>
+
+/**
+ * Read one bounded contiguous logical event interval without preparing or
+ * publishing a Session. Backends with range indexes override this method;
+ * the default preserves correctness by filtering one immutable inspection.
+ * @param id - persisted session to read.
+ * @param request - inclusive start and optional exclusive end sequence.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns stored header and events within the requested interval.
+ */
+async readRange( id: SessionId, request: SessionEventRangeRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; events: SessionEvent[] }>
+
+/**
+ * Find matching logical event positions in newest-first order without
+ * returning payloads. Backends with metadata indexes override this method;
+ * the default scans one immutable inspection.
+ * @param id - persisted session to search.
+ * @param request - event types, exclusive upper sequence, and result bound.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns stored header and newest-first matching sequence numbers.
+ */
+async findEventSequences( id: SessionId, request: SessionEventSequenceRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; sequences: number[] }>
+
+/**
+ * Read the newest event page that satisfies explicit event-count and
+ * serialized-byte budgets. Backends with indexed filtering override this
+ * method so excluded domains are never decoded; the default preserves the
+ * result contract over one immutable inspection.
+ * @param id - persisted session to read.
+ * @param request - sequence interval, excluded prefixes, and page budgets.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns one ascending page plus whether an older matching event remains.
+ */
+async readEventPage( id: SessionId, request: SessionEventPageRequest, signal?: AbortSignal, ): Promise<SessionEventPage>
 
 /**
  * Lightweight listing from metadata, without a full-log parse.

@@ -290,6 +290,39 @@ describe('fixture server — crash recovery', () => {
     await sleep(200)
   }, 30_000)
 
+  it('replaces a live but unresponsive stdio server after a tool deadline', async () => {
+    const ctx = await mountRegistry()
+    const config = crashConfig('wedged', { initialDelayMs: 50, maxDelayMs: 500, maxAttempts: 40 })
+    config.toolCallTimeoutMs = 100
+    await apply(ctx, config)
+
+    const timedOut = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: nextCallId(), name: 'mcp__wedged__hang', arguments: {},
+    })
+    expect({
+      isError: timedOut.isError,
+      message: timedOut.error?.message,
+    }).toMatchInlineSnapshot(`
+      {
+        "isError": true,
+        "message": "MCP_REQUEST_TIMEOUT: mcp-client(wedged): tool \"hang\" exceeded its 100ms deadline; the operation outcome is unknown, so inspect remote state before repeating an operation with side effects",
+      }
+    `)
+
+    await vi.waitFor(async () => {
+      const recovered = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: nextCallId(), name: 'mcp__wedged__add', arguments: { a: 19, b: 23 },
+      })
+      expect(recovered.isError).toBe(false)
+      expect(textOf(recovered.content[0])).toBe('42')
+    }, { timeout: 15_000, interval: 250 })
+
+    await ctx.fiber.dispose()
+    await sleep(200)
+  }, 30_000)
+
   it('plugin unload during an outage stops reconnection and unregisters tools', async () => {
     const ctx = await mountRegistry()
     const fiber = ctx.plugin(

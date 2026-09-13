@@ -24,4 +24,4 @@ Status: implemented
 
 - 大型溯源数组不再仅因长度而使历史记录分页抛出异常。
 - 分页语义与协议响应保持不变。
-- 本决策不限制历史记录页面的字节大小，也不限制浏览器回放该页面的开销；这两项性能问题仍与服务端调用栈故障分开处理。
+- 字节和事件数预算现由 [SQLite 默认与增量 Graph 历史决策](../architecture/2026-08-27-sqlite-default-and-incremental-graph-history.zh.md)负责；本记录继续负责不使用参数展开的溯源扫描。

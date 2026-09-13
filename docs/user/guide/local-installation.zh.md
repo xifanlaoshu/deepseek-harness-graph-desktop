@@ -224,6 +224,33 @@ pnpm dsh web --no-open
 
 如果后续需要 LoopX 协调，请停止 DSH 并迁移到 Windows + WSL 布局；已有 DSH home 与源码检出目录可以继续使用。
 
+## Windows 后台服务
+
+两种 Windows 布局都可以把 DSH 作为当前用户的后台服务运行。安装程序使用任务计划程序和当前用户的交互式令牌，而不是 Windows 服务控制管理器：SCM 服务使用非交互式 Session 0，无法可靠使用 WSL 发行版、用户的 DSH home 和可视化 Chrome 自动化。
+
+先停止所有手动启动的 DSH 进程，在仓库根目录打开 PowerShell，然后安装服务：
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 install
+```
+
+任务会立即启动，并在每次登录后启动。监督进程会在 DSH 子进程意外退出五秒后重新启动它；如果监督进程退出，任务计划程序也会将其重启。该服务默认为 Node 配置 8,192 MB V8 old-space 上限。如果机器具有足够物理内存，且异常大的冷会话需要更多内存，可在 `install` 时传入 `-MaxOldSpaceSizeMB 12288`；该设置限制 JavaScript 堆而非进程总内存，更改后需要执行 `install -Force`。所选端口已被其他进程监听时，安装会失败。使用下面的命令检查任务、准确 PID、状态路径、已配置 old-space 上限和 HTTP 健康状态：
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 status
+```
+
+使用同一个管理脚本执行生命周期操作：
+
+```powershell
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 restart
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 stop
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 start
+pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 uninstall
+```
+
+默认任务名是 `DeepSeekHarnessWeb`；运行时状态以及轮转后的 stdout/stderr 日志位于 `%LOCALAPPDATA%\DeepSeekHarness\Service`。`uninstall` 会保留这些诊断文件。任务会记录安装时提供的仓库、DSH home、Node 可执行文件和端口，因此移动或更新检出目录前必须停止服务；Node.js 或这些路径变化后，使用 `install -Force` 重新安装。该服务只在对应用户已登录时运行；不需要 WSL 或可视化 Chrome 的非交互式服务器部署需要单独的 SCM 包装程序和服务专用 DSH home。
+
 ## Linux
 
 下面的命令面向 Ubuntu 或 Debian。在 Fedora 或 RHEL 上，请先使用 `dnf` 安装等价的 `git`、`curl`、`tar`、`python3`、C/C++ 编译器和 `make` 包。

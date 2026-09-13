@@ -10,12 +10,8 @@ import type {
   ContentBlock, FinishReason, GenerateOptions, Message, TokenUsage, ToolSchema,
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-
-interface SummaryConfig {
-  readonly summarizationProvider: string
-  readonly summarizationModel: string
-  readonly maxTokens: number
-}
+import type { CompactionRequestPolicy, CompactionSummaryTarget } from '@deepseek-ai/dsh-compaction'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 
 /** Tags wrapping the structured summary inside the landed checkpoint node. */
 const SUMMARY_OPEN_TAG = '<compacted-summary>'
@@ -112,7 +108,7 @@ export type SummaryResult = {
  * the conversation prefix, then append the compaction instruction as the final
  * user message so the provider's warm prefix cache is reused.
  * @param ctx - context providing the LLM service.
- * @param config - resolved backend configuration.
+ * @param policy - resolved backend and session policy.
  * @param input - replayed conversation prefix (system, tools, and leading messages) to condense.
  * @param agent - supplies routed-model history, fallback model, and session id.
  * @param signal - optional cancellation forwarded to the adapter.
@@ -120,29 +116,17 @@ export type SummaryResult = {
  */
 export async function summarizeWithLlm(
   ctx: Context,
-  config: SummaryConfig,
+  policy: CompactionRequestPolicy,
   input: SummarizationInput,
   agent: Agent,
   signal?: AbortSignal,
 ): Promise<SummaryResult> {
-  const latest = agent.session.requestHeader()?.config
-  const configured = config.summarizationProvider.length === 0
-    ? undefined
-    : { provider: config.summarizationProvider, model: config.summarizationModel }
-  const agentTarget = agent.options.provider !== undefined
-    && agent.options.provider.length > 0
-    && agent.options.model !== undefined
-    && agent.options.model.length > 0
-    ? { provider: agent.options.provider, model: agent.options.model }
-    : undefined
-  const target = configured ?? latest ?? agentTarget
-  if (target === undefined) {
+  if (policy.summarizationTarget.provider.length === 0 || policy.summarizationTarget.model.length === 0) {
     throw new Error(
       'no provider/model available for summarization: set both BasicCompactionConfig summarization fields, route one request, or set both AgentOptions fields',
     )
   }
 
-  const assembler = new BlockAssembler()
   const messages: Message[] = [
     ...input.messages,
     createUserMessage({
@@ -150,13 +134,29 @@ export async function summarizeWithLlm(
       source: { kind: 'plugin', plugin: 'dsh-compaction-basic' },
     }),
   ]
+  return summarizeTarget(ctx, policy, policy.summarizationTarget, input, messages, agent, signal)
+}
+
+async function summarizeTarget(
+  ctx: Context,
+  policy: CompactionRequestPolicy,
+  target: CompactionSummaryTarget,
+  input: SummarizationInput,
+  messages: readonly Message[],
+  agent: Agent,
+  signal?: AbortSignal,
+): Promise<SummaryResult> {
+  const assembler = new BlockAssembler()
   const options: GenerateOptions = {
     provider: target.provider,
     model: target.model,
-    messages,
+    messages: [...messages],
     ...input.system === undefined ? {} : { system: input.system },
     ...input.tools === undefined ? {} : { tools: [...input.tools] },
-    maxTokens: config.maxTokens,
+    maxTokens: policy.maxTokens,
+    ...target.reasoningEffort === undefined
+      ? {}
+      : { reasoningEffort: ReasoningEffortId(target.reasoningEffort) },
     sessionId: agent.session.id,
     purpose: 'compaction',
     ...signal === undefined ? {} : { signal },
@@ -176,7 +176,7 @@ export async function summarizeWithLlm(
     llmStreamCall: true,
     provider: options.provider,
     model: options.model,
-    maxTokens: config.maxTokens,
+    maxTokens: policy.maxTokens,
     ...(assembler.usage === undefined ? {} : { usage: assembler.usage }),
   }
 }

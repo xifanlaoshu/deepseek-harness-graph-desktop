@@ -30,12 +30,14 @@ interface SubagentCapabilities {
   readonly toolFilter: boolean
   readonly persona: boolean
   readonly sandboxMode?: boolean
+  /** Provider publishes an in-process child carrying inherited active-capacity options. */
+  readonly activeCapacity?: boolean
 }
 ```
 
 ## The one-shot start request
 
-The tool layer builds this request from the model input and its own config; the service validates it against the named provider before `start`. Required `parent` supplies the session cwd, lineage, and delegation depth. Optional output schema, depth, tool filter, persona, and sandbox-mode cap require matching capability flags. Unsupported schemas fail at start; in-process backends scope filters and personas to child creation, implement the supported object-rooted schema with a forced capture tool, and may narrow the child's effective sandbox mode without widening the parent.
+The tool layer builds this request from the model input and its own config; the service validates it against the named provider before `start`. Required `parent` supplies the session cwd, lineage, delegation depth, and optional inherited active-capacity scope. Optional output schema, depth, tool filter, persona, sandbox-mode cap, and active-capacity propagation require matching capability flags. Unsupported requests fail at start; in-process backends scope filters and personas to child creation, implement the supported object-rooted schema with a forced capture tool, may narrow the child's effective sandbox mode without widening the parent, and carry the parent's capacity ceiling without widening it.
 
 ```ts type-equiv
 /**

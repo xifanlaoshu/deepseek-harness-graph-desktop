@@ -26,6 +26,8 @@ All three operations are **abstract** — the backend owns trigger policy, reten
 
 `CompactionResult` keeps the raw summary and bookkeeping-event seqs available to callers alongside the shadowed range and token accounting; its drift-checked shape lives in the [compaction data-structure reference](../../../docs/subsystems/compaction.md#compactionresult).
 
+Before pressure measurement or summarization, providers resolve a complete `CompactionRequestPolicy` through the `compaction/policy` waterfall. A session-scoped policy plugin calls `next()`, then may replace threshold and retention values, summary output tokens, or the exact summary target. The target contains an explicit provider/model pair and optional reasoning effort. Each successful transaction still records one reconstructable summary call; policy composition never hides failed model attempts.
+
 `compactIfNeeded` and `compactNow` take a required `signal`; `compactRegion`'s is optional. A backend that summarizes via `ctx.llm.stream()` **must** forward it into the call's `GenerateOptions.signal`, so an abort or fiber dispose tears down the in-flight summarization. Automatic and explicit-region brackets recover their numeric owner from the currently open turn. Manual brackets require no open turn and stamp `turn: null`.
 
 `ManualCompactionError.code` is the closed set `busy | changed | summary | commit | persistence`. `changed` and `summary` mean the selected conversation surface was not replaced, but their failed attempt is still recorded in the session log. `commit` is deliberately neutral about partial mutation, and `persistence` means the in-memory bracket closed but its explicit flush failed.

@@ -38,6 +38,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'graph/control',
   'graph/operation',
   'graph/run',
+  'graph/run-update',
   'graph/settlement',
   'graph/submission',
   'hook/invoked',

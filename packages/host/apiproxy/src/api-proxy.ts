@@ -19,6 +19,7 @@ import { errorChain } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, MessageSource } from '@deepseek-ai/dsh-llm'
 import { isAppendSurfaceEvent, isJsonValue } from '@deepseek-ai/dsh-session'
 import type { JsonValue, Session, SessionEvent, SessionEventMap, SessionHeader, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
+import { selectSessionEventPage } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionSearchCursor } from '@deepseek-ai/dsh-session-query'
 import { SubagentError } from '@deepseek-ai/dsh-subagent'
@@ -121,9 +122,16 @@ const SESSION_SEARCH_PROVIDER_CALL_LIMIT = 100
 const COLD_SUMMARY_BATCH_SIZE = 16
 /** Default maximum artifact size eligible for one cold blankness read. */
 export const DEFAULT_COLD_BLANK_PROBE_MAX_BYTES = 1024
+/** Default maximum logical events returned by one history page. */
+export const DEFAULT_HISTORY_PAGE_MAX_EVENTS = 10_000
+/** Default soft maximum UTF-8 JSON bytes returned by one history page. */
+export const DEFAULT_HISTORY_PAGE_MAX_BYTES = 32 * 1024 * 1024
+
+const HISTORY_EXCLUDED_EVENT_PREFIXES = ['graph/'] as const
 
 /** Conversation message event types (the pagination counting unit). */
-const MESSAGE_TYPES = new Set(['user/message', 'assistant/message'])
+const MESSAGE_EVENT_TYPES = ['user/message', 'assistant/message'] as const satisfies readonly (keyof SessionEventMap)[]
+const MESSAGE_TYPES = new Set<keyof SessionEventMap>(MESSAGE_EVENT_TYPES)
 
 /** Validate one prompt as a batch before publishing any durable image object. */
 async function durablePromptContent(ctx: Context, content: readonly PromptContentPart[]): Promise<ContentBlock[]> {
@@ -229,7 +237,7 @@ function paginate(
   events: readonly SessionEvent[],
   beforeSeq: number | undefined,
   maxMessages: number,
-): { events: SessionEvent[]; hasMore: boolean } {
+): { events: SessionEvent[]; hasMore: boolean; cut: number; messageCount: number } {
   const window = beforeSeq === undefined ? [...events] : events.filter(event => event.seq < beforeSeq)
   let count = 0
   let cut = 0
@@ -250,7 +258,7 @@ function paginate(
     }
   }
   const page = window.filter(event => event.seq >= cut)
-  return { events: page, hasMore: cut > 0 }
+  return { events: page, hasMore: cut > 0, cut, messageCount: count }
 }
 
 /** Wrap an ok result echoing the request's rpcId. */
@@ -600,6 +608,10 @@ export interface ApiProxyDefaults {
   sessionExportCompressionLevel?: SessionLogCompressionLevel
   /** Maximum artifact size eligible for one cold blankness read. */
   coldBlankProbeMaxBytes?: number
+  /** Maximum logical events returned by one history page. */
+  historyPageMaxEvents?: number
+  /** Soft maximum UTF-8 JSON bytes returned by one history page. */
+  historyPageMaxBytes?: number
   /**
    * Whether handing a path to the native opener can work at all — the
    * `hasDocument` capability the preset roster reports, and the switch
@@ -742,21 +754,45 @@ function backscanArgs(events: readonly SessionEvent[], callId: string): { name: 
   return undefined
 }
 
-/** Render one detached history page through the same presenter path as ordinary history. */
+/** Render one bounded in-memory history page through the ordinary presenter path. */
 function historyPage(
   ctx: Context,
   events: readonly SessionEvent[],
   beforeSeq: number | undefined,
   maxMessages: number | undefined,
+  maxEvents: number,
+  maxBytes: number,
   scope?: ScopeKey,
 ): { events: HistoryEntry[]; hasMore: boolean } {
-  const page = paginate(events, beforeSeq, maxMessages ?? DEFAULT_MAX_MESSAGES)
+  const contiguous = paginate(events, beforeSeq, maxMessages ?? DEFAULT_MAX_MESSAGES)
+  const page = selectSessionEventPage(contiguous.events, {
+    fromSeq: 0,
+    excludeTypePrefixes: HISTORY_EXCLUDED_EVENT_PREFIXES,
+    maxEvents,
+    maxBytes,
+  })
   return {
     events: page.events.map((event) => {
       const view = viewFor(ctx, event, callId => backscanArgs(page.events, callId), scope)
       return { event, ...view === undefined ? {} : { view } }
     }),
-    hasMore: page.hasMore,
+    hasMore: contiguous.hasMore || page.hasMore,
+  }
+}
+
+/** Render a persistence-bounded detached page without paginating it a second time. */
+function detachedHistoryPage(
+  ctx: Context,
+  events: readonly SessionEvent[],
+  hasMore: boolean,
+  scope?: ScopeKey,
+): { events: HistoryEntry[]; hasMore: boolean } {
+  return {
+    events: events.map((event) => {
+      const view = viewFor(ctx, event, callId => backscanArgs(events, callId), scope)
+      return { event, ...view === undefined ? {} : { view } }
+    }),
+    hasMore,
   }
 }
 
@@ -777,7 +813,14 @@ function historyPage(
  */
 type HistorySource =
   | { readonly kind: 'attached'; readonly session: Session }
-  | { readonly kind: 'detached'; readonly header: SessionHeader; readonly events: SessionEvent[] }
+  | {
+    readonly kind: 'detached'
+    readonly header: SessionHeader
+    readonly presetEvents: SessionEvent[]
+    readonly events: SessionEvent[]
+    readonly hasMore: boolean
+    readonly projections?: SessionProjectionsBlock
+  }
 
 function projectionsFor(ctx: Context, session: Session): SessionProjectionsBlock | undefined {
   const registry = ctx.get('sessionProjections')
@@ -799,15 +842,19 @@ function listProjectionsFor(ctx: Context, meta: SessionHeader, session: Session 
   try {
     const block = session !== undefined
       ? ctx.get('sessionProjections')?.snapshot(session)
-      : ctx.get('sessionProjectionCache')?.cachedSnapshot(meta)
-    return block !== undefined && Object.keys(block.values).length > 0 ? block : undefined
+      : ctx.get('sessionProjectionCache')?.cachedSnapshot(meta, { excludeKeys: ['graph'] })
+    if (block === undefined) return undefined
+    const { graph: _graph, ...values } = block.values as Record<string, unknown>
+    return Object.keys(values).length > 0
+      ? { asOfSeq: block.asOfSeq, values }
+      : undefined
   } catch (error) {
     ctx.logger.warn(`session.list: projection column for "${meta.id}" failed (serving the row without it): ${String(error)}`)
     return undefined
   }
 }
 
-/** Projection baseline for a detached history tail without Agent activation. */
+/** Projection baseline for a legacy detached backend without range reads. */
 function detachedProjectionsFor(
   ctx: Context,
   events: readonly SessionEvent[],
@@ -1049,6 +1096,10 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     ?? DEFAULT_SESSION_LOG_COMPRESSION_LEVEL
   const coldBlankProbeMaxBytes = defaults.coldBlankProbeMaxBytes
     ?? DEFAULT_COLD_BLANK_PROBE_MAX_BYTES
+  const historyPageMaxEvents = defaults.historyPageMaxEvents
+    ?? DEFAULT_HISTORY_PAGE_MAX_EVENTS
+  const historyPageMaxBytes = defaults.historyPageMaxBytes
+    ?? DEFAULT_HISTORY_PAGE_MAX_BYTES
   /** The seed model each create/resume declares; re-read so it never goes stale. */
   const agentOptions = (): AgentOptions => {
     const { provider, model } = defaults.defaultModelSelection()
@@ -1466,16 +1517,118 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
   /**
    * Resolve which session one transcript read is served from, without
    * acquiring an Agent owner. This is the read's only asynchronous step
-   * besides ensuring the composition; {@link historyCutOf} takes the cut.
+   * besides ensuring the composition; attached reads take their synchronous
+   * cut later, while detached reads fetch only the requested durable range.
    * @param sessionId - the transcript being read.
+   * @param beforeSeq - exclusive page end, or the durable tail when absent.
+   * @param maxMessages - requested message quota.
    * @returns the attached session, or the inspected detached header and events.
    * @throws {@link ApiRemoteSessionNotFound} when no project-backed session has that identity.
    */
-  async function historySourceFor(sessionId: SessionId): Promise<HistorySource> {
+  async function historySourceFor(
+    sessionId: SessionId,
+    beforeSeq: number | undefined,
+    maxMessages: number | undefined,
+  ): Promise<HistorySource> {
     const attached = ctx.sessions.get(sessionId)
     if (attached !== undefined) return { kind: 'attached', session: attached }
-    const inspected = await inspectServable(sessionId)
-    return { kind: 'detached', header: inspected.meta, events: inspected.events }
+
+    const persistence = ctx.get('sessionPersistence')
+    if (persistence === undefined
+      || typeof persistence.readRange !== 'function'
+      || typeof persistence.findEventSequences !== 'function'
+      || typeof persistence.readEventPage !== 'function') {
+      const inspected = await inspectServable(sessionId)
+      const contiguous = paginate(inspected.events, beforeSeq, maxMessages ?? DEFAULT_MAX_MESSAGES)
+      const page = selectSessionEventPage(contiguous.events, {
+        fromSeq: 0,
+        excludeTypePrefixes: HISTORY_EXCLUDED_EVENT_PREFIXES,
+        maxEvents: historyPageMaxEvents,
+        maxBytes: historyPageMaxBytes,
+      })
+      const projections = beforeSeq === undefined ? detachedProjectionsFor(ctx, inspected.events) : undefined
+      return {
+        kind: 'detached',
+        header: inspected.meta,
+        presetEvents: inspected.events,
+        events: page.events,
+        hasMore: contiguous.hasMore || page.hasMore,
+        ...projections === undefined ? {} : { projections },
+      }
+    }
+
+    const messageLimit = maxMessages ?? DEFAULT_MAX_MESSAGES
+    const found = await persistence.findEventSequences(sessionId, {
+      types: MESSAGE_EVENT_TYPES,
+      ...beforeSeq === undefined ? {} : { beforeSeq },
+      surfaceOp: 'append',
+      limit: messageLimit + 1,
+    })
+    const hasEarlierMessage = found.sequences.length > messageLimit
+    const selectedMessages = found.sequences.slice(0, messageLimit)
+    let fromSeq = 0
+    if (hasEarlierMessage) {
+      const oldestMessageSeq = selectedMessages.at(-1) as number
+      const boundary = await persistence.readRange(sessionId, {
+        fromSeq: oldestMessageSeq,
+        toSeq: oldestMessageSeq + 1,
+      })
+      const oldestMessage = boundary.events[0]
+      const sourceEventSeqs = oldestMessage === undefined
+        ? undefined
+        : (oldestMessage as { sourceEventSeqs?: number[] }).sourceEventSeqs
+      fromSeq = oldestMessage === undefined
+        ? oldestMessageSeq
+        : Math.min(oldestMessage.seq, ...sourceEventSeqs ?? [])
+    }
+    const page = await persistence.readEventPage(sessionId, {
+      fromSeq,
+      ...beforeSeq === undefined ? {} : { beforeSeq },
+      excludeTypePrefixes: HISTORY_EXCLUDED_EVENT_PREFIXES,
+      maxEvents: historyPageMaxEvents,
+      maxBytes: historyPageMaxBytes,
+    })
+
+    if (found.meta.cwd === undefined) {
+      throw new SessionNotFound(`session "${sessionId}" not found`)
+    }
+
+    const presetPosition = await persistence.findEventSequences(sessionId, {
+      types: ['agent-preset/selected'],
+      limit: 1,
+    })
+    const presetSeq = presetPosition.sequences[0]
+    const presetEvents = presetSeq === undefined
+      ? []
+      : (await persistence.readRange(sessionId, { fromSeq: presetSeq, toSeq: presetSeq + 1 })).events
+
+    let projections: SessionProjectionsBlock | undefined
+    if (beforeSeq === undefined) {
+      try {
+        const cache = ctx.get('sessionProjectionCache')
+        const light = await cache?.coldSnapshot(sessionId, undefined, {
+          excludeKeys: ['graph'],
+          excludeEventTypePrefixes: HISTORY_EXCLUDED_EVENT_PREFIXES,
+        })
+        const graph = cache?.cachedSnapshot(found.meta, { includeKeys: ['graph'] })
+        if (light !== undefined || graph !== undefined) {
+          projections = {
+            asOfSeq: Math.min(light?.asOfSeq ?? Number.MAX_SAFE_INTEGER, graph?.asOfSeq ?? Number.MAX_SAFE_INTEGER),
+            values: { ...light?.values, ...graph?.values },
+          }
+        }
+      } catch (error) {
+        ctx.logger.warn(`session.history: projection baseline for "${sessionId}" failed: ${String(error)}`)
+      }
+    }
+    return {
+      kind: 'detached',
+      header: found.meta,
+      presetEvents,
+      events: page.events,
+      hasMore: hasEarlierMessage || page.hasMore,
+      ...projections === undefined ? {} : { projections },
+    }
   }
 
   /**
@@ -1485,7 +1638,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
    * @returns that session's creation header and its events.
    */
   function sourceSession(source: HistorySource): PresetBearingSession {
-    if (source.kind === 'detached') return { header: source.header, events: source.events }
+    if (source.kind === 'detached') return { header: source.header, events: source.presetEvents }
     return { header: source.session.header, events: source.session.events }
   }
 
@@ -1505,10 +1658,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     source: HistorySource,
     includeProjections: boolean,
   ): { events: SessionEvent[]; projections?: SessionProjectionsBlock } {
-    if (source.kind === 'detached') {
-      const projections = includeProjections ? detachedProjectionsFor(ctx, source.events) : undefined
-      return { events: source.events, ...projections === undefined ? {} : { projections } }
-    }
+    if (source.kind === 'detached') throw new Error('detached history is already cut by persistence')
     const events = [...source.session.events]
     const projections = includeProjections ? projectionsFor(ctx, source.session) : undefined
     return { events, ...projections === undefined ? {} : { projections } }
@@ -2154,7 +2304,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       async history(request) {
         const { sessionId, beforeSeq, maxMessages } = request.payload
         try {
-          const source = await historySourceFor(sessionId)
+          const source = await historySourceFor(sessionId, beforeSeq, maxMessages)
           // Both awaits happen BEFORE the cut. Ensuring the recorded
           // composition's standing mount is what registers its projection
           // units, so a first cold read would otherwise serve a baseline
@@ -2162,8 +2312,19 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           // appending, so awaiting between the two reads would pair events cut
           // at N with a baseline folded to N+1.
           const scope = await presenterScopeFor(sessionId, sourceSession(source))
+          if (source.kind === 'detached') {
+            const page = detachedHistoryPage(ctx, source.events, source.hasMore, scope)
+            return ok(request, {
+              events: page.events,
+              hasMore: page.hasMore,
+              ...source.projections === undefined ? {} : { projections: source.projections },
+            })
+          }
           const cut = historyCutOf(source, beforeSeq === undefined)
-          const page = historyPage(ctx, cut.events, beforeSeq, maxMessages, scope)
+          const page = historyPage(
+            ctx, cut.events, beforeSeq, maxMessages,
+            historyPageMaxEvents, historyPageMaxBytes, scope,
+          )
           return ok(request, {
             events: page.events,
             hasMore: page.hasMore,
@@ -2573,49 +2734,33 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           parentSessionId, childSessionId, mode,
         }, signal)
         if (verified.error !== undefined) return err(request, verified.error)
-        // The generic-history data plane: an attached child serves its
-        // in-memory snapshot and the registry's live watermark projections; a
-        // cold child is one persistence inspection plus a detached fold.
-        let header: SessionHeader
-        let events: SessionEvent[]
-        let projections: SessionProjectionsBlock | undefined
-        const attached = ctx.sessions.get(childSessionId)
-        if (attached !== undefined) {
-          header = attached.header
-          events = [...attached.events]
-          projections = beforeSeq === undefined
-            ? subagentHistoryProjections(ctx, childSessionId, () => projectionsFor(ctx, attached))
-            : undefined
-        } else {
-          try {
-            const inspected = await inspectServable(childSessionId)
-            header = inspected.meta
-            events = inspected.events
-            projections = beforeSeq === undefined
-              ? subagentHistoryProjections(ctx, childSessionId, () => detachedProjectionsFor(ctx, inspected.events))
-              : undefined
-          } catch (error: unknown) {
-            if (signal?.aborted) {
-              return err(request, {
-                code: 'cancelled',
-                message: 'subagent history read was cancelled',
-                details: {},
-              })
-            }
-            if (error instanceof SessionNotFound) {
-              return err(request, {
-                code: 'subagent-not-found',
-                message: 'subagent disappeared during history read',
-                details: { parentSessionId, childSessionId },
-              })
-            }
+        // Reuse the session history source so cold child transcripts get the
+        // same indexed filtering and hard page budgets as ordinary sessions.
+        let source: HistorySource
+        try {
+          source = await historySourceFor(childSessionId, beforeSeq, maxMessages)
+        } catch (error: unknown) {
+          if (signal?.aborted) {
             return err(request, {
-              code: 'internal',
-              message: 'subagent history read failed',
+              code: 'cancelled',
+              message: 'subagent history read was cancelled',
               details: {},
             })
           }
+          if (error instanceof SessionNotFound) {
+            return err(request, {
+              code: 'subagent-not-found',
+              message: 'subagent disappeared during history read',
+              details: { parentSessionId, childSessionId },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: 'subagent history read failed',
+            details: {},
+          })
         }
+        const header = source.kind === 'attached' ? source.session.header : source.header
         if (signal?.aborted) {
           return err(request, {
             code: 'cancelled',
@@ -2630,7 +2775,21 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             details: { childSessionId },
           })
         }
-        const page = historyPage(ctx, events, beforeSeq, maxMessages)
+        if (source.kind === 'detached') {
+          const page = detachedHistoryPage(ctx, source.events, source.hasMore)
+          return ok(request, {
+            ...page,
+            ...source.projections === undefined ? {} : { projections: source.projections },
+          })
+        }
+        const cut = historyCutOf(source, beforeSeq === undefined)
+        const page = historyPage(
+          ctx, cut.events, beforeSeq, maxMessages,
+          historyPageMaxEvents, historyPageMaxBytes,
+        )
+        const projections = beforeSeq === undefined
+          ? subagentHistoryProjections(ctx, childSessionId, () => cut.projections)
+          : undefined
         return ok(request, { ...page, ...projections === undefined ? {} : { projections } })
       },
 

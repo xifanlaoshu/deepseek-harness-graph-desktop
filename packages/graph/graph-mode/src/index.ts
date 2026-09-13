@@ -29,11 +29,13 @@ import {
   MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES,
   MAX_GRAPH_ENVIRONMENT_OPERATIONS,
   defaultGraphModeConfig,
+  defaultGraphControllerResiliencePolicy,
   defaultGraphNodeExecutionBudget,
   defaultGraphOutputSchema,
   downstreamInvalidation,
   foldGraph,
   graphEnvironmentApprovalText,
+  graphActiveSubagentLimit,
   validateGraphModeConfig,
   validateGraphCheckpoint,
   validateGraphNodeOutput,
@@ -53,6 +55,7 @@ import type {
   GraphJsonValue,
   GraphModelExecutionProfile,
   GraphModeConfig,
+  GraphControllerFallbackModel,
   GraphNode,
   GraphNodeId,
   GraphNodeWorkspacePolicy,
@@ -65,8 +68,10 @@ import type {
   GraphRevision,
   GraphRole,
   GraphRun,
+  GraphRunUpdate,
   GraphRunError,
   GraphReviewIssue,
+  GraphOperationTransition,
   GraphOperationStage,
   GraphExternalReference,
   GraphBranchEvaluation,
@@ -76,6 +81,7 @@ import type {
   GraphRevisionLineage,
   GraphTerminationPolicy,
 } from '@deepseek-ai/dsh-graph'
+import type { CompactionRequestPolicy } from '@deepseek-ai/dsh-compaction'
 import type GraphCoordination from '@deepseek-ai/dsh-graph-coordination'
 import type {
   GraphCoordinationClaim,
@@ -86,6 +92,7 @@ import type {
 import type {} from '@deepseek-ai/dsh-graph-artifacts'
 import type { GraphResourceReservation, GraphResourceSnapshot } from '@deepseek-ai/dsh-graph-resources'
 import {
+  GraphSchedulerAuthorityError,
   GraphSchedulerOwnerId,
   type GraphSchedulerLease,
   type GraphSchedulerLeaseRequest,
@@ -177,11 +184,26 @@ export interface GraphTemplateSettings {
   readonly roles: GraphModeConfig['roles']
   readonly limits: GraphModeConfig['limits']
   readonly executionPolicy: GraphModeConfig['executionPolicy']
+  readonly controllerResilience: NonNullable<GraphModeConfig['controllerResilience']>
 }
+
+interface GraphRecoverySource {
+  readonly run: GraphRun
+  readonly transitions: readonly GraphOperationTransition[]
+  readonly inherited: boolean
+}
+
 /** User-settings namespace rendered by plugin settings surfaces. */
 export const GRAPH_TEMPLATE_SETTINGS_NAMESPACE = settingsNamespace('graph-mode')
 
 const modelSelectionConfig = z.object({ provider: z.string(), model: z.string(), reasoningEffort: z.string() })
+const controllerFallbackModelConfig = z.object({
+  provider: z.string().required(),
+  model: z.string().required(),
+  reasoningEffort: z.string(),
+  controller: z.boolean().required(),
+  compaction: z.boolean().required(),
+})
 /** Settings schema rendered by the general plugin settings surface. */
 export const GraphTemplateSettings = z.object({
   roles: z.array(z.object({
@@ -198,6 +220,7 @@ export const GraphTemplateSettings = z.object({
   limits: z.object({
     globalMaxParallel: z.natural().min(1).required(),
     controllerReserve: z.natural().min(1).required(),
+    maxActiveSubagents: z.natural().min(1),
     models: z.array(z.object({
       provider: z.string(),
       model: z.string().required(),
@@ -222,10 +245,56 @@ export const GraphTemplateSettings = z.object({
     maxOutputBytes: z.natural().min(1).required(),
     noProgressLimit: z.natural().min(1).required(),
   }).required(),
+  controllerResilience: z.object({
+    enabled: z.boolean().required(),
+    maxFallbackAttemptsPerTurn: z.natural().min(1).required(),
+    retryableFailureCodes: z.array(z.string().required()).required(),
+    fallbackModels: z.array(controllerFallbackModelConfig).required(),
+    compaction: z.object({
+      enabled: z.boolean().required(),
+      thresholdRatio: z.number().min(0).max(1).required(),
+      retainRatio: z.number().min(0).max(1).required(),
+      maxTokens: z.natural().min(1).required(),
+      reasoningEffort: z.string(),
+    }).required(),
+  }).required(),
 }) as unknown as z<GraphTemplateSettings>
 
 type ControllerIntent = 'new' | 'revise' | 'inspect' | 'control' | 'clarify' | 'direct'
 const terminalNodePhase = (phase: GraphNodeRun['phase']): boolean => ['succeeded', 'failed', 'skipped', 'blocked', 'stale', 'canceled', 'exhausted'].includes(phase)
+const taskModificationCheckpoint = (checkpoint: GraphCheckpoint): boolean => (
+  checkpoint.kind === 'awaiting_user'
+  && checkpoint.issues?.some(issue => issue.id === `modify-${checkpoint.nodeId}`) === true
+)
+
+/** Build the smallest durable replacement that advances one existing run generation. */
+const runUpdateOf = (prior: GraphRun, next: GraphRun): GraphRunUpdate => ({
+  version: 1,
+  runId: next.id,
+  graphId: next.graphId,
+  revision: next.revision,
+  generation: next.generation,
+  generationId: next.generationId,
+  ownerEpoch: next.ownerEpoch,
+  phase: next.phase,
+  updatedAt: next.updatedAt,
+  nodes: Object.fromEntries(Object.entries(next.nodes).filter(([id, node]) => (
+    !isDeepStrictEqual(prior.nodes[id], node)
+  ))),
+  ...next.terminal === undefined || isDeepStrictEqual(prior.terminal, next.terminal)
+    ? {}
+    : { terminal: next.terminal },
+  ...next.error === undefined || isDeepStrictEqual(prior.error, next.error)
+    ? {}
+    : { error: next.error },
+})
+
+/** Append one incremental run update and return the complete state held by the scheduler. */
+const appendRunUpdate = (agent: Agent, prior: GraphRun, next: GraphRun): GraphRun => {
+  agent.session.append('graph/run-update', runUpdateOf(prior, next))
+  return next
+}
+
 const waitForHeartbeat = async (milliseconds: number, signal: AbortSignal): Promise<boolean> => {
   if (signal.aborted) return false
   return await new Promise<boolean>((resolve) => {
@@ -1501,7 +1570,10 @@ export class GraphAdmissionController {
   }
 
   private canAdmit(role: GraphRole, config: GraphModeConfig, weight: number): boolean {
-    const workerLimit = config.limits.globalMaxParallel - config.limits.controllerReserve
+    const workerLimit = Math.min(
+      config.limits.globalMaxParallel - config.limits.controllerReserve,
+      graphActiveSubagentLimit(config),
+    )
     if (this.use.global >= workerLimit || (this.use.roles.get(role.id) ?? 0) >= role.maxParallel) return false
     if (role.model.model === undefined) return true
     const limit = config.limits.models.find(item => item.model === role.model.model
@@ -1928,6 +2000,14 @@ const executionModelProfile = (
   ...live?.availableDeviceBytes === undefined ? {} : { availableDeviceBytes: live.availableDeviceBytes },
 })
 
+function controllerFallbackModels(config: GraphModeConfig): readonly GraphControllerFallbackModel[] {
+  const controller = config.roles.find(role => role.controller && role.enabled)
+  return (config.controllerResilience?.fallbackModels ?? []).filter(route => (
+    route.controller
+    && (route.provider !== controller?.model.provider || route.model !== controller.model.model)
+  ))
+}
+
 /** `ctx.graphMode`: owns graph configuration, controller submission, and background runs. */
 export class GraphModeController extends Service {
   static inject = ['graphWorkers', 'llm', 'sessions', 'systemPrompt', 'tools']
@@ -1938,6 +2018,7 @@ export class GraphModeController extends Service {
   private readonly coordinationHeartbeatMs: number
   private readonly schedulerProvider: string | undefined
   private readonly schedulerHeartbeatMs: number
+  private readonly schedulerAuthorityFailures = new Map<GraphRunId, string>()
   private readonly externalOperationTimeoutMs: number
   private readonly recoveryScanIntervalMs: number
   private readonly environmentPolicy: GraphEnvironmentHostPolicy
@@ -1955,6 +2036,7 @@ export class GraphModeController extends Service {
   private readonly pauseRequests = new Map<string, GraphCheckpoint>()
   private readonly toolDisposers = new Map<Agent, () => void>()
   private readonly controlLocks = new Map<string, Promise<void>>()
+  private readonly controllerFallbacks = new WeakMap<Agent, { readonly turn: number; readonly index: number }>()
   private quiescence: Promise<void> | undefined
   private dependencyOwnsQuiescence = false
 
@@ -1979,7 +2061,12 @@ export class GraphModeController extends Service {
       dangerFullAccess: config.environmentDangerFullAccess ?? true,
     }
     const defaults = defaultGraphModeConfig()
-    const templateDefaults = { roles: defaults.roles, limits: defaults.limits, executionPolicy: defaults.executionPolicy }
+    const templateDefaults = {
+      roles: defaults.roles,
+      limits: defaults.limits,
+      executionPolicy: defaults.executionPolicy,
+      controllerResilience: defaults.controllerResilience ?? defaultGraphControllerResiliencePolicy(),
+    }
     this.templateSource = () => templateDefaults
     installSettingsSection(ctx, GRAPH_TEMPLATE_SETTINGS_NAMESPACE, GraphTemplateSettings, templateDefaults, {
       setSource: (current) => { this.templateSource = current },
@@ -1991,6 +2078,7 @@ export class GraphModeController extends Service {
           roles: template.roles,
           limits: template.limits,
           executionPolicy: template.executionPolicy,
+          controllerResilience: template.controllerResilience,
         })
       },
     })
@@ -2002,6 +2090,17 @@ export class GraphModeController extends Service {
         if (context.agent === undefined) return ''
         const projection = this.state(context.agent)
         return projection.config.active ? controllerPolicy(projection, this.environmentPolicy) : ''
+      },
+    })
+    ctx.systemPrompt.section({
+      name: 'graph:capacity',
+      order: 46,
+      text: (context) => {
+        if (context.agent === undefined) return ''
+        const projection = this.state(context.agent)
+        if (!projection.config.active) return ''
+        const limit = graphActiveSubagentLimit(projection.config)
+        return `Graph run-wide active subagent limit: ${String(limit)}. Split large objectives into dependency-ordered, model-sized Graph nodes. Every Graph Worker and all in-process descendants share this ceiling; never hide extra parallelism inside one node.`
       },
     })
 
@@ -2021,18 +2120,75 @@ export class GraphModeController extends Service {
       }
     })
 
-    ctx.on('agent/request', async ({ agent }, next) => {
+    ctx.on('agent/request', async ({ agent, turn }, next) => {
       const resolved = await next()
       const projection = this.state(agent)
       if (!projection.config.active) return resolved
       const controller = projection.config.roles.find(role => role.controller && role.enabled) as GraphRole
+      const recovery = this.controllerFallbacks.get(agent)
+      const fallback = recovery?.turn === turn
+        ? controllerFallbackModels(projection.config)[recovery.index]
+        : undefined
+      if (recovery !== undefined && recovery.turn !== turn) this.controllerFallbacks.delete(agent)
+      const selection = fallback ?? controller.model
       return {
         ...resolved,
-        ...controller.model.provider === undefined ? {} : { provider: controller.model.provider },
-        ...controller.model.model === undefined ? {} : { model: controller.model.model },
-        ...controller.model.reasoningEffort === undefined
+        ...selection.provider === undefined ? {} : { provider: selection.provider },
+        ...selection.model === undefined ? {} : { model: selection.model },
+        ...selection.reasoningEffort === undefined
           ? {}
-          : { reasoningEffort: ReasoningEffortId(controller.model.reasoningEffort) },
+          : { reasoningEffort: ReasoningEffortId(selection.reasoningEffort) },
+      }
+    })
+
+    ctx.on('agent/request-error', async ({ agent, turn, failure, signal }, next) => {
+      const downstream = await next()
+      if (downstream?.kind === 'retry' || signal.aborted) return downstream
+      const projection = this.state(agent)
+      const policy = projection.config.controllerResilience
+      if (!projection.config.active || policy?.enabled !== true
+        || !policy.retryableFailureCodes.includes(failure.code)) return downstream
+      const routes = controllerFallbackModels(projection.config)
+      const current = this.controllerFallbacks.get(agent)
+      const index = current?.turn === turn ? current.index + 1 : 0
+      if (index >= routes.length || index >= policy.maxFallbackAttemptsPerTurn) return downstream
+      const route = routes[index] as GraphControllerFallbackModel
+      this.controllerFallbacks.set(agent, { turn, index })
+      ctx.logger.warn(
+        'dsh-graph-mode: controller request failed with %s; retrying turn %d through %s/%s',
+        failure.code,
+        turn,
+        route.provider,
+        route.model,
+      )
+      return { kind: 'retry' }
+    })
+
+    ctx.on('compaction/policy', async (agent, _trigger, next): Promise<CompactionRequestPolicy> => {
+      const downstream = await next()
+      const graphAgent = agent as Agent
+      const projection = this.state(graphAgent)
+      const resilience = projection.config.controllerResilience
+      if (!projection.config.active || resilience?.compaction.enabled !== true) return downstream
+      const controller = projection.config.roles.find(role => role.controller && role.enabled) as GraphRole
+      const fallback = resilience.fallbackModels.find(route => route.compaction)
+      const selected = fallback ?? (
+        controller.model.provider !== undefined && controller.model.model !== undefined
+          ? { provider: controller.model.provider, model: controller.model.model }
+          : downstream.summarizationTarget
+      )
+      const reasoningEffort = fallback?.reasoningEffort ?? resilience.compaction.reasoningEffort
+      const { retainTokens: _retainedTokens, ...retained } = downstream
+      return {
+        ...retained,
+        thresholdRatio: resilience.compaction.thresholdRatio,
+        retainRatio: resilience.compaction.retainRatio,
+        maxTokens: resilience.compaction.maxTokens,
+        summarizationTarget: {
+          provider: selected.provider,
+          model: selected.model,
+          ...reasoningEffort === undefined ? {} : { reasoningEffort },
+        },
       }
     })
 
@@ -2084,6 +2240,7 @@ export class GraphModeController extends Service {
             roles: this.templateSource().roles,
             limits: this.templateSource().limits,
             executionPolicy: this.templateSource().executionPolicy,
+            controllerResilience: this.templateSource().controllerResilience,
           }
         this.setConfig(agent, { ...sessionConfig, active })
         if (active && input !== '') {
@@ -2481,14 +2638,42 @@ export class GraphModeController extends Service {
     const heartbeatFailure = new AbortController()
     let live = lease
     const heartbeat = (async (): Promise<void> => {
+      let lastFailureDetail = 'heartbeat deadline elapsed before renewal'
       while (!heartbeatStop.signal.aborted) {
-        const untilRenewal = Math.max(100, Math.floor((live.expiresAt - Date.now()) / 3))
+        const remaining = live.expiresAt - Date.now()
+        if (remaining <= 0) {
+          const failure = new GraphSchedulerAuthorityError(`scheduler lease expired; ${lastFailureDetail}`.slice(0, 2_000))
+          this.schedulerAuthorityFailures.set(run.id, failure.message)
+          heartbeatFailure.abort(failure)
+          return
+        }
+        const untilRenewal = Math.max(100, Math.floor(remaining / 3))
         if (!await waitForHeartbeat(Math.min(this.schedulerHeartbeatMs, untilRenewal), heartbeatStop.signal)) return
-        const operationSignal = this.externalOperationSignal(heartbeatStop.signal)
-        live = await this.waitForExternal(scheduler.heartbeat(this.schedulerLeaseRequest(live), operationSignal), operationSignal)
+        try {
+          const operationSignal = this.externalOperationSignal(heartbeatStop.signal)
+          live = await this.waitForExternal(scheduler.heartbeat(this.schedulerLeaseRequest(live), operationSignal), operationSignal)
+          lastFailureDetail = 'heartbeat deadline elapsed before renewal'
+        } catch (error) {
+          if (heartbeatStop.signal.reason !== undefined) return
+          lastFailureDetail = `last heartbeat failure: ${errorMessage(error)}`.slice(0, 1_900)
+          if (error instanceof GraphSchedulerAuthorityError) {
+            this.schedulerAuthorityFailures.set(run.id, error.message.slice(0, 2_000))
+            heartbeatFailure.abort(error)
+            return
+          }
+          this.ctx.logger.warn(
+            'dsh-graph-mode: scheduler heartbeat failed for run %s; retrying before lease expiry %s: %o',
+            run.id,
+            new Date(live.expiresAt).toISOString(),
+            error,
+          )
+        }
       }
     })().catch((error: unknown) => {
-      if (!heartbeatStop.signal.aborted) heartbeatFailure.abort(error)
+      if (!heartbeatStop.signal.aborted) {
+        this.schedulerAuthorityFailures.set(run.id, errorMessage(error).slice(0, 2_000))
+        heartbeatFailure.abort(error)
+      }
     })
     try {
       await this.drive(
@@ -2606,6 +2791,74 @@ export class GraphModeController extends Service {
     }
   }
 
+  /** Resolve one coherent external execution identity instead of mixing references from several generations. */
+  private recoverySource(projection: GraphProjection, run: GraphRun, nodeRun: GraphNodeRun): GraphRecoverySource {
+    const journal = (projection.operations[nodeRun.workId] ?? [])
+      .filter(item => item.runId === run.id && item.nodeId === nodeRun.nodeId)
+    const current = journal.filter(item => item.generationId === run.generationId)
+    if (current.some(item => item.externalReferences.length > 0)
+      || !current.some(item => item.stage === 'reconciled')) {
+      return { run, transitions: current, inherited: false }
+    }
+    const candidate = [...journal]
+      .reverse()
+      .find(item => item.generationId !== run.generationId && item.externalReferences.length > 0)
+    if (candidate === undefined) return { run, transitions: current, inherited: false }
+    const transitions = journal.filter(item => item.generationId === candidate.generationId)
+    return {
+      run: { ...run, generationId: candidate.generationId, ownerEpoch: candidate.ownerEpoch },
+      transitions,
+      inherited: true,
+    }
+  }
+
+  /** Recognize an expired continuation of Graph's claim without accepting a replaced or stale identity. */
+  private recoverableExpiredClaim(
+    observation: GraphCoordinationObservation,
+    claim: GraphExternalReference | undefined,
+    lease: GraphExternalReference | undefined,
+  ): boolean {
+    const current = observation.claim
+    if (observation.status !== 'unknown' || current === undefined || claim === undefined
+      || lease?.fencingToken === undefined || current.expiresAt > Date.now()) return false
+    return current.claimId === claim.id && current.fencingToken >= lease.fencingToken
+      && (current.fencingToken > lease.fencingToken || current.leaseId === lease.id)
+  }
+
+  /** Recheck a recovery-created checkpoint before the background scanner starts another generation. */
+  private async automaticallyRecoverableCheckpoint(
+    agent: Agent,
+    projection: GraphProjection,
+    run: GraphRun,
+    graph: GraphRevision,
+    coordination: GraphCoordination | undefined,
+  ): Promise<boolean> {
+    if (run.phase !== 'awaiting_user' || coordination === undefined || agent.session.header.cwd === undefined) return false
+    let found = false
+    for (const node of graph.nodes) {
+      const nodeRun = run.nodes[node.id]
+      if (nodeRun === undefined || terminalNodePhase(nodeRun.phase)) continue
+      const source = this.recoverySource(projection, run, nodeRun)
+      if (!source.inherited || node.effectPolicy !== 'idempotent') return false
+      found = true
+      const references = source.transitions.flatMap(item => item.externalReferences)
+      const claim = [...references].reverse().find(item => item.provider === 'graph-coordination')
+      const lease = [...references].reverse().find(item => item.provider === 'graph-coordination-lease')
+      const result = await coordination.reconcile({
+        protocolVersion: 3,
+        workId: nodeRun.workId,
+        activationId: activationIdOf(nodeRun.workId, source.run.generationId),
+        cwd: agent.session.header.cwd,
+        callerId: agent.id,
+        ...claim === undefined ? {} : { claimId: claim.id },
+        ...lease === undefined ? {} : { leaseId: lease.id, fencingToken: lease.fencingToken },
+      }, this.externalOperationSignal())
+      if (result.status !== 'absent' && result.status !== 'confirmed-running'
+        && !this.recoverableExpiredClaim(result.observation, claim, lease)) return false
+    }
+    return found
+  }
+
   private async recoverDurable(agent: Agent, requestedRunId?: GraphRunId): Promise<void> {
     const initialProjection = this.state(agent)
     for (const pending of Object.values(initialProjection.submissions)
@@ -2621,11 +2874,15 @@ export class GraphModeController extends Service {
     const coordination = this.ctx.get('graphCoordination')
     for (const prior of Object.values(projection.runs)) {
       const targeted = requestedRunId === prior.id
-      const recoverablePhase = ['queued', 'running'].includes(prior.phase)
-        || (targeted && ['paused', 'awaiting_user'].includes(prior.phase))
-      if (!recoverablePhase || (requestedRunId !== undefined && !targeted) || this.executions.has(prior.id)) continue
+      if ((requestedRunId !== undefined && !targeted) || this.executions.has(prior.id)) continue
       const graph = projection.graphs[prior.graphId]?.find(item => item.revision === prior.revision)
       if (graph === undefined) throw new Error(`cannot recover graph run ${prior.id}: revision is missing`)
+      const automaticCheckpoint = !targeted
+        && await this.automaticallyRecoverableCheckpoint(agent, projection, prior, graph, coordination)
+      const recoverablePhase = ['queued', 'running'].includes(prior.phase)
+        || automaticCheckpoint
+        || (targeted && ['paused', 'awaiting_user'].includes(prior.phase))
+      if (!recoverablePhase) continue
       const generation = prior.generation + 1
       const generationId = generationIdOf(agent, graph, generation)
       const ownership = await this.acquireSchedulerLease(agent, {
@@ -2643,14 +2900,15 @@ export class GraphModeController extends Service {
       try {
         const nodes: Record<string, GraphNodeRun> = {}
         const decisions = new Map<GraphNodeId, string>()
+        const authorityFailure = this.schedulerAuthorityFailures.get(prior.id)
         for (const node of graph.nodes) {
           const previous = prior.nodes[node.id] as GraphNodeRun
           if (terminalNodePhase(previous.phase)) {
             nodes[node.id] = previous
             continue
           }
-          const journal = projection.operations[previous.workId] ?? []
-          const references = journal.flatMap(item => item.externalReferences)
+          const source = this.recoverySource(projection, prior, previous)
+          const references = source.transitions.flatMap(item => item.externalReferences)
           const claim = [...references].reverse().find(reference => reference.provider === 'graph-coordination')
           const lease = [...references].reverse().find(reference => reference.provider === 'graph-coordination-lease')
           const resource = [...references].reverse().find(reference => reference.kind === 'model')
@@ -2662,7 +2920,9 @@ export class GraphModeController extends Service {
               if (resource !== undefined && !priorSettlements.some(item => item.kind === 'resource-release' && item.outcome === 'confirmed')) {
                 const resources = this.ctx.get('graphResources')
                 if (resources === undefined || resource.fencingToken === undefined) throw new Error('staged output has an unrecoverable model reservation')
-                const settlementId = settlementIdOf(previous.workId, prior.generationId, `resource-release:${resource.id}`)
+                const settlementId = settlementIdOf(previous.workId, prior.generationId, source.inherited
+                  ? `resource-release:${source.run.generationId}:${resource.id}`
+                  : `resource-release:${resource.id}`)
                 const settlementBase = this.beginSettlement(agent, {
                   id: settlementId,
                   operationId: operationIdOf(previous.workId, prior.generationId), workId: previous.workId,
@@ -2673,7 +2933,7 @@ export class GraphModeController extends Service {
                 await this.flushBeforeExternal(agent, this.externalOperationSignal())
                 await resources.report({
                   reservationId: resource.id as GraphResourceReservation['id'], providerId: resource.provider,
-                  workId: previous.workId, ownerEpoch: prior.ownerEpoch, fencingToken: resource.fencingToken,
+                  workId: previous.workId, ownerEpoch: source.run.ownerEpoch, fencingToken: resource.fencingToken,
                   outcome: 'completed', at: Date.now(), evidence: 'recovered staged Graph output',
                 }, this.externalOperationSignal())
                 agent.session.append('graph/settlement', { ...settlementBase, outcome: 'confirmed', completedAt: Date.now(), evidence: 'recovered staged Graph output' })
@@ -2684,7 +2944,9 @@ export class GraphModeController extends Service {
                 }
                 const roleId = prior.overrides[node.id]?.roleId ?? node.roleId
                 const role = prior.configSnapshot.roles.find(candidate => candidate.id === roleId) as GraphRole
-                const settlementId = settlementIdOf(previous.workId, prior.generationId, `coordination:${claim.id}`)
+                const settlementId = settlementIdOf(previous.workId, prior.generationId, source.inherited
+                  ? `coordination:${source.run.generationId}:${claim.id}`
+                  : `coordination:${claim.id}`)
                 const settlementBase = this.beginSettlement(agent, {
                   id: settlementId,
                   operationId: operationIdOf(previous.workId, prior.generationId), workId: previous.workId,
@@ -2696,14 +2958,16 @@ export class GraphModeController extends Service {
                 const currentLease = await this.latestCoordinationLease(coordination, {
                   protocolVersion: 3,
                   workId: previous.workId,
-                  activationId: activationIdOf(previous.workId, prior.generationId),
+                  activationId: activationIdOf(previous.workId, source.run.generationId),
                   cwd: agent.session.header.cwd,
                   callerId: agent.id,
                 }, { claimId: claim.id, leaseId: lease.id, fencingToken: lease.fencingToken }, this.externalOperationSignal())
                 await coordination.settle({
                   protocolVersion: 3, graph, node, role, runId: prior.id, cwd: agent.session.header.cwd,
-                  workId: previous.workId, activationId: activationIdOf(previous.workId, prior.generationId), ownerEpoch: prior.ownerEpoch,
-                  operationId: operationIdOf(previous.workId, prior.generationId), callerId: agent.id,
+                  workId: previous.workId,
+                  activationId: activationIdOf(previous.workId, source.run.generationId),
+                  ownerEpoch: source.run.ownerEpoch,
+                  operationId: operationIdOf(previous.workId, source.run.generationId), callerId: agent.id,
                   claimId: currentLease.claimId, leaseId: currentLease.leaseId, fencingToken: currentLease.fencingToken,
                   settlementId, outcome: 'succeeded',
                   evidence: previous.output.coordinationSummary ?? previous.output.summary,
@@ -2718,17 +2982,18 @@ export class GraphModeController extends Service {
             }
             continue
           }
-          if (previous.attempts.length >= node.maxAttempts) {
-            nodes[node.id] = { ...previous, phase: graph.terminationPolicy.onExhausted === 'awaiting_user' ? 'awaiting_user' : 'exhausted' }
-            decisions.set(node.id, 'attempt budget exhausted during recovery')
-            continue
-          }
+          const settledAttempts = previous.attempts
+            .filter(attempt => attempt.finishedAt !== undefined)
+            .map((attempt, index) => ({ ...attempt, number: index + 1 }))
+          const interruptedAttempts = previous.attempts.length - settledAttempts.length
           const undispatched = worker === undefined
           let recoverable = node.effectPolicy === 'idempotent'
             || (node.effectPolicy === 'reconcile' && undispatched)
           const cleanupEvidence: string[] = []
           if (worker !== undefined && workspace !== undefined) {
-            const settlementId = settlementIdOf(previous.workId, prior.generationId, `worker-reconcile:${worker.id}:${workspace.id}`)
+            const settlementId = settlementIdOf(previous.workId, prior.generationId, source.inherited
+              ? `worker-reconcile:${source.run.generationId}:${worker.id}:${workspace.id}`
+              : `worker-reconcile:${worker.id}:${workspace.id}`)
             const settlement = this.beginSettlement(agent, {
               id: settlementId,
               operationId: operationIdOf(previous.workId, prior.generationId),
@@ -2745,10 +3010,10 @@ export class GraphModeController extends Service {
                 const disposition = await this.ctx.graphWorkers.reconcile(worker.provider, {
                   protocolVersion: 1,
                   workId: previous.workId,
-                  operationId: operationIdOf(previous.workId, prior.generationId),
+                  operationId: operationIdOf(previous.workId, source.run.generationId),
                   runId: prior.id,
-                  generationId: prior.generationId,
-                  ownerEpoch: prior.ownerEpoch,
+                  generationId: source.run.generationId,
+                  ownerEpoch: source.run.ownerEpoch,
                   workerId: GraphWorkerId(worker.id),
                   workspaceId: GraphWorkspaceAllocationId(workspace.id),
                   workspaceMode: node.workspace?.mode ?? this.workspaceMode,
@@ -2779,7 +3044,9 @@ export class GraphModeController extends Service {
             const priorSettlements = Object.values(this.state(agent).settlements).flat().filter(item => item.workId === previous.workId)
             if (!priorSettlements.some(item => item.kind === 'resource-release' && item.externalReference?.id === resource.id && item.outcome === 'confirmed')) {
               const resources = this.ctx.get('graphResources')
-              const settlementId = settlementIdOf(previous.workId, prior.generationId, `resource-release:${resource.id}`)
+              const settlementId = settlementIdOf(previous.workId, prior.generationId, source.inherited
+                ? `resource-release:${source.run.generationId}:${resource.id}`
+                : `resource-release:${resource.id}`)
               const settlement = this.beginSettlement(agent, {
                 id: settlementId,
                 operationId: operationIdOf(previous.workId, prior.generationId),
@@ -2799,7 +3066,7 @@ export class GraphModeController extends Service {
                     reservationId: resource.id as GraphResourceReservation['id'],
                     providerId: resource.provider,
                     workId: previous.workId,
-                    ownerEpoch: prior.ownerEpoch,
+                    ownerEpoch: source.run.ownerEpoch,
                     fencingToken: resource.fencingToken,
                     at: Date.now(),
                     evidence: 'recovery found a reservation without a staged node output',
@@ -2831,19 +3098,21 @@ export class GraphModeController extends Service {
               const result = await coordination.reconcile({
                 protocolVersion: 3,
                 workId: previous.workId,
-                activationId: activationIdOf(previous.workId, prior.generationId),
+                activationId: activationIdOf(previous.workId, source.run.generationId),
                 cwd: agent.session.header.cwd ?? '',
                 callerId: agent.id,
                 ...claim === undefined ? {} : { claimId: claim.id },
                 ...lease === undefined ? {} : { leaseId: lease.id, fencingToken: lease.fencingToken },
               }, this.externalOperationSignal())
               decision = `${result.status}: ${result.evidence}`
-              if (result.status === 'confirmed-running') {
+              if (result.status === 'confirmed-running'
+                || this.recoverableExpiredClaim(result.observation, claim, lease)) {
                 const cancellation = await this.settleRecoveredCoordinationCancellation(
                   agent,
-                  prior,
+                  source.run,
                   node.id,
                   'recovery superseded the prior execution generation',
+                  prior,
                 )
                 cleanupEvidence.push(`coordination orphan cancellation ${cancellation}`)
                 recoverable = recoverable && cancellation === 'confirmed'
@@ -2856,7 +3125,16 @@ export class GraphModeController extends Service {
             }
           }
           if (cleanupEvidence.length > 0) decision = `${decision}; ${cleanupEvidence.join('; ')}`
-          nodes[node.id] = { ...previous, phase: recoverable ? 'pending' : 'awaiting_user' }
+          if (interruptedAttempts > 0) {
+            decision = `${decision}; ${String(interruptedAttempts)} unfinished attempt(s) remain in the superseded generation audit and do not consume the node attempt budget`
+          }
+          if (authorityFailure !== undefined) decision = `scheduler authority lost: ${authorityFailure}; ${decision}`
+          const attemptBudgetExhausted = settledAttempts.length >= node.maxAttempts
+          const phase = attemptBudgetExhausted
+            ? graph.terminationPolicy.onExhausted === 'awaiting_user' ? 'awaiting_user' : 'exhausted'
+            : recoverable ? 'pending' : 'awaiting_user'
+          nodes[node.id] = { ...previous, attempts: settledAttempts, phase }
+          if (attemptBudgetExhausted) decision = `${decision}; attempt budget exhausted during recovery`
           decisions.set(node.id, decision)
         }
         const now = Date.now()
@@ -2881,6 +3159,37 @@ export class GraphModeController extends Service {
             }
           }
         }
+        for (const node of graph.nodes) {
+          if (run.nodes[node.id]?.phase !== 'awaiting_user') continue
+          const currentProjection = this.state(agent)
+          const existing = Object.values(currentProjection.checkpoints).find(item => (
+            item.runId === run.id && item.nodeId === node.id && item.status === 'pending'
+          ))
+          if (existing !== undefined) continue
+          const decision = decisions.get(node.id) ?? 'Recovery could not prove that the node is safe to continue.'
+          const checkpoint: GraphCheckpoint = {
+            id: GraphCheckpointId(stableId('checkpoint', [run.id, run.generationId, node.id, 'recovery'])),
+            graphId: run.graphId,
+            revision: run.revision,
+            runId: run.id,
+            nodeId: node.id,
+            kind: 'awaiting_user',
+            status: 'pending',
+            createdAt: Date.now(),
+            iteration: Object.values(currentProjection.checkpoints).filter(item => item.runId === run.id).length + 1,
+            reason: `Recovery paused node ${node.id}: ${decision}`,
+            issues: [{
+              id: `recovery-${node.id}-${String(run.generation)}`,
+              severity: 'blocking',
+              summary: decision,
+              evidence: [`run ${run.id}`, `generation ${run.generationId}`],
+              ownerNodeIds: [node.id],
+            }],
+          }
+          validateGraphCheckpoint(checkpoint, currentProjection)
+          agent.session.append('graph/checkpoint', checkpoint)
+        }
+        this.schedulerAuthorityFailures.delete(prior.id)
         if (run.phase === 'awaiting_user') {
           if (schedulerLease !== undefined) {
             const scheduler = this.ctx.get('graphScheduler')
@@ -3100,7 +3409,13 @@ export class GraphModeController extends Service {
     this.syncSubmitTool(agent, config.active)
   }
 
-  private async requestCoordinationCancellation(agent: Agent, run: GraphRun, nodeId: GraphNodeId, reason: string): Promise<'confirmed' | 'failed' | 'unavailable'> {
+  private async requestCoordinationCancellation(
+    agent: Agent,
+    run: GraphRun,
+    nodeId: GraphNodeId,
+    reason: string,
+    recordRun: GraphRun = run,
+  ): Promise<'confirmed' | 'failed' | 'unavailable'> {
     const coordination = this.ctx.get('graphCoordination')
     const cwd = agent.session.header.cwd
     const nodeRun = run.nodes[nodeId]
@@ -3120,14 +3435,18 @@ export class GraphModeController extends Service {
     const configuredRole = run.configSnapshot.roles.find(item => item.id === roleId)
     if (configuredRole === undefined) return 'unavailable'
     const role: GraphRole = { ...configuredRole, model: { ...configuredRole.model, ...override?.model } }
-    const settlementId = settlementIdOf(nodeRun.workId, run.generationId, 'cancellation')
+    const settlementId = settlementIdOf(
+      nodeRun.workId,
+      recordRun.generationId,
+      recordRun.generationId === run.generationId ? 'cancellation' : `cancellation:${run.generationId}`,
+    )
     const settlementBase = this.beginSettlement(agent, {
       id: settlementId,
-      operationId: operationIdOf(nodeRun.workId, run.generationId),
+      operationId: operationIdOf(nodeRun.workId, recordRun.generationId),
       workId: nodeRun.workId,
       runId: run.id,
-      generationId: run.generationId,
-      ownerEpoch: run.ownerEpoch,
+      generationId: recordRun.generationId,
+      ownerEpoch: recordRun.ownerEpoch,
       kind: 'cancellation' as const,
       externalReference: claim,
     })
@@ -3179,7 +3498,13 @@ export class GraphModeController extends Service {
   }
 
   /** Terminally settle a recovered orphan claim only after Worker reconciliation has stopped its prior generation. */
-  private async settleRecoveredCoordinationCancellation(agent: Agent, run: GraphRun, nodeId: GraphNodeId, reason: string): Promise<'confirmed' | 'failed' | 'unavailable'> {
+  private async settleRecoveredCoordinationCancellation(
+    agent: Agent,
+    run: GraphRun,
+    nodeId: GraphNodeId,
+    reason: string,
+    recordRun: GraphRun = run,
+  ): Promise<'confirmed' | 'failed' | 'unavailable'> {
     const coordination = this.ctx.get('graphCoordination')
     const cwd = agent.session.header.cwd
     const nodeRun = run.nodes[nodeId]
@@ -3199,17 +3524,84 @@ export class GraphModeController extends Service {
     const configuredRole = run.configSnapshot.roles.find(item => item.id === roleId)
     if (configuredRole === undefined) return 'unavailable'
     const role: GraphRole = { ...configuredRole, model: { ...configuredRole.model, ...override?.model } }
-    const settlementId = settlementIdOf(nodeRun.workId, run.generationId, `coordination:${claim.id}`)
+    const settlementId = settlementIdOf(
+      nodeRun.workId,
+      recordRun.generationId,
+      recordRun.generationId === run.generationId
+        ? `coordination:${claim.id}`
+        : `coordination:${run.generationId}:${claim.id}`,
+    )
     if (projection.settlements[settlementId]?.at(-1)?.outcome === 'confirmed') return 'confirmed'
-    const requested = await this.requestCoordinationCancellation(agent, run, nodeId, reason)
-    if (requested !== 'confirmed') return requested
+    const coordinationRequest = {
+      protocolVersion: 3 as const,
+      graph,
+      node,
+      role,
+      runId: run.id,
+      cwd,
+      workId: nodeRun.workId,
+      activationId: activationIdOf(nodeRun.workId, run.generationId),
+      ownerEpoch: run.ownerEpoch,
+      operationId: operationIdOf(nodeRun.workId, run.generationId),
+      callerId: agent.id,
+    }
+    let currentLease: Pick<GraphCoordinationClaim, 'claimId' | 'leaseId' | 'fencingToken' | 'expiresAt'>
+    try {
+      currentLease = await this.latestCoordinationLease(coordination, {
+        protocolVersion: 3,
+        workId: nodeRun.workId,
+        activationId: coordinationRequest.activationId,
+        cwd,
+        callerId: agent.id,
+      }, { claimId: claim.id, leaseId: lease.id, fencingToken: lease.fencingToken }, this.externalOperationSignal())
+      if (currentLease.expiresAt <= Date.now()) {
+        await this.flushBeforeExternal(agent, this.externalOperationSignal())
+        const reclaimed = await coordination.claim(coordinationRequest, this.externalOperationSignal())
+        if (reclaimed.claimId !== claim.id || reclaimed.fencingToken < currentLease.fencingToken
+          || (reclaimed.fencingToken === currentLease.fencingToken && reclaimed.leaseId !== currentLease.leaseId)) {
+          throw new Error(`coordination reclaim replaced or regressed claim ${claim.id}`)
+        }
+        if (reclaimed.terminal !== undefined) {
+          if (reclaimed.terminal.outcome !== 'canceled') {
+            throw new Error(`coordination reclaim found terminal outcome ${reclaimed.terminal.outcome}`)
+          }
+          const terminalSettlement = this.beginSettlement(agent, {
+            id: settlementId,
+            operationId: operationIdOf(nodeRun.workId, recordRun.generationId),
+            workId: nodeRun.workId,
+            runId: run.id,
+            generationId: recordRun.generationId,
+            ownerEpoch: recordRun.ownerEpoch,
+            kind: 'coordination' as const,
+            externalReference: claim,
+          })
+          if (terminalSettlement !== undefined) {
+            agent.session.append('graph/settlement', {
+              ...terminalSettlement,
+              outcome: 'confirmed',
+              completedAt: Date.now(),
+              evidence: reclaimed.terminal.evidence,
+            })
+          }
+          return 'confirmed'
+        }
+        if (reclaimed.expiresAt <= Date.now()) throw new Error(`coordination reclaim for ${claim.id} returned an expired lease`)
+        currentLease = reclaimed
+      } else {
+        const requested = await this.requestCoordinationCancellation(agent, run, nodeId, reason, recordRun)
+        if (requested !== 'confirmed') return requested
+      }
+    } catch (error) {
+      this.ctx.logger.warn('dsh-graph-mode: recovered coordination claim could not be reclaimed for node %s: %o', nodeId, error)
+      return 'failed'
+    }
     const settlementBase = this.beginSettlement(agent, {
       id: settlementId,
-      operationId: operationIdOf(nodeRun.workId, run.generationId),
+      operationId: operationIdOf(nodeRun.workId, recordRun.generationId),
       workId: nodeRun.workId,
       runId: run.id,
-      generationId: run.generationId,
-      ownerEpoch: run.ownerEpoch,
+      generationId: recordRun.generationId,
+      ownerEpoch: recordRun.ownerEpoch,
       kind: 'coordination' as const,
       externalReference: claim,
     })
@@ -3217,25 +3609,8 @@ export class GraphModeController extends Service {
     await this.flushBeforeExternal(agent, this.externalOperationSignal())
     const evidence = `dsh graph node ${node.id} canceled during recovery: ${reason}`
     try {
-      const currentLease = await this.latestCoordinationLease(coordination, {
-        protocolVersion: 3,
-        workId: nodeRun.workId,
-        activationId: activationIdOf(nodeRun.workId, run.generationId),
-        cwd,
-        callerId: agent.id,
-      }, { claimId: claim.id, leaseId: lease.id, fencingToken: lease.fencingToken }, this.externalOperationSignal())
       await coordination.settle({
-        protocolVersion: 3,
-        graph,
-        node,
-        role,
-        runId: run.id,
-        cwd,
-        workId: nodeRun.workId,
-        activationId: activationIdOf(nodeRun.workId, run.generationId),
-        ownerEpoch: run.ownerEpoch,
-        operationId: operationIdOf(nodeRun.workId, run.generationId),
-        callerId: agent.id,
+        ...coordinationRequest,
         claimId: currentLease.claimId,
         leaseId: currentLease.leaseId,
         fencingToken: currentLease.fencingToken,
@@ -3417,7 +3792,7 @@ export class GraphModeController extends Service {
               id,
               ['succeeded', 'skipped'].includes(state.phase) ? state : { ...state, phase: 'awaiting_user' as const },
             ]))
-            agent.session.append('graph/run', { ...run, phase: 'awaiting_user', updatedAt: now, nodes })
+            appendRunUpdate(agent, run, { ...run, phase: 'awaiting_user', updatedAt: now, nodes })
           }
         }
         if (modification) {
@@ -3456,7 +3831,7 @@ export class GraphModeController extends Service {
           )
           const now = Date.now()
           const nodes = Object.fromEntries(Object.entries(run.nodes).map(([id, state]) => [id, terminalNodePhase(state.phase) ? state : { ...state, phase: 'canceled' as const }]))
-          agent.session.append('graph/run', { ...run, phase: 'canceled', updatedAt: now, nodes, terminal: { outcome: 'canceled', rule: 'human-cancel-run', acceptedAt: now } })
+          appendRunUpdate(agent, run, { ...run, phase: 'canceled', updatedAt: now, nodes, terminal: { outcome: 'canceled', rule: 'human-cancel-run', acceptedAt: now } })
         } else {
           result = { outcome: 'no-op', detail: `run ${run.id} is already terminal with phase ${run.phase}` }
         }
@@ -3563,6 +3938,9 @@ export class GraphModeController extends Service {
           failControl(`checkpoint ${checkpointId} does not belong to the addressed run generation`)
         }
         if (checkpoint.status !== 'pending') failControl(`checkpoint ${checkpointId} is already ${checkpoint.status}`)
+        if (taskModificationCheckpoint(checkpoint)) {
+          failControl('task modification checkpoint approval requires a replacement revision')
+        }
         if (checkpoint.proposal !== undefined) {
           const proposal = checkpoint.proposal
           const replacement: GraphRevision = {
@@ -3624,7 +4002,7 @@ export class GraphModeController extends Service {
             id,
             terminalNodePhase(state.phase) ? state : { ...state, phase: 'canceled' as const },
           ]))
-          agent.session.append('graph/run', {
+          appendRunUpdate(agent, run, {
             ...run,
             phase: 'canceled',
             updatedAt: now,
@@ -4027,7 +4405,9 @@ export class GraphModeController extends Service {
     try {
       agent.session.append('graph/change', { kind: 'graph/revision', version: 2, graph, current: true })
       if (submission.intent === 'revise') {
-        for (const checkpoint of Object.values(state.checkpoints)) {
+        // External preparation may overlap a control operation. Resolve only
+        // checkpoints that are still pending at this synchronous commit point.
+        for (const checkpoint of Object.values(this.state(agent).checkpoints)) {
           if (checkpoint.graphId !== graph.graphId || checkpoint.revision !== graph.revision - 1 || checkpoint.status !== 'pending') continue
           agent.session.append('graph/checkpoint', {
             ...checkpoint,
@@ -4482,8 +4862,7 @@ export class GraphModeController extends Service {
     const assertAuthority = (): void => { authoritySignal?.throwIfAborted() }
     const publish = (next: GraphRun): void => {
       assertAuthority()
-      agent.session.append('graph/run', next)
-      current = next
+      current = appendRunUpdate(agent, current, next)
     }
     const updateNode = (id: GraphNodeId, replacement: GraphNodeRun): void => {
       // A stopped scheduler execution may still receive a queued Worker-monitor callback.
@@ -4704,8 +5083,7 @@ export class GraphModeController extends Service {
           pendingWork,
         }).slice(0, graph.terminationPolicy.maxOutputBytes)
       }
-      const taskModification = checkpoint?.kind === 'awaiting_user'
-        && checkpoint.issues?.some(issue => issue.id === `modify-${checkpoint.nodeId}`)
+      const taskModification = checkpoint !== undefined && taskModificationCheckpoint(checkpoint)
       if (!taskModification) {
         const guidance = checkpoint?.kind === 'environment'
           ? 'Present the exact environment capabilities, sandbox mode, commands, and rollback commands to the user. Wait for the existing checkpoint to be approved or rejected; do not call graph_submit, revise the graph, execute a command, or claim approval.'
@@ -5433,9 +5811,10 @@ export class GraphModeController extends Service {
         const controlOutput = node.kind === 'review' || node.kind === 'verification'
           ? '\nThis is a control node. Set data.decision to approved, rejected, or needs-user. Always set data.issues to an array; each issue requires id, blocking or non-blocking severity, summary, evidence strings, and ownerNodeIds.'
           : ''
-        const executionProtocol = node.kind === 'review' || node.kind === 'verification'
+        const capacityProtocol = `\nActive subagent capacity: this Worker and every in-process descendant share the Graph run ceiling of ${String(graphActiveSubagentLimit(config))}. Do not retry CAPACITY_EXHAUSTED. Return remaining work so the controller can split it into smaller sequential Graph nodes.`
+        const executionProtocol = capacityProtocol + (node.kind === 'review' || node.kind === 'verification'
           ? ''
-          : '\nExecution protocol: keep the visible plan brief; perform a file read, edit, write, or focused verification early; persist one coherent deliverable before planning another; verify each persisted increment; and do not draft several complete files in hidden reasoning before using tools. Hidden reasoning and failed verification are not recoverable progress. If a Windows sandboxed dependency or build command fails with spawn EPERM because piped process I/O is unavailable, retry that exact command once through the tool\'s narrow sandbox-escalation option with a justification. Do not patch dependencies, package-manager caches, or build tools to evade the sandbox.'
+          : '\nExecution protocol: keep the visible plan brief; perform a file read, edit, write, or focused verification early; persist one coherent deliverable before planning another; verify each persisted increment; and do not draft several complete files in hidden reasoning before using tools. Hidden reasoning and failed verification are not recoverable progress. If a Windows sandboxed dependency or build command fails with spawn EPERM because piped process I/O is unavailable, retry that exact command once through the tool\'s narrow sandbox-escalation option with a justification. Do not patch dependencies, package-manager caches, or build tools to evade the sandbox.')
         const workspaceMode = node.workspace?.mode ?? this.workspaceMode
         const workspaceReadRoots = node.workspace?.readRoots ?? ['.']
         const workspaceWriteRoots = node.workspace?.writeRoots ?? (workspaceMode === 'read-only-snapshot' ? [] : ['.'])
@@ -5477,6 +5856,7 @@ export class GraphModeController extends Service {
             generationId: currentRun.generationId,
             ownerEpoch: currentRun.ownerEpoch,
             fencingToken: claim?.fencingToken ?? currentRun.ownerEpoch,
+            activeSubagentLimit: graphActiveSubagentLimit(config),
             parent: agent,
             node,
             role: effectiveRole,

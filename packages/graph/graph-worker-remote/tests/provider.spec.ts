@@ -57,7 +57,7 @@ const assignment = (sourceRoot: string): GraphWorkerAssignment => ({
   generationId: GraphRunGenerationId('generation-1'),
   ownerEpoch: 1,
   fencingToken: 1,
-  parent: { id: SessionId('parent'), session: { header: { cwd: sourceRoot } } } as unknown as Agent,
+  parent: { id: SessionId('parent'), options: {}, session: { header: { cwd: sourceRoot } } } as unknown as Agent,
   node: {
     id: GraphNodeId('node-1'), title: 'Analyze', objective: 'Analyze.', kind: 'analysis', roleId: GraphRoleId('analyst'),
     acceptanceCriteria: ['Return evidence.'], outputSchema: defaultGraphOutputSchema(), maxAttempts: 1, weight: 1,

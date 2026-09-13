@@ -6,6 +6,8 @@
 
 Provider 必须在租约过期后继续保留 fencing 计数。接管者获得严格递增的 token，Graph Mode 将该 token 用作运行的 `ownerEpoch`。
 
+`GraphSchedulerAuthorityError` 标识已经确认被 fencing 或过期的心跳失败。Consumer 遇到该错误会立即停止写入；不能证明所有权已经丢失的传输与存储错误，只能在当前租约仍然存活时重试。
+
 每个 Provider 都运行共享 Scheduler 一致性测试套件。该套件验证精确幂等准入、竞争 Owner 排他、不可变 Session 身份、Minimum Epoch 准入、精确 Heartbeat 与 Release、替代租约 Fencing，以及陈旧 Owner 拒绝。导出的 `MemoryGraphSchedulerProvider` 为单进程组合提供相同语义，但不声称具备重启持久性。
 
 ## 模型体验

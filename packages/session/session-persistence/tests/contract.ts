@@ -291,6 +291,14 @@ export function runPersistenceContract(name: string, make: () => Promise<Contrac
           .rejects.toBe(reason)
         await expect(persistence.readFrom(SessionId('cancelled-read-from'), 0, controller.signal))
           .rejects.toBe(reason)
+        await expect(persistence.readRange(SessionId('cancelled-range'), { fromSeq: 0 }, controller.signal))
+          .rejects.toBe(reason)
+        await expect(persistence.findEventSequences(SessionId('cancelled-query'), {
+          types: ['user/message'], limit: 1,
+        }, controller.signal)).rejects.toBe(reason)
+        await expect(persistence.readEventPage(SessionId('cancelled-page'), {
+          fromSeq: 0, excludeTypePrefixes: ['graph/'], maxEvents: 10, maxBytes: 1024,
+        }, controller.signal)).rejects.toBe(reason)
       } finally {
         await dispose()
       }
@@ -326,6 +334,57 @@ export function runPersistenceContract(name: string, make: () => Promise<Contrac
         await expect(persistence.readFrom(SessionId('absent-read-from'), 0)).rejects.toThrow('not found')
         await expect(persistence.readFrom(m.id, -1)).rejects.toThrow('non-negative safe integer')
         await expect(persistence.readFrom(m.id, 1.5)).rejects.toThrow('non-negative safe integer')
+      } finally {
+        await dispose()
+      }
+    })
+
+    it('reads bounded ranges and newest event positions without loading unrelated payloads', async () => {
+      const { persistence, dispose } = await make()
+      try {
+        const m = meta('bounded-read', '/work')
+        const log = oneTurnLog()
+        await persistence.create(m)
+        await persistence.append(m.id, log)
+
+        await expect(persistence.readRange(m.id, { fromSeq: 1, toSeq: 4 }))
+          .resolves.toMatchObject({ events: log.slice(1, 4) })
+        await expect(persistence.readRange(m.id, { fromSeq: log.length, toSeq: log.length }))
+          .resolves.toMatchObject({ events: [] })
+        await expect(persistence.findEventSequences(m.id, {
+          types: ['user/message', 'assistant/message'], limit: 10,
+        })).resolves.toMatchObject({ sequences: [3, 1] })
+        await expect(persistence.findEventSequences(m.id, {
+          types: ['user/message', 'assistant/message'], beforeSeq: 3, limit: 10,
+        })).resolves.toMatchObject({ sequences: [1] })
+        await expect(persistence.findEventSequences(m.id, {
+          types: ['user/message', 'assistant/message'], surfaceOp: 'append', limit: 10,
+        })).resolves.toMatchObject({ sequences: [3, 1] })
+        await expect(persistence.readEventPage(m.id, {
+          fromSeq: 0,
+          excludeTypePrefixes: ['step/'],
+          maxEvents: 3,
+          maxBytes: 10_000,
+        })).resolves.toMatchObject({
+          events: [log[1], log[3], log[5]],
+          hasMore: true,
+        })
+        const bytePage = await persistence.readEventPage(m.id, {
+          fromSeq: 0,
+          excludeTypePrefixes: [],
+          maxEvents: 10,
+          maxBytes: 1,
+        })
+        expect(bytePage.events).toHaveLength(1)
+        expect(bytePage.events[0]?.seq).toBe(log.at(-1)?.seq)
+        expect(bytePage.hasMore).toBe(true)
+
+        await expect(persistence.readRange(m.id, { fromSeq: -1 })).rejects.toThrow('non-negative safe integers')
+        await expect(persistence.findEventSequences(m.id, { types: [], limit: 1 })).rejects.toThrow('requires event types')
+        await expect(persistence.findEventSequences(m.id, { types: ['turn/start'], limit: 0 })).rejects.toThrow('positive safe limit')
+        await expect(persistence.readEventPage(m.id, {
+          fromSeq: 0, excludeTypePrefixes: [''], maxEvents: 1, maxBytes: 1,
+        })).rejects.toThrow('non-empty excluded prefixes')
       } finally {
         await dispose()
       }

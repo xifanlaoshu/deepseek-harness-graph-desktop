@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-scheduler-sqlite/README.md
-README.md: 250c6c7d8dcccb68fd71381d32d0c8b076af74c9
-README.zh.md: f89de1cf24f258a0e069da0ec9396860b5cc2774
+README.md: fbcacc5206429e21a95683a8543749e9669c7ec6
+README.zh.md: 9134ab87a57067e3d15e94851a02627140594655

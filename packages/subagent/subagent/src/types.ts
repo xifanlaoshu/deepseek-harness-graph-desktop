@@ -90,6 +90,8 @@ export interface SubagentCapabilities {
   readonly toolFilter: boolean
   readonly persona: boolean
   readonly sandboxMode?: boolean
+  /** Provider publishes an in-process child carrying inherited active-capacity options. */
+  readonly activeCapacity?: boolean
 }
 
 /**

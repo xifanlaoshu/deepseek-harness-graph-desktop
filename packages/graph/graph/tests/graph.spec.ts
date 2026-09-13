@@ -34,7 +34,7 @@ import {
 } from '../src/index.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import type { GraphModeConfig, GraphNode, GraphRevision, GraphRun } from '../src/index.ts'
+import type { GraphModeConfig, GraphNode, GraphNodeRun, GraphRevision, GraphRun } from '../src/index.ts'
 
 const node = (id: string, role = 'engineer'): GraphNode => ({
   id: GraphNodeId(id),
@@ -284,6 +284,42 @@ describe('graph domain', () => {
         })
       })
     }
+    const resilience = base.controllerResilience as NonNullable<typeof base.controllerResilience>
+    expectCode('GRAPH_CONTROLLER_FALLBACK_ATTEMPTS', () => {
+      validateGraphModeConfig({
+        ...base,
+        controllerResilience: { ...resilience, maxFallbackAttemptsPerTurn: 0 },
+      })
+    })
+    expectCode('GRAPH_CONTROLLER_FALLBACK_DUPLICATE', () => {
+      const route = { provider: 'advanced', model: 'large', controller: true, compaction: true }
+      validateGraphModeConfig({
+        ...base,
+        controllerResilience: { ...resilience, fallbackModels: [route, route] },
+      })
+    })
+    expectCode('GRAPH_CONTROLLER_FALLBACK_PURPOSE', () => {
+      validateGraphModeConfig({
+        ...base,
+        controllerResilience: {
+          ...resilience,
+          fallbackModels: [{ provider: 'advanced', model: 'large', controller: false, compaction: false }],
+        },
+      })
+    })
+    expectCode('GRAPH_COMPACTION_RATIOS', () => {
+      validateGraphModeConfig({
+        ...base,
+        controllerResilience: {
+          ...resilience,
+          compaction: { ...resilience.compaction, thresholdRatio: 0.5, retainRatio: 0.5 },
+        },
+      })
+    })
+    expect(() => {
+      const { controllerResilience: _legacyOmission, ...legacy } = base
+      validateGraphModeConfig(legacy)
+    }).not.toThrow()
   })
 
   it('rejects malformed revision semantics and accepts all condition operators', () => {
@@ -502,6 +538,36 @@ describe('graph domain', () => {
     expectCode('GRAPH_RUN_REVISION', () => { applyGraphEvent(emptyGraphProjection(), sessionEvent('graph/run', run)) })
     state = applyGraphEvent(state, sessionEvent('graph/run', run, 3))
     expect(applyGraphEvent(state, sessionEvent('turn/start', { turn: 1 }))).toBe(state)
+    const { terminal: _terminal, ...activeBase } = run
+    const activeRun: GraphRun = { ...activeBase, id: GraphRunId('active-run'), phase: 'running' }
+    const updateState = applyGraphEvent(state, sessionEvent('graph/run', activeRun, 4))
+    const node = activeRun.nodes['a'] as GraphNodeRun
+    const update = {
+      version: 1 as const,
+      runId: activeRun.id,
+      graphId: activeRun.graphId,
+      revision: activeRun.revision,
+      generation: activeRun.generation,
+      generationId: activeRun.generationId,
+      ownerEpoch: activeRun.ownerEpoch,
+      phase: 'running' as const,
+      updatedAt: 5,
+      nodes: { a: { ...node, phase: 'ready' as const } },
+    }
+    const updated = applyGraphEvent(updateState, sessionEvent('graph/run-update', update, 5))
+    expect(updated.runs[activeRun.id]).toMatchObject({ phase: 'running', updatedAt: 5, nodes: { a: { phase: 'ready' } } })
+    expectCode('GRAPH_RUN_UPDATE_IDENTITY', () => {
+      applyGraphEvent(updateState, sessionEvent('graph/run-update', { ...update, runId: GraphRunId('missing') }, 5))
+    })
+    expectCode('GRAPH_RUN_UPDATE_IDENTITY', () => {
+      applyGraphEvent(updateState, sessionEvent('graph/run-update', { ...update, ownerEpoch: activeRun.ownerEpoch + 1 }, 5))
+    })
+    expectCode('GRAPH_RUN_UPDATE_NODE', () => {
+      applyGraphEvent(updateState, sessionEvent('graph/run-update', {
+        ...update,
+        nodes: { missing: { ...node, nodeId: GraphNodeId('missing') } },
+      }, 5))
+    })
     expectCode('GRAPH_RUN_REPLACEMENT', () => {
       applyGraphEvent(state, sessionEvent('graph/run', { ...run, graphId: GraphId('other'), revision: 1 }, 4))
     })
@@ -527,8 +593,16 @@ describe('graph domain', () => {
     expectCode('GRAPH_RUN_REPLACEMENT', () => {
       applyGraphEvent(state, sessionEvent('graph/run', { ...run, updatedAt: 6 }, 5))
     })
-    const folded = foldGraph([configEvent, firstEvent, secondEvent, otherEvent, sessionEvent('graph/run', run, 4)])
-    expect(folded.runs[run.id]).toEqual(run)
+    const folded = foldGraph([
+      configEvent,
+      firstEvent,
+      secondEvent,
+      otherEvent,
+      sessionEvent('graph/run', run, 4),
+      sessionEvent('graph/run', activeRun, 5),
+      sessionEvent('graph/run-update', update, 6),
+    ])
+    expect(folded.runs[activeRun.id]).toEqual(updated.runs[activeRun.id])
     expect(graphProjectionSchema.safeParse(folded).success).toBe(true)
     expect(graphProjectionSchema.safeParse(null).success).toBe(false)
     expect(graphProjectionSchema.safeParse({ ...folded, config: { ...config, version: 1 } }).success).toBe(false)

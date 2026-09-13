@@ -26,6 +26,8 @@
 
 `CompactionResult` 向调用方保留原始摘要与记录操作过程的事件 seq，同时保留已遮蔽范围与 token 计量；其结构由漂移检查保障，定义见 [压缩数据结构参考](../../../docs/subsystems/compaction.zh.md#compactionresult)。
 
+在压力测量或摘要之前，提供方会通过 `compaction/policy` waterfall 解析完整的 `CompactionRequestPolicy`。会话级策略插件先调用 `next()`，随后可以替换阈值与保留值、摘要输出 token 或精确摘要目标。该目标包含明确的提供方／模型对与可选推理强度。每次成功事务仍然只记录一次可重建摘要调用；策略组合不会隐藏失败的模型尝试。
+
 `compactIfNeeded` 和 `compactNow` 必须传入 `signal`；`compactRegion` 的该参数可选。通过 `ctx.llm.stream()` 摘要的后端**必须** 将它转发到调用的 `GenerateOptions.signal`，因此 abort 或 fiber dispose（资源释放）会停止进行中的摘要。自动和显式范围标记对会从当前打开的轮次恢复其数字形式归属。手动标记对不要求存在打开的轮次，并标记 `turn: null`。
 
 `ManualCompactionError.code` 是封闭集合 `busy | changed | summary | commit | persistence`。`changed` 和 `summary` 表示所选会话表层未被替换，但日志仍会记录失败尝试。`commit` 有意不判断是否发生了部分变更；`persistence` 表示内存中的 bracket 已闭合，但显式 flush 失败。

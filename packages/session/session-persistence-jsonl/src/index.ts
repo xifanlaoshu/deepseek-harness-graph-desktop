@@ -18,8 +18,10 @@ import {
   DEFAULT_PREPARED_SESSION_CACHE_SIZE, DEFAULT_WRITE_BATCH_MAX_DELAY_MS, MAX_WRITE_BATCH_DELAY_MS,
   SessionPersistence, SessionPersistenceRevision, PersistenceCoordinator, SessionFormatUnsupportedError,
   type PersistenceBackend, type SessionLocation, type SessionPersistenceSnapshot,
+  type SessionEventPage, type SessionEventPageRequest,
   type SessionInspection, type SessionPersistenceRevision as PersistenceRevision, type SessionRawArtifact,
   type StoredPrefix,
+  validateSessionEventPageRequest,
 } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionEvent, SessionId, SessionHeader, SessionPreparation } from '@deepseek-ai/dsh-session'
 import {
@@ -199,6 +201,39 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return this.coordinator.readFrom(id, fromSeq, signal)
   }
 
+  override async readEventPage(
+    id: SessionId,
+    request: SessionEventPageRequest,
+    signal?: AbortSignal,
+  ): Promise<SessionEventPage> {
+    validateSessionEventPageRequest(request)
+    if (this.ctx.sessions.get(id) !== undefined) return super.readEventPage(id, request, signal)
+    const encoder = new TextEncoder()
+    const selected: Array<{ event: SessionEvent; bytes: number }> = []
+    let head = 0
+    let bytes = 0
+    let hasMore = false
+    const meta = await this.visitEventBatches(id, (events) => {
+      for (const event of events) {
+        if (event.seq < request.fromSeq
+          || (request.beforeSeq !== undefined && event.seq >= request.beforeSeq)
+          || request.excludeTypePrefixes.some(prefix => event.type.startsWith(prefix))) continue
+        const eventBytes = encoder.encode(JSON.stringify(event)).byteLength
+        selected.push({ event, bytes: eventBytes })
+        bytes += eventBytes
+        while (selected.length - head > request.maxEvents
+          || (selected.length - head > 1 && bytes > request.maxBytes)) {
+          bytes -= (selected[head] as { bytes: number }).bytes
+          head += 1
+          hasMore = true
+        }
+      }
+      return Promise.resolve()
+    }, signal)
+    if (meta === undefined) throw new Error(`session "${id}" not found`)
+    return { meta, events: selected.slice(head).map(item => item.event), hasMore }
+  }
+
   // One method serves both public `list` and the backend hook; delegating it to
   // the coordinator would call this hook recursively.
 
@@ -279,6 +314,61 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     // The logical artifact name is `session.jsonl` regardless of the physical
     // encoding suffix (`.jsonl.zstd` marks compression only).
     return { meta, filename: 'session.jsonl', content }
+  }
+
+  /**
+   * Visit one stored logical log in physical-frame batches. This backend-
+   * specific migration reader validates the header before publishing events
+   * and retains only one decoded Zstandard frame between visitor calls.
+   * @param id - persisted session to read.
+   * @param visit - ordered batch consumer; rejection stops the scan.
+   * @param signal - optional cancellation between physical reads and batches.
+   * @returns the stored header, or `undefined` when no artifact exists.
+   */
+  async visitEventBatches(
+    id: SessionId,
+    visit: (events: readonly SessionEvent[]) => Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<SessionHeader | undefined> {
+    signal?.throwIfAborted()
+    await this.ensureRootEncoding()
+    const path = await this.findLog(id, signal)
+    if (path === undefined) return undefined
+    const { buffer } = await this.readStableFile(path, signal)
+    signal?.throwIfAborted()
+
+    if (this.compression === 'none') {
+      const scanned = scanLog(buffer)
+      await this.assertStoredIdentity(path, scanned.meta, id, signal)
+      if (scanned.events.length > 0) await visit(scanned.events)
+      return scanned.meta
+    }
+
+    const { frames } = scanZstdFrames(buffer)
+    if (frames.length === 0) throw new Error('empty or header-less Zstandard session log')
+    const decoder = createZstdFrameDecoder()
+    try {
+      const decoded = decoder.decode(buffer, frames)
+      const headerFrame = decoded.next()
+      /* v8 ignore next -- a non-empty structural frame list yields or throws. */
+      if (headerFrame.done) throw new Error('empty or header-less Zstandard session log')
+      assertZstdHeaderFrame(headerFrame.value)
+      const meta = parseHeaderMeta(headerFrame.value.subarray(0, -1).toString('utf8'))
+      if (meta === undefined) throw new Error(`corrupt session log: invalid header line in "${path}"`)
+      await this.assertStoredIdentity(path, meta, id, signal)
+      const scanner = new SessionLogScanner(headerFrame.value)
+      for (const plaintext of decoded) {
+        signal?.throwIfAborted()
+        scanner.write(plaintext)
+        const events = scanner.drainEvents()
+        if (events.length > 0) await visit(events)
+      }
+      scanner.finish()
+      signal?.throwIfAborted()
+      return meta
+    } finally {
+      decoder.close()
+    }
   }
 
   /**

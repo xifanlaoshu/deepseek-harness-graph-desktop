@@ -19,6 +19,10 @@ import {
   type PersistenceBackend,
   type SessionPersistenceRevision as PersistenceRevision,
   type SessionPersistenceSnapshot,
+  type SessionEventPage,
+  type SessionEventPageRequest,
+  type SessionEventRangeRequest,
+  type SessionEventSequenceRequest,
   type StoredPrefix,
   type StoredSuffix,
 } from '@deepseek-ai/dsh-session-persistence'
@@ -44,6 +48,8 @@ import {
   type SessionRow,
 } from './schema.ts'
 import { sql } from './sql.ts'
+
+const EVENT_PAGE_PHYSICAL_BATCH_SIZE = 256
 
 /** Storage options resolved by the service provider. */
 export interface SqliteStoreOptions {
@@ -170,6 +176,139 @@ export class SqliteStore implements PersistenceBackend<number> {
     return { meta: rowToMeta(snapshot.row), events: preserved.filter(event => event.seq >= fromSeq) }
   }
 
+  /**
+   * Read one bounded logical interval without materializing the complete session.
+   * @param id - persisted session identity.
+   * @param request - inclusive start and optional exclusive end sequence.
+   * @param signal - optional cancellation around the synchronous query.
+   * @returns the header and matching events, or `undefined` for an absent identity.
+   */
+  async readRange(
+    id: SessionId,
+    request: SessionEventRangeRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; events: SessionEvent[] } | undefined> {
+    await this.observe(signal)
+    const toSeq = request.toSeq ?? Number.MAX_SAFE_INTEGER
+    const snapshot = this.readTransaction(() => {
+      const row = this.rowFor(id)
+      if (row === undefined) return undefined
+      return { row, ...this.physicalSpanRange(id, request.fromSeq, toSeq) }
+    })
+    signal?.throwIfAborted()
+    if (snapshot === undefined) return undefined
+    const { preserved } = scanRows(snapshot.eventRows, snapshot.base)
+    return {
+      meta: rowToMeta(snapshot.row),
+      events: preserved.filter(event => event.seq >= request.fromSeq && event.seq < toSeq),
+    }
+  }
+
+  /**
+   * Find newest matching logical positions from SQLite event metadata.
+   * @param id - persisted session identity.
+   * @param request - logical event types, exclusive upper sequence, and result limit.
+   * @param signal - optional cancellation around the synchronous query.
+   * @returns the header and newest-first positions, or `undefined` for an absent identity.
+   */
+  async findEventSequences(
+    id: SessionId,
+    request: SessionEventSequenceRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; sequences: number[] } | undefined> {
+    await this.observe(signal)
+    const beforeSeq = request.beforeSeq ?? Number.MAX_SAFE_INTEGER
+    const snapshot = this.readTransaction(() => {
+      const row = this.rowFor(id)
+      if (row === undefined) return undefined
+      const physicalTypes = new Set(request.types)
+      if (physicalTypes.has('assistant/chunk')) {
+        physicalTypes.add('text-chunks')
+        physicalTypes.add('reasoning-chunks')
+        physicalTypes.add('tool-call-chunks')
+      }
+      const rows = [...physicalTypes].flatMap(type => this.db.prepare(sql('select-event-sequences'))
+        .all(
+          id,
+          type,
+          beforeSeq,
+          request.surfaceOp === undefined ? null : JSON.stringify(request.surfaceOp),
+          request.surfaceOp === undefined ? null : JSON.stringify(request.surfaceOp),
+          request.limit,
+        )
+        .map(decodeEventRow))
+      return { row, rows }
+    })
+    signal?.throwIfAborted()
+    if (snapshot === undefined) return undefined
+    const accepted = new Set(request.types)
+    const sequences = snapshot.rows
+      .flatMap(row => decodeRow(row))
+      .filter(event => accepted.has(event.type) && event.seq < beforeSeq
+        && (request.surfaceOp === undefined
+          || (event as { surfaceOp?: string }).surfaceOp === request.surfaceOp))
+      .map(event => event.seq)
+      .sort((left, right) => right - left)
+      .filter((seq, index, values) => index === 0 || values[index - 1] !== seq)
+      .slice(0, request.limit)
+    return { meta: rowToMeta(snapshot.row), sequences }
+  }
+
+  /**
+   * Read one filtered newest page without decoding excluded event domains.
+   * @param id - persisted session identity.
+   * @param request - logical interval, excluded prefixes, and page budgets.
+   * @param signal - optional cancellation around the synchronous query.
+   * @returns the bounded page, or `undefined` for an absent identity.
+   */
+  async readEventPage(
+    id: SessionId,
+    request: SessionEventPageRequest,
+    signal?: AbortSignal,
+  ): Promise<SessionEventPage | undefined> {
+    await this.observe(signal)
+    const snapshot = this.readTransaction(() => {
+      const row = this.rowFor(id)
+      if (row === undefined) return undefined
+      const packedFloor = Math.max(0, request.fromSeq - MAX_PACKED_ROW_MEMBERS + 1)
+      const beforeSeq = request.beforeSeq ?? Number.MAX_SAFE_INTEGER
+      const excluded = JSON.stringify(request.excludeTypePrefixes)
+      const selected: SessionEvent[] = []
+      const encoder = new TextEncoder()
+      let bytes = 0
+      let cursor = beforeSeq
+      let hasMore = false
+      outer: for (;;) {
+        const rows = this.db.prepare(sql('select-event-page'))
+          .all(id, packedFloor, cursor, excluded, EVENT_PAGE_PHYSICAL_BATCH_SIZE)
+          .map(decodeEventRow)
+        if (rows.length === 0) break
+        for (const physical of rows) {
+          const logical = decodeRow(physical).slice().reverse()
+          for (const event of logical) {
+            if (event.seq < request.fromSeq || event.seq >= beforeSeq
+              || request.excludeTypePrefixes.some(prefix => event.type.startsWith(prefix))) continue
+            const eventBytes = encoder.encode(JSON.stringify(event)).byteLength
+            if (selected.length >= request.maxEvents
+              || (selected.length > 0 && bytes + eventBytes > request.maxBytes)) {
+              hasMore = true
+              break outer
+            }
+            selected.push(event)
+            bytes += eventBytes
+          }
+          cursor = physical.seq
+        }
+        if (rows.length < EVENT_PAGE_PHYSICAL_BATCH_SIZE) break
+      }
+      selected.reverse()
+      return { row, events: selected, hasMore }
+    })
+    signal?.throwIfAborted()
+    if (snapshot === undefined) return undefined
+    return { meta: rowToMeta(snapshot.row), events: snapshot.events, hasMore: snapshot.hasMore }
+  }
+
   async appendBatch(
     meta: SessionHeader,
     events: readonly SessionEvent[],
@@ -195,6 +334,51 @@ export class SqliteStore implements PersistenceBackend<number> {
       this.db.exec(sql('commit'))
     } catch (error: unknown) {
       this.rollback(error, 'append')
+    }
+  }
+
+  /**
+   * Atomically import one legacy session through a bounded batch producer.
+   * An existing identity is left untouched; a producer failure rolls back the
+   * metadata row and every imported event so the next startup can retry.
+   * @param meta - legacy session header.
+   * @param produce - source reader that publishes contiguous event batches.
+   * @returns whether this call imported the session.
+   */
+  async importSession(
+    meta: SessionHeader,
+    produce: (accept: (events: readonly SessionEvent[]) => Promise<void>) => Promise<void>,
+  ): Promise<boolean> {
+    await this.open()
+    if (this.rowFor(meta.id) !== undefined) return false
+    this.db.exec(sql('begin-immediate'))
+    try {
+      validateSchemaForMutation(this.databaseConstructor, this.db, this.databasePath)
+      if (this.rowFor(meta.id) !== undefined) {
+        this.db.exec(sql('rollback'))
+        return false
+      }
+      this.writeRow(meta)
+      const insert = this.insertStatement()
+      let nextSeq = 0
+      await produce((events) => {
+        if (events.length === 0) return Promise.resolve()
+        for (const [index, event] of events.entries()) {
+          if (event.seq !== nextSeq + index) {
+            throw new Error(
+              `session ${meta.id} import expected seq ${nextSeq + index}, got ${event.seq}`,
+            )
+          }
+        }
+        for (const record of packChunkRuns(events)) this.insertRecord(insert, meta.id, bindRecord(record))
+        nextSeq += events.length
+        return Promise.resolve()
+      })
+      this.incrementRevision(meta.id)
+      this.db.exec(sql('commit'))
+      return true
+    } catch (error: unknown) {
+      this.rollback(error, 'import')
     }
   }
 
@@ -340,6 +524,30 @@ export class SqliteStore implements PersistenceBackend<number> {
       }
     }
     const eventRows = this.db.prepare(sql('select-events-from')).all(id, base).map(decodeEventRow)
+    return { base, eventRows }
+  }
+
+  /** Select the bounded physical span that may represent one logical interval. */
+  private physicalSpanRange(
+    id: SessionId,
+    fromSeq: number,
+    toSeq: number,
+  ): { readonly base: number; readonly eventRows: EventRow[] } {
+    const packedFloor = Math.max(0, fromSeq - MAX_PACKED_ROW_MEMBERS + 1)
+    const packedPredecessors = this.db.prepare(sql('select-packed-predecessors'))
+      .all(id, packedFloor, fromSeq)
+      .map(decodeEventRow)
+    let base = fromSeq
+    for (const predecessor of packedPredecessors) {
+      try {
+        const last = decodeRow(predecessor).at(-1)
+        if (last !== undefined && last.seq >= fromSeq) base = Math.min(base, predecessor.seq)
+      } catch {
+        // A malformed bounded predecessor may cover fromSeq; include it so the scanner fails closed.
+        base = Math.min(base, predecessor.seq)
+      }
+    }
+    const eventRows = this.db.prepare(sql('select-events-range')).all(id, base, toSeq).map(decodeEventRow)
     return { base, eventRows }
   }
 

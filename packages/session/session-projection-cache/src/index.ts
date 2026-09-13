@@ -46,6 +46,16 @@ export interface Config {
   writeIntervalMs: number
 }
 
+/** Projection and event domains selected for one cache read. */
+export interface ProjectionCacheReadOptions {
+  /** Only these projection keys are viewed; omission includes every key. */
+  readonly includeKeys?: readonly string[]
+  /** Projection keys not viewed or refolded. */
+  readonly excludeKeys?: readonly string[]
+  /** Event-type prefixes omitted from a selective cold refold. */
+  readonly excludeEventTypePrefixes?: readonly string[]
+}
+
 export const Config: z<Config> = z.object({
   writeEveryEvents: z.natural().min(1).required(),
   writeIntervalMs: z.natural().min(1).required(),
@@ -113,13 +123,19 @@ export class SessionProjectionCache extends Service {
    * paths (the history tail baseline, {@link coldSnapshot}) supersede these
    * values whenever a session is actually opened.
    * @param meta - the listed session's header (identity witness; no log read).
+   * @param options - projection keys this listing carrier consumes.
    * @returns the cut (`asOfSeq` = lowest served-row watermark), or
    *   `undefined` when no usable row exists for this lifecycle.
    */
-  cachedSnapshot(meta: SessionHeader): ProjectionSnapshot | undefined {
+  cachedSnapshot(meta: SessionHeader, options: ProjectionCacheReadOptions = {}): ProjectionSnapshot | undefined {
     const record = this.recordFor(meta.id, identityOf(meta))
     if (record === undefined) return undefined
-    const values = this.ctx.sessionProjections.viewCheckpoint(record.rows)
+    const included = options.includeKeys === undefined ? undefined : new Set(options.includeKeys)
+    const excluded = new Set(options.excludeKeys ?? [])
+    const rows = Object.fromEntries(
+      Object.entries(record.rows).filter(([key]) => (included === undefined || included.has(key)) && !excluded.has(key)),
+    ) as ProjectionCheckpoint
+    const values = this.ctx.sessionProjections.viewCheckpoint(rows)
     const keys = Object.keys(values)
     if (keys.length === 0) return undefined
     // The block carries ONE cut: the lowest served watermark is the seq every
@@ -155,18 +171,31 @@ export class SessionProjectionCache extends Service {
    * Cold-read one persisted session's projections with zero full-log load:
    * cached rows + a persistence `readFrom` tail from the registry's restore
    * floor, refolded by the registry and written back (fail-soft) so the next
-   * cold read starts closer. A cache row invalidated by a shrunk log
+   * cold read starts closer. Selective reads may filter event domains and do
+   * not replace the complete checkpoint record. A cache row invalidated by a shrunk log
    * (crash-repair truncation) triggers one full re-read from seq 0 — the
    * ladder's slow rung, still no crash. Rejects when the session has no
    * persisted log (`not found` from the persistence seam).
    * @param id - the persisted session to read.
    * @param signal - optional cancellation for the persistence reads.
+   * @param options - projection units and event domains selected for this read.
    * @returns the snapshot cut at the stored log end.
    */
-  async coldSnapshot(id: SessionId, signal?: AbortSignal): Promise<ProjectionSnapshot> {
+  async coldSnapshot(
+    id: SessionId,
+    signal?: AbortSignal,
+    options: ProjectionCacheReadOptions = {},
+  ): Promise<ProjectionSnapshot> {
     const record = this.requireTable().get(id)
     const cached = record?.rows ?? {}
-    const floor = this.ctx.sessionProjections.restoreFloor(cached)
+    const selection = {
+      ...options.includeKeys === undefined ? {} : { includeKeys: options.includeKeys },
+      ...options.excludeKeys === undefined ? {} : { excludeKeys: options.excludeKeys },
+    }
+    const selective = options.includeKeys !== undefined
+      || options.excludeKeys !== undefined
+      || options.excludeEventTypePrefixes !== undefined
+    const floor = this.ctx.sessionProjections.restoreFloor(cached, selection)
     const persistence = this.ctx.sessionPersistence
     if (floor === undefined) {
       // No unit registered: nothing to fold, but the not-found contract must
@@ -176,22 +205,33 @@ export class SessionProjectionCache extends Service {
       return { asOfSeq: probe.events.at(-1)?.seq ?? -1, values: {} }
     }
     let restored: { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }
-    const tail = await persistence.readFrom(id, floor, signal)
+    const readTail = (fromSeq: number) => options.excludeEventTypePrefixes?.length === 0
+      || options.excludeEventTypePrefixes === undefined
+      ? persistence.readFrom(id, fromSeq, signal)
+      : persistence.readEventPage(id, {
+        fromSeq,
+        excludeTypePrefixes: options.excludeEventTypePrefixes,
+        maxEvents: Number.MAX_SAFE_INTEGER,
+        maxBytes: Number.MAX_SAFE_INTEGER,
+      }, signal)
+    const tail = await readTail(floor)
     // The tail's stored header is the identity witness: a record bound to a
     // different lifecycle (recreated id, swapped store) is discarded whole
     // before any of its rows can seed a fold.
     const related = record === undefined || identityMatches(record.identity, identityOf(tail.meta))
     try {
       if (!related) throw new Error('unrelated log identity')
-      restored = this.ctx.sessionProjections.restore(cached, tail.events, floor)
+      restored = this.ctx.sessionProjections.restore(cached, tail.events, floor, selection)
     } catch {
       // Recoverable failures are an unrelated record, a row outside the
       // supplied suffix or log end, and stateSchema rejection. The full read
       // removes every checkpoint seed and lets each unit refold from init.
-      const whole = await persistence.readFrom(id, 0, signal)
-      restored = this.ctx.sessionProjections.restore({}, whole.events, 0)
+      const whole = await readTail(0)
+      restored = this.ctx.sessionProjections.restore({}, whole.events, 0, selection)
     }
-    await this.putSoft(id, identityOf(tail.meta), restored.checkpoint, 'cold-read write-back')
+    if (!selective) {
+      await this.putSoft(id, identityOf(tail.meta), restored.checkpoint, 'cold-read write-back')
+    }
     return restored.snapshot
   }
 

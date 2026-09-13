@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-loopx-distributed-coordination-protocol.md
-2026-08-18-loopx-distributed-coordination-protocol.md: 94f9cd9f4c426d1e1fdc9a60d5fdd30205178718
-2026-08-18-loopx-distributed-coordination-protocol.zh.md: c9511221ce3e58690794c60ec41c184d73d16511
+2026-08-18-loopx-distributed-coordination-protocol.md: f3416448505156ce8b6849d4e4b29e818aeb96aa
+2026-08-18-loopx-distributed-coordination-protocol.zh.md: c4c53e93e2a4338a9b2767c9816014485ee7dd15

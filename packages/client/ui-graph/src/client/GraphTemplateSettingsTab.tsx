@@ -8,14 +8,16 @@ import type {
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { GraphModeConfig } from '@deepseek-ai/dsh-graph/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
-import { GraphRoleEditor, graphRoleModelIssue } from './GraphAction.tsx'
+import { defaultControllerResilience, GraphRoleEditor, graphRoleModelIssue } from './GraphAction.tsx'
 import { NS, type GraphKey } from './locales.ts'
 import css from './GraphTemplateSettingsTab.module.css'
 
 const NODE_TIMER_MAX_MS = 2_147_483_647
 
 /** User-owned defaults copied into a session on first Graph activation. */
-export type GraphTemplateSettings = Pick<GraphModeConfig, 'roles' | 'limits' | 'executionPolicy'>
+export type GraphTemplateSettings = Pick<GraphModeConfig, 'roles' | 'limits' | 'executionPolicy'> & {
+  readonly controllerResilience?: NonNullable<GraphModeConfig['controllerResilience']>
+}
 
 /** Accepted result of one revision-fenced template write. */
 export type GraphTemplateSaveResult =
@@ -59,6 +61,9 @@ export function graphTemplateIssue(template: GraphTemplateSettings): GraphKey | 
     || template.limits.controllerReserve >= template.limits.globalMaxParallel) {
     return 'global.invalidReserve'
   }
+  if (template.limits.maxActiveSubagents !== undefined
+    && (!Number.isSafeInteger(template.limits.maxActiveSubagents)
+      || template.limits.maxActiveSubagents < 1)) return 'global.invalidActiveSubagents'
   const ids = new Set<string>()
   let controllers = 0
   let workers = 0
@@ -99,6 +104,32 @@ export function graphTemplateIssue(template: GraphTemplateSettings): GraphKey | 
   if (template.executionPolicy.maxRepairRevisions > template.executionPolicy.maxGraphRevisions) {
     return 'global.invalidPolicy'
   }
+  const resilience = template.controllerResilience ?? defaultControllerResilience()
+  if (!Number.isSafeInteger(resilience.maxFallbackAttemptsPerTurn)
+    || resilience.maxFallbackAttemptsPerTurn < 1
+    || resilience.retryableFailureCodes.length === 0
+    || new Set(resilience.retryableFailureCodes).size !== resilience.retryableFailureCodes.length
+    || resilience.retryableFailureCodes.some(code => !normalized(code))) {
+    return 'global.invalidResilience'
+  }
+  const fallbackKeys = new Set<string>()
+  for (const fallback of resilience.fallbackModels) {
+    const key = JSON.stringify([fallback.provider, fallback.model])
+    if (!normalized(fallback.provider) || !normalized(fallback.model)
+      || (fallback.reasoningEffort !== undefined && !normalized(fallback.reasoningEffort))
+      || (!fallback.controller && !fallback.compaction) || fallbackKeys.has(key)) {
+      return 'global.invalidResilience'
+    }
+    fallbackKeys.add(key)
+  }
+  const compaction = resilience.compaction
+  if (!Number.isFinite(compaction.thresholdRatio) || compaction.thresholdRatio <= 0
+    || compaction.thresholdRatio > 1 || !Number.isFinite(compaction.retainRatio)
+    || compaction.retainRatio <= 0 || compaction.retainRatio >= compaction.thresholdRatio
+    || !Number.isSafeInteger(compaction.maxTokens) || compaction.maxTokens < 1
+    || (compaction.reasoningEffort !== undefined && !normalized(compaction.reasoningEffort))) {
+    return 'global.invalidResilience'
+  }
   return undefined
 }
 
@@ -120,8 +151,11 @@ export function GraphTemplateSettingsTab(props: GraphTemplateSettingsTabProps) {
 
   useEffect(() => {
     if (settings.status !== 'ready' || settings.value === undefined) return
-    if (!dirty || draft === undefined) {
-      setDraft(settings.value)
+    if (draft === undefined || (!dirty && baseRevision !== settings.revision)) {
+      setDraft({
+        ...settings.value,
+        controllerResilience: settings.value.controllerResilience ?? defaultControllerResilience(),
+      })
       setBaseRevision(settings.revision)
       setError(undefined)
     } else if (!saving && baseRevision !== settings.revision) {
@@ -141,14 +175,22 @@ export function GraphTemplateSettingsTab(props: GraphTemplateSettingsTabProps) {
   const roleModelIssue = graphRoleModelIssue(config, models)
   const conflict = baseRevision !== settings.revision
   const update = (next: GraphModeConfig): void => {
-    setDraft({ roles: next.roles, limits: next.limits, executionPolicy: next.executionPolicy })
+    setDraft({
+      roles: next.roles,
+      limits: next.limits,
+      executionPolicy: next.executionPolicy,
+      controllerResilience: next.controllerResilience as NonNullable<GraphModeConfig['controllerResilience']>,
+    })
     setDirty(true)
     setSaved(false)
     setError(conflict ? props.t('global.conflict') : undefined)
   }
   const reload = (): void => {
     if (settings.value === undefined) return
-    setDraft(settings.value)
+    setDraft({
+      ...settings.value,
+      controllerResilience: settings.value.controllerResilience ?? defaultControllerResilience(),
+    })
     setBaseRevision(settings.revision)
     setDirty(false)
     setSaved(false)

@@ -124,10 +124,11 @@ The persisted projection cache service. Opens the `session_projcache` domain at 
  * paths (the history tail baseline, {@link coldSnapshot}) supersede these
  * values whenever a session is actually opened.
  * @param meta - the listed session's header (identity witness; no log read).
+ * @param options - projection keys this listing carrier consumes.
  * @returns the cut (`asOfSeq` = lowest served-row watermark), or
  *   `undefined` when no usable row exists for this lifecycle.
  */
-cachedSnapshot(meta: SessionHeader): ProjectionSnapshot | undefined
+cachedSnapshot(meta: SessionHeader, options: ProjectionCacheReadOptions = {}): ProjectionSnapshot | undefined
 
 /**
  * Durably checkpoint one live session NOW (both mandatory points call
@@ -143,15 +144,17 @@ async write(session: Session): Promise<void>
  * Cold-read one persisted session's projections with zero full-log load:
  * cached rows + a persistence `readFrom` tail from the registry's restore
  * floor, refolded by the registry and written back (fail-soft) so the next
- * cold read starts closer. A cache row invalidated by a shrunk log
+ * cold read starts closer. Selective reads may filter event domains and do
+ * not replace the complete checkpoint record. A cache row invalidated by a shrunk log
  * (crash-repair truncation) triggers one full re-read from seq 0 — the
  * ladder's slow rung, still no crash. Rejects when the session has no
  * persisted log (`not found` from the persistence seam).
  * @param id - the persisted session to read.
  * @param signal - optional cancellation for the persistence reads.
+ * @param options - projection units and event domains selected for this read.
  * @returns the snapshot cut at the stored log end.
  */
-async coldSnapshot(id: SessionId, signal?: AbortSignal): Promise<ProjectionSnapshot>
+async coldSnapshot( id: SessionId, signal?: AbortSignal, options: ProjectionCacheReadOptions = {}, ): Promise<ProjectionSnapshot>
 ```
 
 Types: [Session](session.md) · [SessionHeader](persistence.md) · [SessionId](core.md)
@@ -238,11 +241,12 @@ checkpoint(session: Session): ProjectionCheckpoint
  * yields an end below every watermark and the restore rejects for a full
  * re-read.
  * @param checkpoint - persisted rows for one session (possibly stale or empty).
+ * @param selection - registered units included in the floor calculation.
  * @returns the seq to hand the persistence `readFrom`, or `undefined`
  *   when no unit is registered (no read needed — {@link restore} would
  *   serve empty values regardless).
  */
-restoreFloor(checkpoint: ProjectionCheckpoint): number | undefined
+restoreFloor( checkpoint: ProjectionCheckpoint, selection: { readonly includeKeys?: readonly string[] readonly excludeKeys?: readonly string[] } = {}, ): number | undefined
 
 /**
  * View a checkpoint's rows without any log read: for every registered
@@ -274,11 +278,12 @@ viewCheckpoint(checkpoint: ProjectionCheckpoint): Partial<SessionProjectionMap>
  * @param checkpoint - persisted rows for one session (possibly stale or empty).
  * @param events - the stored events with `seq >= baseSeq`, in seq order.
  * @param baseSeq - the seq `events` starts at (its first event's seq when non-empty).
+ * @param selection - registered units included in this fold.
  * @returns the snapshot cut at the supplied log end (`asOfSeq` is the last
  *   supplied event's seq, `baseSeq - 1` for an empty tail) plus the
  *   refreshed checkpoint rows at that cut, ready for a durable write-back.
  */
-restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: number, ): { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }
+restore( checkpoint: ProjectionCheckpoint, events: readonly SessionEvent[], baseSeq: number, selection: { readonly includeKeys?: readonly string[] readonly excludeKeys?: readonly string[] } = {}, ): { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint }
 ```
 
 Types: [Session](session.md) · [SessionEvent](session.md)

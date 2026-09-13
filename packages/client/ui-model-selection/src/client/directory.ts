@@ -64,7 +64,17 @@ export class ModelDirectory {
     this.assertAvailable()
     const generation = ++this.generation
     this.store.update((s) => { s.status = 'loading'; s.error = null })
-    const { result } = await this.sessions.models({ sessionId: this.sessionId })
+    let response: Awaited<ReturnType<typeof this.sessions.models>>
+    try {
+      response = await this.sessions.models({ sessionId: this.sessionId })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!this.disposed && generation === this.generation) {
+        this.store.update((s) => { s.status = 'error'; s.error = message })
+      }
+      throw new Error(`session.models failed: ${message}`, { cause: error })
+    }
+    const { result } = response
     if (this.disposed || generation !== this.generation) {
       if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
       return result.value
@@ -95,14 +105,24 @@ export class ModelDirectory {
     this.assertAvailable()
     const generation = ++this.generation
     this.store.update((s) => { s.status = 'selecting'; s.error = null })
-    const { result } = await this.sessions.selectModel({
-      sessionId: this.sessionId,
-      provider: selection.provider,
-      model: selection.model,
-      ...selection.reasoningEffort === undefined
-        ? {}
-        : { reasoningEffort: selection.reasoningEffort },
-    })
+    let response: Awaited<ReturnType<typeof this.sessions.selectModel>>
+    try {
+      response = await this.sessions.selectModel({
+        sessionId: this.sessionId,
+        provider: selection.provider,
+        model: selection.model,
+        ...selection.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: selection.reasoningEffort },
+      })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (!this.disposed && generation === this.generation) {
+        this.store.update((s) => { s.status = 'error'; s.error = message })
+      }
+      throw new Error(`session.selectModel failed: ${message}`, { cause: error })
+    }
+    const { result } = response
     if (this.disposed || generation !== this.generation) {
       if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
       return

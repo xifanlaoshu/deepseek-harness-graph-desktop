@@ -17,6 +17,7 @@ import {
   GraphNodeId,
   GraphRoleId,
   type GraphExecutionPolicy,
+  type GraphControllerResiliencePolicy,
   type GraphEnvironmentPlan,
   type GraphNodeExecutionBudget,
   type GraphCheckpoint,
@@ -29,6 +30,7 @@ import {
   type GraphRevisionSubmissionRecord,
   type GraphRevision,
   type GraphRun,
+  type GraphRunUpdate,
   type GraphSettlementRecord,
 } from './types.ts'
 
@@ -45,6 +47,8 @@ declare module '@deepseek-ai/dsh-session/types' {
     'graph/change': GraphDefinitionChange
     /** Whole execution snapshot; the latest snapshot for a run id wins. */
     'graph/run': GraphRun
+    /** Incremental state replacement within one existing execution generation. */
+    'graph/run-update': GraphRunUpdate
     /** Append-only recoverable transition for one logical node operation. */
     'graph/operation': GraphOperationTransition
     /** Append-only external settlement attempt and result. */
@@ -99,9 +103,49 @@ export function defaultGraphModeConfig(): GraphModeConfig {
       role('browser-tester', 'Browser Tester', 'Validates web flows with DOM, visual, console, and network evidence.', 'Test only the assigned target origin and acceptance criteria. Keep one explicit browser page id, use page snapshots and element identifiers for ordinary actions, and use screenshots for visual assertions when the selected model accepts images. Inspect console errors and failed network requests after critical actions. Never enter real secrets or perform destructive or production actions. Report pass only from observed evidence, publish a structured decision and actionable issues, and close only the page you created.', 1),
       role('writer', 'Writer', 'Maintains user and developer documentation.', 'Update the authoritative documentation and public API prose for the implemented behavior. Keep current-state contracts synchronized with code and avoid review-history narration.', 1),
     ],
-    limits: { globalMaxParallel: 8, controllerReserve: 1, models: [] },
+    limits: { globalMaxParallel: 8, controllerReserve: 1, maxActiveSubagents: 7, models: [] },
     executionPolicy: defaultGraphExecutionPolicy(),
+    controllerResilience: defaultGraphControllerResiliencePolicy(),
   }
+}
+
+/**
+ * Return the recovery policy copied into newly activated Graph sessions.
+ * Empty fallback routes preserve the selected controller model until the user
+ * explicitly chooses an advanced model.
+ * @returns detached controller recovery and compaction defaults.
+ */
+export function defaultGraphControllerResiliencePolicy(): GraphControllerResiliencePolicy {
+  return {
+    enabled: true,
+    maxFallbackAttemptsPerTurn: 2,
+    retryableFailureCodes: [
+      'CONTEXT_WINDOW_EXCEEDED',
+      'UNSUPPORTED_REASONING_EFFORT',
+      'UNSUPPORTED_CONTENT',
+      'INVALID_MODEL_MAX_TOKENS',
+      'LLM_STREAM_IDLE_TIMEOUT',
+      'STREAM_CLOSED',
+    ],
+    fallbackModels: [],
+    compaction: {
+      enabled: true,
+      thresholdRatio: 0.65,
+      retainRatio: 0.1,
+      maxTokens: 16_384,
+    },
+  }
+}
+
+/**
+ * Resolve the run-wide active-subagent ceiling for a configuration snapshot.
+ * Older session snapshots omit the dedicated field and retain their original Worker share.
+ * @param config durable Graph configuration owned by one session.
+ * @returns maximum live Graph Workers and in-process descendants in one run.
+ */
+export function graphActiveSubagentLimit(config: GraphModeConfig): number {
+  return config.limits.maxActiveSubagents
+    ?? (config.limits.globalMaxParallel - config.limits.controllerReserve)
 }
 
 /**
@@ -326,6 +370,26 @@ const modelSelectionSchema = zod.object({
   model: zod.string().optional(),
   reasoningEffort: zod.string().optional(),
 }).strict()
+const controllerFallbackModelSchema = zod.object({
+  provider: zod.string(),
+  model: zod.string(),
+  reasoningEffort: zod.string().optional(),
+  controller: zod.boolean(),
+  compaction: zod.boolean(),
+}).strict()
+const controllerResilienceSchema = zod.object({
+  enabled: zod.boolean(),
+  maxFallbackAttemptsPerTurn: zod.number(),
+  retryableFailureCodes: zod.array(zod.string()),
+  fallbackModels: zod.array(controllerFallbackModelSchema),
+  compaction: zod.object({
+    enabled: zod.boolean(),
+    thresholdRatio: zod.number(),
+    retainRatio: zod.number(),
+    maxTokens: zod.number(),
+    reasoningEffort: zod.string().optional(),
+  }).strict(),
+}).strict()
 const roleSchema = zod.object({
   id: zod.string(),
   label: zod.string(),
@@ -376,9 +440,11 @@ const configSchema = zod.object({
   limits: zod.object({
     globalMaxParallel: zod.number(),
     controllerReserve: zod.number(),
+    maxActiveSubagents: zod.number().optional(),
     models: zod.array(modelLimitSchema),
   }).strict(),
   executionPolicy: executionPolicySchema,
+  controllerResilience: controllerResilienceSchema.optional(),
 }).strict()
 const nodeOutputSchema = zod.object({
   summary: zod.string(),
@@ -597,6 +663,28 @@ const runSchema = zod.object({
   }).strict()),
   phase: zod.string(),
   createdAt: zod.number(),
+  updatedAt: zod.number(),
+  nodes: zod.record(zod.string(), nodeRunSchema),
+  terminal: zod.object({
+    outcome: zod.enum(['succeeded', 'failed', 'canceled', 'exhausted']),
+    rule: zod.string(),
+    acceptedAt: zod.number(),
+  }).strict().optional(),
+  error: zod.object({
+    code: zod.string(),
+    message: zod.string(),
+    nodeId: zod.string().optional(),
+  }).strict().optional(),
+}).strict()
+const runUpdateSchema = zod.object({
+  version: zod.literal(1),
+  runId: zod.string(),
+  graphId: zod.string(),
+  revision: zod.number(),
+  generation: zod.number(),
+  generationId: zod.string(),
+  ownerEpoch: zod.number(),
+  phase: zod.string(),
   updatedAt: zod.number(),
   nodes: zod.record(zod.string(), nodeRunSchema),
   terminal: zod.object({
@@ -866,7 +954,7 @@ export function validateGraphNodeOutput(value: unknown, declared?: GraphOutputSc
  */
 export function validateGraphModeConfig(value: unknown): asserts value is GraphModeConfig {
   const config = parseStructure(configSchema, value, 'GRAPH_CONFIG_STRUCTURE', 'graph config fields have invalid types or unknown fields')
-  const { globalMaxParallel, controllerReserve, models: modelLimits } = config.limits
+  const { globalMaxParallel, controllerReserve, maxActiveSubagents, models: modelLimits } = config.limits
   if (!isVersionTwo(config.version)) fail('GRAPH_CONFIG_VERSION', `unsupported graph config version ${String(config.version)}`)
   if (!Number.isSafeInteger(globalMaxParallel) || globalMaxParallel < 1) {
     fail('GRAPH_GLOBAL_PARALLELISM', 'globalMaxParallel must be a positive safe integer')
@@ -874,6 +962,10 @@ export function validateGraphModeConfig(value: unknown): asserts value is GraphM
   if (!Number.isSafeInteger(controllerReserve) || controllerReserve < 1
     || controllerReserve >= globalMaxParallel) {
     fail('GRAPH_CONTROLLER_RESERVE', 'controllerReserve must be at least one and less than globalMaxParallel')
+  }
+  if (maxActiveSubagents !== undefined
+    && (!Number.isSafeInteger(maxActiveSubagents) || maxActiveSubagents < 1)) {
+    fail('GRAPH_ACTIVE_SUBAGENTS', 'maxActiveSubagents must be a positive safe integer')
   }
   const ids = new Set<string>()
   let controllers = 0
@@ -928,6 +1020,43 @@ export function validateGraphModeConfig(value: unknown): asserts value is GraphM
   }
   if (config.executionPolicy.maxRepairRevisions > config.executionPolicy.maxGraphRevisions) {
     fail('GRAPH_EXECUTION_POLICY', 'maxRepairRevisions cannot exceed maxGraphRevisions')
+  }
+  const resilience = config.controllerResilience
+  if (resilience === undefined) return
+  if (!Number.isSafeInteger(resilience.maxFallbackAttemptsPerTurn)
+    || resilience.maxFallbackAttemptsPerTurn < 1) {
+    fail('GRAPH_CONTROLLER_FALLBACK_ATTEMPTS', 'maxFallbackAttemptsPerTurn must be a positive safe integer')
+  }
+  if (resilience.retryableFailureCodes.length === 0
+    || new Set(resilience.retryableFailureCodes).size !== resilience.retryableFailureCodes.length
+    || resilience.retryableFailureCodes.some(code => !normalized(code))) {
+    fail('GRAPH_CONTROLLER_FALLBACK_CODES', 'retryableFailureCodes must contain unique normalized values')
+  }
+  const fallbackKeys = new Set<string>()
+  for (const fallback of resilience.fallbackModels) {
+    if (!normalized(fallback.provider) || !normalized(fallback.model)
+      || (fallback.reasoningEffort !== undefined && !normalized(fallback.reasoningEffort))) {
+      fail('GRAPH_CONTROLLER_FALLBACK_MODEL', 'fallback models require normalized provider, model, and reasoning effort values')
+    }
+    if (!fallback.controller && !fallback.compaction) {
+      fail('GRAPH_CONTROLLER_FALLBACK_PURPOSE', 'each fallback model must serve controller recovery or compaction')
+    }
+    const key = JSON.stringify([fallback.provider, fallback.model])
+    if (fallbackKeys.has(key)) {
+      fail('GRAPH_CONTROLLER_FALLBACK_DUPLICATE', `duplicate fallback model ${JSON.stringify(fallback.model)}`)
+    }
+    fallbackKeys.add(key)
+  }
+  const { thresholdRatio, retainRatio, maxTokens, reasoningEffort } = resilience.compaction
+  if (!Number.isFinite(thresholdRatio) || thresholdRatio <= 0 || thresholdRatio > 1
+    || !Number.isFinite(retainRatio) || retainRatio <= 0 || retainRatio >= thresholdRatio) {
+    fail('GRAPH_COMPACTION_RATIOS', 'compaction retainRatio must be positive and less than thresholdRatio, which cannot exceed one')
+  }
+  if (!Number.isSafeInteger(maxTokens) || maxTokens < 1) {
+    fail('GRAPH_COMPACTION_MAX_TOKENS', 'compaction maxTokens must be a positive safe integer')
+  }
+  if (reasoningEffort !== undefined && !normalized(reasoningEffort)) {
+    fail('GRAPH_COMPACTION_REASONING', 'compaction reasoningEffort must be normalized')
   }
 }
 
@@ -1401,6 +1530,43 @@ export function validateGraphRun(value: unknown, graph: GraphRevision): asserts 
   }
 }
 
+/**
+ * Validate and apply one incremental update to an existing run generation.
+ * @param value untrusted update carried by `graph/run-update`.
+ * @param prior authoritative run state before the update.
+ * @param graph immutable revision executed by the run.
+ * @returns complete validated run state after applying the update.
+ */
+export function applyGraphRunUpdate(value: unknown, prior: GraphRun, graph: GraphRevision): GraphRun {
+  const update = parseStructure(
+    runUpdateSchema,
+    value,
+    'GRAPH_RUN_UPDATE_STRUCTURE',
+    'graph run update fields have invalid types or unknown fields',
+  ) as unknown as GraphRunUpdate
+  if (update.runId !== prior.id || update.graphId !== prior.graphId || update.revision !== prior.revision
+    || update.generation !== prior.generation || update.generationId !== prior.generationId
+    || update.ownerEpoch !== prior.ownerEpoch || update.updatedAt < prior.updatedAt
+    || (prior.terminal !== undefined && update.terminal !== undefined)) {
+    fail('GRAPH_RUN_UPDATE_IDENTITY', `run update ${JSON.stringify(update.runId)} changed identity, used a stale owner, or moved backward`)
+  }
+  for (const [nodeId, node] of Object.entries(update.nodes)) {
+    if (prior.nodes[nodeId] === undefined || node.nodeId !== nodeId) {
+      fail('GRAPH_RUN_UPDATE_NODE', `run update ${JSON.stringify(update.runId)} has an unknown or mismatched node ${JSON.stringify(nodeId)}`)
+    }
+  }
+  const next: GraphRun = {
+    ...prior,
+    phase: update.phase,
+    updatedAt: update.updatedAt,
+    nodes: { ...prior.nodes, ...update.nodes },
+    ...update.terminal === undefined ? {} : { terminal: update.terminal },
+    ...update.error === undefined ? {} : { error: update.error },
+  }
+  validateGraphRun(next, graph)
+  return next
+}
+
 /** Validate one operation-journal transition before replay accepts it. */
 function validateOperationTransition(value: unknown, state: GraphProjection): GraphOperationTransition {
   const transition = parseStructure(operationTransitionSchema, value, 'GRAPH_OPERATION_STRUCTURE', 'graph operation fields have invalid types or unknown fields') as unknown as GraphOperationTransition
@@ -1814,6 +1980,14 @@ export function applyGraphEvent(state: GraphProjection, event: SessionEvent): Gr
       }
     }
     return { ...state, runs: { ...state.runs, [run.id]: run } }
+  }
+  if (event.type === 'graph/run-update') {
+    const prior = state.runs[event.data.runId]
+      ?? fail('GRAPH_RUN_UPDATE_IDENTITY', `run update ${JSON.stringify(event.data.runId)} names an unknown run`)
+    const revision = state.graphs[prior.graphId]?.find(item => item.revision === prior.revision)
+      ?? fail('GRAPH_RUN_REVISION', `run ${JSON.stringify(prior.id)} names an unknown graph revision`)
+    const next = applyGraphRunUpdate(event.data, prior, revision)
+    return { ...state, runs: { ...state.runs, [next.id]: next } }
   }
   if (event.type === 'graph/operation') {
     const transition = validateOperationTransition(event.data, state)

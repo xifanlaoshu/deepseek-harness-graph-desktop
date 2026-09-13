@@ -61,7 +61,22 @@ function fakePersistence(logs: Map<string, SessionEvent[]>) {
       events: events.filter(event => event.seq >= fromSeq),
     }
   })
-  return { readFrom }
+  const readEventPage = vi.fn(async (id: SessionId, request: {
+    fromSeq: number
+    beforeSeq?: number
+    excludeTypePrefixes: readonly string[]
+  }) => {
+    const events = logs.get(String(id))
+    if (events === undefined) throw new Error(`session "${id}" not found`)
+    return {
+      meta: { version: 0, id, createdAt: 0 },
+      events: events.filter(event => event.seq >= request.fromSeq
+        && (request.beforeSeq === undefined || event.seq < request.beforeSeq)
+        && !request.excludeTypePrefixes.some(prefix => event.type.startsWith(prefix))),
+      hasMore: false,
+    }
+  })
+  return { readFrom, readEventPage }
 }
 
 /** Header shape for cachedSnapshot calls (fake logs stamp createdAt 0, no cwd). */
@@ -267,6 +282,32 @@ describe('SessionProjectionCache cold read', () => {
       .toEqual({ ver: 1, seq: 3, val: { marks: ['a', 'b'] } })
   })
 
+  it('selectively refolds without reading excluded event domains or replacing their cached rows', async () => {
+    const events = [
+      { type: 'turn/start', seq: 0, time: 0, data: { turn: 1 } },
+      { type: 'graph/large', seq: 1, time: 1, data: { payload: 'not decoded' }, ignorable: true },
+      { type: 'cache-test/mark', seq: 2, time: 2, data: { marks: ['kept'] } },
+      { type: 'turn/end', seq: 3, time: 3, data: { turn: 1, reason: { kind: 'completed' } } },
+    ] as SessionEvent[]
+    const logs = new Map([['selective', events]])
+    const { cache, persistence, pool } = await harness({ logs })
+
+    const snapshot = await cache.coldSnapshot(SessionId('selective'), undefined, {
+      includeKeys: ['cache-test/marks'],
+      excludeKeys: ['graph'],
+      excludeEventTypePrefixes: ['graph/'],
+    })
+
+    expect(snapshot.values['cache-test/marks']).toEqual({ marks: ['kept'] })
+    expect(persistence.readFrom).not.toHaveBeenCalled()
+    expect(persistence.readEventPage).toHaveBeenCalledWith(
+      SessionId('selective'),
+      expect.objectContaining({ fromSeq: 0, excludeTypePrefixes: ['graph/'] }),
+      undefined,
+    )
+    expect(storedRows(pool, SessionId('selective'))).toBeUndefined()
+  })
+
   it('discards a version-mismatched row and refolds the full log', async () => {
     const pool = new MemoryMediaPool()
     const logs = new Map([['bumped', storedLog([['a']])]])
@@ -376,6 +417,9 @@ describe('SessionProjectionCache cold read', () => {
     const id = SessionId('listed')
     // Matching header: values plus the watermark the client seeds under.
     expect(cache.cachedSnapshot(headerOf(id))).toEqual({ asOfSeq: 4, values: { 'cache-test/marks': { marks: ['t'] } } })
+    expect(cache.cachedSnapshot(headerOf(id), { includeKeys: ['cache-test/marks'] }))
+      .toEqual({ asOfSeq: 4, values: { 'cache-test/marks': { marks: ['t'] } } })
+    expect(cache.cachedSnapshot(headerOf(id), { excludeKeys: ['cache-test/marks'] })).toBeUndefined()
     // A recreated id (different createdAt): the record is unrelated — no block.
     expect(cache.cachedSnapshot(headerOf(id, 777))).toBeUndefined()
     // Unknown id: no block.

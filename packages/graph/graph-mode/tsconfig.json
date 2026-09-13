@@ -13,6 +13,7 @@
     { "path": "../../core/system-prompt" },
     { "path": "../../core/tools" },
     { "path": "../../interaction/commands" },
+    { "path": "../../compaction/compaction" },
     { "path": "../../llm/llm" },
     { "path": "../../shell/shell" },
     { "path": "../../subagent/subagent" },

@@ -29,7 +29,7 @@ human input
 |---|---|---|
 | 模型消息和工具活动 | Harness | 会话事件和子会话 |
 | 任务图定义和修订 | Harness | `graph/change` 事件 |
-| 节点与运行生命周期 | Harness | 完整 `graph/run` 快照 |
+| 节点与运行生命周期 | Harness | 初始 `graph/run` checkpoint 加增量 `graph/run-update` 事件 |
 | Goal 与 todo 生命周期 | LoopX | 选定的 LoopX registry 和 goal 状态 |
 | Peer 身份与 claim | LoopX | 已注册 agent id 和 todo claim |
 | 跨 agent 进度共享 | LoopX | Todo 状态、claim 和公开安全证据 |
@@ -76,7 +76,7 @@ flowchart LR
 |---|---|---|---|
 | 全局 `graph-mode` 模板 | Host settings 提供方 | 新会话首次激活与插件设置 UI | 一次带 Revision 防护的 settings 文档写入 |
 | 会话 Graph 配置与不可变 Revision | Graph Mode 命令／主控 | 投影、调度器、UI、重放 | 一次 `graph/change` append |
-| 整体 Run 与节点状态 | Graph Mode 调度器 | 投影、UI、启动恢复、主控 follow-up | 一次 `graph/run` append；后续快照按 Run ID 替换 |
+| 整体 Run 与节点状态 | Graph Mode 调度器 | 投影、UI、启动恢复、主控 follow-up | 每个 Generation 一次 `graph/run` checkpoint；后续 `graph/run-update` 按 Run ID 合并 |
 | Operation、Settlement、Checkpoint 与 Control 证据 | Graph Mode 调度器／控制服务 | 恢复与审计 | 每条记录一次会话事件 append |
 | Worker 对话与工具证据 | 子会话 Agent Loop | 子会话 UI、Graph 进度监视器、重放 | 子会话 append 流 |
 | Scheduler Lease | Scheduler 提供方 | 竞争 Host 与恢复 | 提供方事务；Graph 状态以 `ownerEpoch` 引用 |
@@ -141,7 +141,7 @@ Harness 从会话日志重建模型历史，因此任务图配置、修订、运
 | [`dsh-graph-resources-sqlite`](../packages/graph/graph-resources-sqlite/README.zh.md) | 同一文件系统上的持久模型路由预留、围栏和运行时退避 | SQLite 数据库文件 |
 | [`dsh-client-ui-graph`](../packages/client/ui-graph/README.zh.md) | 浏览器投影、DAG 画布、证据导航和设置 | Client 会话、命令、模型目录与 slot |
 
-`dsh-graph` 声明七种持久会话事件。`graph/submission` 在外部准入前记录临时不可变 Revision 与 Queued Run；只有 Accepted Submission 才会发布 `graph/change` 与 `graph/run`。只追加的 `graph/operation` 和 `graph/settlement` 事件保留执行转换和编号外部写入 Attempt，完整状态的 `graph/checkpoint` 与幂等 `graph/control` 记录保留规划和人工决定。事件折叠会保留全部修订和证据，为每个 Run 与 Submission 选择最新快照，并通过 `graph` 投影暴露这些状态。
+`dsh-graph` 声明九种持久会话事件。`graph/submission` 在外部准入前记录临时不可变 Revision 与 Queued Run；只有 Accepted Submission 才会发布 `graph/change` 与初始 `graph/run`。只追加的 `graph/run-update`、`graph/operation` 和 `graph/settlement` 事件保留增量 Run 状态、执行转换和编号外部写入 Attempt，完整状态的 `graph/checkpoint` 与幂等 `graph/control` 记录保留规划和人工决定。事件折叠会保留全部修订和证据，把经过校验的更新合并到各 Run，并通过 `graph` 投影暴露结果。
 
 配置包含恰好一个启用的主控、可编辑工作角色、每个角色的提示词与模型选择，以及调度器限制。任务图修订包含稳定 graph id、连续修订号、修订一之后的 parent revision、节点和边。一次运行包含该修订的所有节点、尝试元数据、结构化输出、复用来源、失效来源和可选终态错误。
 
@@ -179,7 +179,7 @@ Settlement Record 使用 `coordination`、`resource-release`、`artifact`、`can
 
 Pending 节点等待所有前置节点进入终态。必需前置失败会取消依赖工作。条件边根据前置输出数据计算；入边全部变为不生效时节点会被跳过，其他具备执行资格的节点进入 ready。
 
-Ready 节点进入 FIFO 准入队列。准入同时执行全局上限中的 worker 份额、角色上限、精确 provider/model 上限和可选模型权重预算。Worker 份额是 `globalMaxParallel - controllerReserve`；该预留可防止 worker 饱和消耗为主控配置的容量。如果角色没有指定 provider、model 或 reasoning selector，其值会在准入和子级分发前继承父 agent。
+Ready 节点进入 FIFO 准入队列。准入同时执行全局上限中的 Worker 份额、角色上限、精确 provider/model 上限、可选模型权重预算和 `maxActiveSubagents`。最后一项限制按一个 Run 作用域的容量 ID 统计存活 Graph Worker 及其进程内后代。顶层 Worker 按 FIFO 顺序等待；超过上限的嵌套启动会以 `CAPACITY_EXHAUSTED` 失败，从而避免上限为一时等待父级持有的唯一许可而死锁。主控必须把大型工作拆成具有依赖顺序、单个模型可完成的 Graph 节点，而不是重试递归扇出。Worker 份额是 `globalMaxParallel - controllerReserve`；该预留可防止 Worker 饱和消耗为主控配置的容量。如果角色没有指定 provider、model 或 reasoning selector，其值会在准入和子级分发前继承父 agent。
 
 每个获准尝试遵循一个生命周期：
 
@@ -579,7 +579,7 @@ Worker、Artifact、Resource 与 Scheduler Service Definition 允许在不修改
 - [Graph Artifacts README](../packages/graph/graph-artifacts/README.zh.md)管理 Manifest、内容寻址、捕获、物化和对账。
 - [Graph Resources README](../packages/graph/graph-resources/README.zh.md)管理会过期的模型遥测、预留、等待原因和资源结果。
 - [Session Persistence README](../packages/session/session-persistence/README.zh.md)管理异步 Append 协调、Flush 屏障、生命周期与失败报告。
-- [JSONL Persistence README](../packages/session/session-persistence-jsonl/README.zh.md)管理默认压缩会话磁盘编码与崩溃尾部恢复。
+- [SQLite Persistence README](../packages/session/session-persistence-sqlite/README.zh.md)管理默认会话数据库、有界历史读取、旧 JSONL 导入与崩溃尾部恢复。
 - [Settings README](../packages/settings/settings/README.zh.md)管理带 Revision 防护的全局模板存储。
 - [Web Bundle Patch](../packages/bundle/web-app/cordis.patch.yml)组合具体 Scheduler、Resource、Artifact、Worker、Graph Mode 与可选 LoopX Provider 条目。
 - [Graph UI README](../packages/client/ui-graph/README.zh.md)管理 Design/Execution 呈现、设置、证据导航与精确寻址控制。

@@ -17,7 +17,7 @@ import { realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
+import { ListToolsResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
@@ -29,6 +29,10 @@ import type { JsonSchemaNode, JsonValue } from '@deepseek-ai/dsh-tools'
 
 /** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
+  /** Whether this definition's connection generation may accept a new call. */
+  isGenerationAvailable?: () => boolean
+  /** Report an SDK request deadline so the connection owner can retire the generation. */
+  onRequestTimeout?: (rawName: string, error: McpError) => void
   /** Whether a registry conflict is contained or rejects this synchronization. */
   registrationFailure: 'contain' | 'throw'
   serverName: string
@@ -60,6 +64,9 @@ const HASH_LENGTH = 12
 
 /** Raw result record: the bridge owns JSON-value validation after transport. */
 const RawCallToolResultSchema = z.record(z.string(), z.unknown())
+
+/** MCP SDK protocol code for a client-side request deadline. */
+const MCP_REQUEST_TIMEOUT_CODE = -32_001
 
 /** Raster formats supported by the durable attachment vocabulary. */
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
@@ -160,6 +167,11 @@ function callToolUncached(
       timeout: opts.toolCallTimeoutMs,
     },
   )
+}
+
+/** Whether the MCP SDK ended one request at its configured deadline. */
+function isRequestTimeout(error: unknown): error is McpError {
+  return error instanceof McpError && error.code === MCP_REQUEST_TIMEOUT_CODE
 }
 
 /**
@@ -377,6 +389,11 @@ function createExecutor(
   projections: WeakMap<ToolExecution, PreparedProjection>,
 ): ToolDefinition['execute'] {
   return async (args: unknown, exec: ToolExecution) => {
+    if (opts.isGenerationAvailable?.() === false) {
+      throw new Error(
+        `MCP_CONNECTION_UNAVAILABLE: mcp-client(${opts.serverName}): the connection generation for tool ${JSON.stringify(rawName)} is unavailable; wait for reconnection or reload the plugin before retrying`,
+      )
+    }
     if (taskRequired) {
       throw new Error(`Tool "${rawName}" requires task-based execution, which this bridge does not support`)
     }
@@ -386,7 +403,17 @@ function createExecutor(
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
     const wireArgs = await prepareWorkspacePathArguments(rawName, argsObj, exec, opts)
-    const result = await callToolUncached(client, rawName, wireArgs, exec, opts)
+    let result: Awaited<ReturnType<typeof callToolUncached>>
+    try {
+      result = await callToolUncached(client, rawName, wireArgs, exec, opts)
+    } catch (error: unknown) {
+      if (!isRequestTimeout(error)) throw error
+      opts.onRequestTimeout?.(rawName, error)
+      throw new Error(
+        `MCP_REQUEST_TIMEOUT: mcp-client(${opts.serverName}): tool ${JSON.stringify(rawName)} exceeded its ${opts.toolCallTimeoutMs}ms deadline; the operation outcome is unknown, so inspect remote state before repeating an operation with side effects`,
+        { cause: error },
+      )
+    }
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

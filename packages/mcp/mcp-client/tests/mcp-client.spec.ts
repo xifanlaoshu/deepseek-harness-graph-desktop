@@ -417,6 +417,22 @@ describe('tool execution', () => {
     )
   })
 
+  it('preserves a non-timeout request failure without retiring the connection', async () => {
+    const client = createMockClient([{ name: 'echo', inputSchema: { type: 'object' } }])
+    client.callTool.mockRejectedValueOnce(new Error('remote unavailable'))
+    const onRequestTimeout = vi.fn()
+
+    await syncTools(client as never, ctx, { ...defaultOpts, onRequestTimeout }, new Map())
+    const result = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: CallId('ordinary-error'), name: 'mcp__srv__echo', arguments: {},
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.error?.message).toBe('remote unavailable')
+    expect(onRequestTimeout).not.toHaveBeenCalled()
+  })
+
   it('sends the raw name for normalized public names', async () => {
     const client = createMockClient(
       [{ name: 'admin.reset', inputSchema: { type: 'object' } }],

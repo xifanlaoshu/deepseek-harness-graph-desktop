@@ -414,8 +414,12 @@ export abstract class AbstractApiClient implements IApiClient {
     search: (payload, signal) => this.callUnary('session.search', payload, signal),
     create: (payload, signal) => this.callUnary('session.create', payload, signal),
     history: (payload, signal) => this.callUnary('session.history', payload, signal),
-    models: (payload, signal) => this.callUnary('session.models', payload, signal),
-    selectModel: (payload, signal) => this.callUnary('session.selectModel', payload, signal),
+    models: (payload, signal) => this.callUnary(
+      'session.models', payload, signal, 'caller-signal-only',
+    ),
+    selectModel: (payload, signal) => this.callUnary(
+      'session.selectModel', payload, signal, 'caller-signal-only',
+    ),
     rename: (payload, signal) => this.callUnary('session.rename', payload, signal),
     fork: (payload, signal) => this.callUnary('session.fork', payload, signal),
     prompt: (payload, signal) => this.callUnary('session.prompt', payload, signal),

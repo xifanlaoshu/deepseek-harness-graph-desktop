@@ -101,6 +101,7 @@ export function ModelSelect(
       })),
     ], [reasoning, t])
   const busy = state.status === 'selecting'
+  const waiting = state.status === 'loading' || busy
 
   const reload = (): void => {
     lastActionRef.current = 'load'
@@ -249,6 +250,12 @@ export function ModelSelect(
           aria-label={t('menu.aria')}
           aria-busy={state.status === 'loading' || busy}
         >
+          {waiting && (
+            <div className={css.waiting} role="status" aria-live="polite">
+              <span className={css.spinner} aria-hidden="true" />
+              <span>{busy ? t('status.selecting') : t('status.loading')}</span>
+            </div>
+          )}
           {pane === 'root' && (
             <>
               <button ref={itemRef()} type="button" role="menuitem" className={css.cell} onClick={() => { setPane('model') }}>
@@ -268,9 +275,6 @@ export function ModelSelect(
 
           {pane === 'model' && (
             <>
-              {state.status === 'loading' && (
-                <div className={css.status}>{t('status.loading')}</div>
-              )}
               {state.error !== null && lastActionRef.current === 'load' && (
                 <div className={css.error}>
                   <span>{t('error.action', { message: state.error })}</span>

@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { GraphRunGenerationId, GraphRunId } from '@deepseek-ai/dsh-graph'
-import GraphSchedulerRuntime, { GraphSchedulerLeaseId, GraphSchedulerOwnerId, MemoryGraphSchedulerProvider, type GraphSchedulerProvider } from '../src/index.ts'
+import GraphSchedulerRuntime, { GraphSchedulerAuthorityError, GraphSchedulerLeaseId, GraphSchedulerOwnerId, MemoryGraphSchedulerProvider, type GraphSchedulerProvider } from '../src/index.ts'
 import { runGraphSchedulerProviderContract } from './contract.ts'
 
 const request = () => ({
@@ -50,7 +50,7 @@ describe('GraphSchedulerRuntime', () => {
     await expect(ctx.graphScheduler.acquire('test', { ...request(), requestedAt: -1 }, new AbortController().signal)).rejects.toThrow(/requestedAt/)
     await expect(ctx.graphScheduler.acquire('test', request(), new AbortController().signal)).rejects.toThrow(/busy decision/)
     const exact = { protocolVersion: 1 as const, providerId: 'test', leaseId: GraphSchedulerLeaseId('lease'), runId: GraphRunId('run'), generationId: GraphRunGenerationId('generation'), ownerId: GraphSchedulerOwnerId('owner'), ownerEpoch: 1, fencingToken: 1, at: 150 }
-    await expect(ctx.graphScheduler.heartbeat(exact, new AbortController().signal)).rejects.toThrow(/changed the lease identity/)
+    await expect(ctx.graphScheduler.heartbeat(exact, new AbortController().signal)).rejects.toBeInstanceOf(GraphSchedulerAuthorityError)
     await ctx.fiber.dispose()
   })
 

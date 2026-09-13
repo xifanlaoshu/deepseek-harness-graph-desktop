@@ -21,6 +21,21 @@ export type GraphSchedulerLeaseId = Branded<'GraphSchedulerLeaseId'>
  */
 export const GraphSchedulerLeaseId = (value: string): GraphSchedulerLeaseId => value as GraphSchedulerLeaseId
 
+/** Non-retryable loss of one exact scheduler lease identity. */
+export class GraphSchedulerAuthorityError extends Error {
+  /** Stable diagnostic code for retry classification. */
+  readonly code = 'GRAPH_SCHEDULER_AUTHORITY_LOST'
+
+  /**
+   * Create a failure that requires fenced recovery instead of another heartbeat.
+   * @param message exact lease identity or expiry failure.
+   */
+  constructor(message: string) {
+    super(message)
+    this.name = 'GraphSchedulerAuthorityError'
+  }
+}
+
 /** Exact durable run ownership requested by one Host. */
 export interface GraphSchedulerAcquireRequest {
   readonly protocolVersion: 1
@@ -143,7 +158,7 @@ export class MemoryGraphSchedulerProvider implements GraphSchedulerProvider {
     const state = this.runs.get(String(request.runId))
     const lease = state?.lease
     this.assertExact(lease, request)
-    if ((lease as GraphSchedulerLease).expiresAt <= request.at) throw new Error('graph scheduler lease expired')
+    if ((lease as GraphSchedulerLease).expiresAt <= request.at) throw new GraphSchedulerAuthorityError('graph scheduler lease expired')
     const renewed = { ...(lease as GraphSchedulerLease), expiresAt: request.at + this.leaseMs }
     ;(state as MemorySchedulerRun).lease = renewed
     return Promise.resolve(renewed)
@@ -162,7 +177,7 @@ export class MemoryGraphSchedulerProvider implements GraphSchedulerProvider {
   private assertExact(lease: GraphSchedulerLease | undefined, request: GraphSchedulerLeaseRequest): void {
     if (lease === undefined || lease.id !== request.leaseId || lease.generationId !== request.generationId
       || lease.ownerId !== request.ownerId || lease.ownerEpoch !== request.ownerEpoch
-      || lease.fencingToken !== request.fencingToken) throw new Error('graph scheduler lease is absent or fenced')
+      || lease.fencingToken !== request.fencingToken) throw new GraphSchedulerAuthorityError('graph scheduler lease is absent or fenced')
   }
 }
 
@@ -228,7 +243,9 @@ export class GraphSchedulerRuntime extends Service {
     this.validateLeaseRequest(request)
     const lease = await this.requireProvider(request.providerId).heartbeat(request, signal)
     this.validateLease(request.providerId, request, lease)
-    if (lease.id !== request.leaseId || lease.fencingToken !== request.fencingToken) throw new Error('graph scheduler heartbeat changed the lease identity')
+    if (lease.id !== request.leaseId || lease.fencingToken !== request.fencingToken) {
+      throw new GraphSchedulerAuthorityError('graph scheduler heartbeat changed the lease identity')
+    }
     return lease
   }
 

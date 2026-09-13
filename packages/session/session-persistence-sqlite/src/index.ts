@@ -6,12 +6,13 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {
-  SessionEvent,
-  SessionHeader,
-  SessionId,
-  SessionPreparation,
+import SessionStore, {
+  type SessionEvent,
+  type SessionHeader,
+  type SessionId,
+  type SessionPreparation,
 } from '@deepseek-ai/dsh-session'
+import JsonlSessionPersistence, { type JsonlCompression } from '@deepseek-ai/dsh-session-persistence-jsonl'
 import {
   DEFAULT_PREPARED_SESSION_CACHE_SIZE,
   DEFAULT_WRITE_BATCH_MAX_DELAY_MS,
@@ -21,6 +22,13 @@ import {
   type SessionInspection,
   type SessionLocation,
   type SessionPersistenceSnapshot,
+  type SessionEventPage,
+  type SessionEventPageRequest,
+  type SessionEventRangeRequest,
+  type SessionEventSequenceRequest,
+  validateSessionEventRangeRequest,
+  validateSessionEventPageRequest,
+  validateSessionEventSequenceRequest,
 } from '@deepseek-ai/dsh-session-persistence'
 import type { JournalMode } from './schema.ts'
 import { SqliteStore } from './store.ts'
@@ -44,6 +52,10 @@ export interface Config {
   preparedSessionCacheSize?: number
   /** Fixed live-event coalescing window; not a backend completion deadline. */
   writeBatchMaxDelayMs?: number
+  /** Legacy JSONL root imported transactionally before this provider serves. */
+  legacyJsonlRoot?: string
+  /** Encoding used by the legacy root; defaults to `zstd`. */
+  legacyJsonlCompression?: JsonlCompression
 }
 
 /**
@@ -62,6 +74,8 @@ export class SqliteSessionPersistence extends SessionPersistence {
     preparedSessionCacheSize: z.number().step(1).min(1).default(DEFAULT_PREPARED_SESSION_CACHE_SIZE),
     writeBatchMaxDelayMs: z.number().step(1).min(1).max(MAX_WRITE_BATCH_DELAY_MS)
       .default(DEFAULT_WRITE_BATCH_MAX_DELAY_MS),
+    legacyJsonlRoot: z.string(),
+    legacyJsonlCompression: z.union(['zstd', 'none'] as const).default('zstd'),
   })
 
   private readonly store: SqliteStore
@@ -87,6 +101,24 @@ export class SqliteSessionPersistence extends SessionPersistence {
   /** Reject self-contained path and ownership failures without loading Node SQLite. */
   protected async [Service.init](): Promise<void> {
     await this.store.validatePath()
+    if (this.config.legacyJsonlRoot !== undefined) await this.importLegacyJsonl()
+  }
+
+  /** Import every missing legacy identity without retaining a complete log in memory. */
+  private async importLegacyJsonl(): Promise<void> {
+    const legacyCtx = new Context()
+    await legacyCtx.plugin(SessionStore)
+    const legacy = new JsonlSessionPersistence(legacyCtx, {
+      root: this.config.legacyJsonlRoot as string,
+      compression: this.config.legacyJsonlCompression ?? 'zstd',
+    })
+    for (const meta of await legacy.list()) {
+      const imported = await this.store.importSession(meta, async (accept) => {
+        const observed = await legacy.visitEventBatches(meta.id, accept)
+        if (observed === undefined) throw new Error(`legacy session "${meta.id}" disappeared during import`)
+      })
+      if (imported) this.ctx.logger.info(`imported legacy JSONL session "${meta.id}" into SQLite`)
+    }
   }
 
   /** SQLite has one database, not an independent per-session artifact. */
@@ -120,6 +152,67 @@ export class SqliteSessionPersistence extends SessionPersistence {
     signal?: AbortSignal,
   ): Promise<{ meta: SessionHeader; events: SessionEvent[] }> {
     return this.coordinator.readFrom(id, fromSeq, signal)
+  }
+
+  override async readRange(
+    id: SessionId,
+    request: SessionEventRangeRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; events: SessionEvent[] }> {
+    validateSessionEventRangeRequest(request)
+    const live = this.ctx.sessions.get(id)
+    if (live !== undefined) {
+      signal?.throwIfAborted()
+      return {
+        meta: live.header,
+        events: live.events.filter(event => event.seq >= request.fromSeq
+          && (request.toSeq === undefined || event.seq < request.toSeq)),
+      }
+    }
+    const stored = await this.store.readRange(id, request, signal)
+    if (stored === undefined) throw new Error(`session "${id}" not found`)
+    return stored
+  }
+
+  override async findEventSequences(
+    id: SessionId,
+    request: SessionEventSequenceRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; sequences: number[] }> {
+    validateSessionEventSequenceRequest(request)
+    const live = this.ctx.sessions.get(id)
+    if (live !== undefined) {
+      signal?.throwIfAborted()
+      const accepted = new Set(request.types)
+      return {
+        meta: live.header,
+        sequences: live.events
+          .filter(event => accepted.has(event.type)
+            && (request.beforeSeq === undefined || event.seq < request.beforeSeq)
+            && (request.surfaceOp === undefined
+              || (event as { surfaceOp?: string }).surfaceOp === request.surfaceOp))
+          .slice()
+          .reverse()
+          .slice(0, request.limit)
+          .map(event => event.seq),
+      }
+    }
+    const stored = await this.store.findEventSequences(id, request, signal)
+    if (stored === undefined) throw new Error(`session "${id}" not found`)
+    return stored
+  }
+
+  override async readEventPage(
+    id: SessionId,
+    request: SessionEventPageRequest,
+    signal?: AbortSignal,
+  ): Promise<SessionEventPage> {
+    validateSessionEventPageRequest(request)
+    const live = this.ctx.sessions.get(id)
+    if (live !== undefined) return super.readEventPage(id, request, signal)
+    const stored = await this.store.readEventPage(id, request, signal)
+    if (stored === undefined) throw new Error(`session "${id}" not found`)
+    return stored
   }
 
   list(signal?: AbortSignal): Promise<SessionHeader[]> {

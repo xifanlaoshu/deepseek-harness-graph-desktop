@@ -12,6 +12,7 @@
 - `ctx.sessionProjections.onChanged(listener): () => void` 订阅变更流：每个已提交事件、每个状态引用发生变化的客户端可见单元各回调一次，携带经 schema 校验的 view 与致因 seq。与 `register` 一样绑定 effect。
 - `ctx.sessionProjections.stateOf(session, key)` 读取一个已注册单元的当前 host 状态，不计算无关 view。返回值是活的只读引用；调用方不得修改。
 - `ctx.sessionProjections.snapshot(session): ProjectionSnapshot` 对全部已注册客户端可见单元做一次一致的同步切面——`{ asOfSeq, values }`，其中 `asOfSeq` = 所有值共同反映到的最后一个事件的 seq（空日志为 `-1`）。host-only 状态只能通过 `stateOf` 读取。
+- `ctx.sessionProjections.restoreFloor(checkpoint, selection?)` 与 `restore(checkpoint, events, baseSeq, selection?)` 负责规划并执行冷折叠。`includeKeys`/`excludeKeys` 让载体只恢复其实际服务的单元，而不构造无关状态。
 
 ### 关键类型
 

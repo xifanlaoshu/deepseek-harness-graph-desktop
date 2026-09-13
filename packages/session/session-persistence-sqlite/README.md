@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-An opt-in SQLite `SessionPersistence` provider. It stores eligible `assistant/chunk` runs in packed physical rows, selectively Zstandard-compresses large payloads, and delta-encodes provenance sequences while restoring the exact logical `SessionEvent[]`. No shipped composition selects it; deployments mount this package explicitly and provide its database path.
+The default SQLite `SessionPersistence` provider in shipped profiles. It stores eligible `assistant/chunk` runs in packed physical rows, selectively Zstandard-compresses large payloads, and delta-encodes provenance sequences while restoring the exact logical `SessionEvent[]`. The base profile uses `$DSH_HOME/sessions.sqlite` and transactionally imports missing sessions from the former `$DSH_HOME/sessions` JSONL root on startup.
 
 `locate(meta)` returns `undefined` because every session shares one database. The provider exposes no per-session raw artifact.
 
@@ -18,6 +18,10 @@ Each append holds `BEGIN IMMEDIATE`, validates the bounded physical tail, packs 
 
 Full reads scan physical rows in first-logical-sequence order. A reverse pass finds the last valid `turn/end` without retaining decoded copies of every physical row; the forward pass decodes and validates one physical row at a time into the returned logical event array. `readFrom(id, fromSeq)` examines packed predecessors only within the maximum row span and anchors the suffix at the earliest one that may contain `fromSeq`; this includes an event range that starts inside a packed row, detects overlapping physical corruption, and does not parse unrelated earlier scalar rows. A malformed packed row is all-or-nothing: committed corruption rejects, while a torn final row is deleted from its physical base during mutating recovery. Repair re-reads the tail under the write lock and rejects a stale marker before deleting anything. Packed `data` that exceeds the schema byte limit rejects before JSON parsing.
 
+`readRange`, `findEventSequences`, and `readEventPage` serve cold transcript pagination without reconstructing the complete session. The Host locates append-origin message positions, reads the newest page under event-count and UTF-8 JSON-byte budgets, excludes `graph/*` rows before payload decoding, and fetches the latest preset-selection event separately. Graph state reaches the tail through its projection checkpoint instead of repeated raw execution events.
+
+When `legacyJsonlRoot` is configured, startup lists legacy headers without decoding their logs, then imports only identities absent from SQLite. Each Zstandard log is decoded one physical frame at a time into one SQLite transaction. A source error or interruption rolls back the complete session import, so a later startup retries it; the JSONL files remain unchanged as a recovery copy.
+
 ## Schema compatibility
 
 A pristine database initializes directly at schema 17. Older schemas, foreign application identities, non-pristine unversioned databases, and incompatible schema objects reject; this pre-release provider supplies no migration. Every statement and fixed pragma lives in a packaged `.sql` resource; values use SQLite parameters and runtime code never assembles query text.
@@ -31,6 +35,8 @@ interface Config {
   busyTimeoutMs?: number
   preparedSessionCacheSize?: number
   writeBatchMaxDelayMs?: number
+  legacyJsonlRoot?: string
+  legacyJsonlCompression?: 'zstd' | 'none'
 }
 ```
 

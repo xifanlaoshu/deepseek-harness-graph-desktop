@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 `@deepseek-ai/dsh-graph-scheduler-sqlite` provides cross-process Graph-run ownership with SQLite `BEGIN IMMEDIATE` transactions. It preserves fencing counters after expiry, blocks takeover while a lease is live, and rejects stale heartbeat or release identities.
 
+The default lease lifetime is 120 seconds and SQLite waits up to 30 seconds for transaction contention. These values leave several heartbeat opportunities during a temporary Host pause while preserving bounded takeover; deployments may override both values in Cordis configuration.
+
 ## Model Experience
 
 ### SQLite ownership

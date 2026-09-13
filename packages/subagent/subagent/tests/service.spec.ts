@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { type Agent } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 
 import { HarnessError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf } from '@deepseek-ai/dsh-scope'
@@ -10,6 +10,7 @@ import SubagentRuntime, {
   snapshotSubagentDescriptor,
   SUBAGENT_DESCRIPTOR_VERSION,
   SubagentError,
+  SubagentCapacityScopeId,
   assertSubagentMaxDepth,
   type ResolvedSubagentStartRequest,
   type SubagentCapabilities,
@@ -22,7 +23,7 @@ import SubagentRuntime, {
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 
 function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id) } as unknown as Agent
+  return { id: SessionId(id), options: {} } as unknown as Agent
 }
 
 const ALL_CAPS: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true, sandboxMode: true }
@@ -189,6 +190,36 @@ describe('SubagentRuntime', () => {
     await expect(subagents.start('weak', baseRequest(override)))
       .rejects.toMatchObject({ code: 'UNSUPPORTED_CAPABILITY' })
     expect(provider.startCount).toBe(0)
+  })
+
+  it('reserves one shared active-capacity slot across concurrent starts', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(SubagentRuntime)
+    const ready = Promise.withResolvers<SubagentRun>()
+    let starts = 0
+    ctx.subagents.registerProvider({
+      name: 'capacity-aware',
+      capabilities: { ...ALL_CAPS, activeCapacity: true },
+      inheritsParentContext: false,
+      start: () => {
+        starts += 1
+        return ready.promise
+      },
+    })
+    const capacity = { scope: SubagentCapacityScopeId('graph-run:test'), maxActive: 1 }
+    const first = ctx.subagents.start('capacity-aware', baseRequest({ agentOptions: { subagentCapacity: capacity } }))
+    await vi.waitFor(() => { expect(starts).toBe(1) })
+    await expect(ctx.subagents.start('capacity-aware', baseRequest({ agentOptions: { subagentCapacity: capacity } })))
+      .rejects.toMatchObject({ code: 'CAPACITY_EXHAUSTED' })
+    expect(starts).toBe(1)
+    ready.resolve({
+      id: SessionId('capacity-child'),
+      localAgent: fakeParent('capacity-child'),
+      result: Promise.resolve({ output: [], stopReason: 'completed' }),
+      async dispose() {},
+    })
+    await first
   })
 
   it('validates depth and schema semantics before provider startup', async () => {

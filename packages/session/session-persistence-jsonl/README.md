@@ -29,6 +29,8 @@ The JSONL durable session-persistence backend — a concrete `SessionPersistence
 | `preparedSessionCacheSize` | positive integer (default `5`) | Maximum unpublished Sessions retained after cold history inspection for reuse by resume. |
 | `writeBatchMaxDelayMs` | positive integer (default `200`) | Fixed coalescing window after an idle live-event queue receives work. Later events do not reset it; flush and teardown bypass it. It does not bound event-loop, serialized-operation, or backend latency. At most Node's `2_147_483_647` ms timer limit. |
 
+`readEventPage` applies event-domain, event-count, and UTF-8 JSON-byte limits while visiting compressed frames. It does not retain the complete decoded logical log, although sequential JSONL storage still reads frames from the start; raw `compression: 'none'` mode uses the general full-scan fallback.
+
 `locate(meta)` returns `{ kind: 'jsonl', path }` for the fixed transcript inside the resolved project/session directories. It performs no filesystem I/O: the target can be returned before the directory or file exists, and an existing file contains only the last flushed prefix.
 
 ## Physical encoding

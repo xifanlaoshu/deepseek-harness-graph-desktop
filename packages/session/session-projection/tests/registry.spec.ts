@@ -255,6 +255,14 @@ describe('SessionProjectionRegistry drive', () => {
       'test/marks': { ver: 1, seq: 10, val: { marks: [] } },
       'test/count': { ver: 1, seq: 5, val: 6 },
     })).toBe(5)
+    expect(ctx.sessionProjections.restoreFloor({
+      'test/marks': { ver: 1, seq: 10, val: { marks: [] } },
+      'test/count': { ver: 1, seq: 5, val: 6 },
+    }, { excludeKeys: ['test/count'] })).toBe(10)
+    expect(ctx.sessionProjections.restoreFloor({
+      'test/marks': { ver: 1, seq: 10, val: { marks: [] } },
+      'test/count': { ver: 1, seq: 5, val: 6 },
+    }, { includeKeys: ['test/marks'] })).toBe(10)
     // A version-mismatched row forces that key back to a full refold.
     expect(ctx.sessionProjections.restoreFloor({
       'test/marks': { ver: 2, seq: 10, val: { marks: [] } },

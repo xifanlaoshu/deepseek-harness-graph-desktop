@@ -56,6 +56,7 @@ import GraphResourceRuntime, {
   type GraphResourceSnapshot,
 } from '@deepseek-ai/dsh-graph-resources'
 import GraphSchedulerRuntime, {
+  GraphSchedulerAuthorityError,
   GraphSchedulerLeaseId,
   type GraphSchedulerAcquireRequest,
   type GraphSchedulerDecision,
@@ -441,6 +442,7 @@ class TestGraphSchedulerProvider implements GraphSchedulerProvider {
   readonly releases: GraphSchedulerLeaseRequest[] = []
   busy = false
   heartbeatError?: Error
+  readonly heartbeatErrors: Error[] = []
   private lastEpoch = 6
 
   acquire(request: GraphSchedulerAcquireRequest): Promise<GraphSchedulerDecision> {
@@ -451,6 +453,8 @@ class TestGraphSchedulerProvider implements GraphSchedulerProvider {
 
   heartbeat(request: GraphSchedulerLeaseRequest): Promise<GraphSchedulerLease> {
     this.heartbeats.push(request)
+    const queued = this.heartbeatErrors.shift()
+    if (queued !== undefined) return Promise.reject(queued)
     if (this.heartbeatError !== undefined) return Promise.reject(this.heartbeatError)
     return Promise.resolve({
       id: request.leaseId, providerId: this.name, sessionId: 'graph-parent', runId: request.runId,
@@ -475,9 +479,11 @@ class TestGraphSchedulerProvider implements GraphSchedulerProvider {
 interface CoordinationBehavior {
   readonly prepareError?: Error
   readonly prepareWait?: Promise<void>
+  readonly prepareWaitFor?: (graph: GraphRevision) => Promise<void> | undefined
   readonly claimError?: Error
   readonly claimErrorFor?: (request: GraphCoordinationRequest) => Error | undefined
   readonly claimWaitFor?: (request: GraphCoordinationRequest, signal: AbortSignal) => Promise<void> | undefined
+  readonly claimFencingTokens?: readonly number[]
   readonly terminalClaim?: GraphCoordinationClaim['terminal']
   readonly settleError?: Error | string
   readonly settleWait?: Promise<void>
@@ -511,6 +517,7 @@ class TestCoordination extends GraphCoordination {
   async prepare(graph: GraphRevision): Promise<void> {
     this.prepares.push(graph)
     await this.behavior.prepareWait
+    await this.behavior.prepareWaitFor?.(graph)
     if (this.behavior.prepareError !== undefined) throw this.behavior.prepareError
   }
 
@@ -519,12 +526,13 @@ class TestCoordination extends GraphCoordination {
     await this.behavior.claimWaitFor?.(request, signal)
     const claimError = this.behavior.claimErrorFor?.(request) ?? this.behavior.claimError
     if (claimError !== undefined) throw claimError
+    const fencingToken = this.behavior.claimFencingTokens?.[this.claims.length - 1] ?? 1
     const claim = {
       claimId: `claim-${request.node.id}`,
       todoId: `todo-${request.node.id}`,
-      leaseId: `lease-${request.node.id}`,
+      leaseId: fencingToken === 1 ? `lease-${request.node.id}` : `lease-${request.node.id}-${String(fencingToken)}`,
       expiresAt: Date.now() + 60_000,
-      fencingToken: 1,
+      fencingToken,
       observation: 'shared progress',
       ...this.behavior.terminalClaim === undefined ? {} : { terminal: this.behavior.terminalClaim },
     }
@@ -550,7 +558,7 @@ class TestCoordination extends GraphCoordination {
     return heartbeat
   }
   async observe(request: Parameters<GraphCoordination['observe']>[0]): Promise<Awaited<ReturnType<GraphCoordination['observe']>>> {
-    const claim = this.liveClaims.get(request.activationId)
+    const claim = this.liveClaims.get(request.activationId) ?? this.behavior.reconcileResult?.observation.claim
     return claim === undefined
       ? { status: 'absent', cursor: '0', events: [], compacted: false }
       : { status: 'claimed', cursor: '0', events: [], compacted: false, claim }
@@ -929,7 +937,7 @@ describe('GraphModeController', () => {
 
   it('stops all durable writes when the whole-run scheduler authority is lost', async () => {
     const scheduler = new TestGraphSchedulerProvider()
-    scheduler.heartbeatError = new Error('lease fenced by peer')
+    scheduler.heartbeatError = new GraphSchedulerAuthorityError('lease fenced by peer')
     const provider = new GraphWorkerProvider([async request => await new Promise((resolve) => {
       const finish = () => { resolve({ output: [{ type: 'text', text: 'aborted after lease loss' }], stopReason: 'aborted' }) }
       if (request.signal.aborted) finish()
@@ -951,6 +959,31 @@ describe('GraphModeController', () => {
     expect(agent.session.events.some(event => event.type === 'graph/run'
       && event.data.id === run.id && event.data.terminal !== undefined)).toBe(false)
     expect(followup).not.toHaveBeenCalled()
+  })
+
+  it('retries a transient scheduler heartbeat failure while the lease remains live', async () => {
+    const scheduler = new TestGraphSchedulerProvider()
+    scheduler.heartbeatErrors.push(new Error('database is temporarily busy'))
+    const provider = new GraphWorkerProvider([async () => {
+      await new Promise(resolve => setTimeout(resolve, 260))
+      return {
+        output: [{ type: 'text', text: 'worker complete' }],
+        structured: { summary: 'completed after heartbeat retry', artifacts: [] },
+        stopReason: 'completed',
+      }
+    }])
+    const { ctx, agent } = await harness({ scheduler, schedulerHeartbeatMs: 100, provider })
+    await ctx.commands.execute(agent, '/graph', [], new AbortController().signal)
+    const accepted = await ctx.graphMode.submit(agent, {
+      intent: 'new', reason: 'transient scheduler contention', graph: singleRevision('heartbeat-retry'),
+    })
+    await new Promise(resolve => setTimeout(resolve, 350))
+
+    const run = await terminalRunId(ctx, agent, accepted.runId as string)
+
+    expect(run.phase).toBe('succeeded')
+    expect(scheduler.heartbeats.length).toBeGreaterThanOrEqual(2)
+    expect(scheduler.releases).toHaveLength(1)
   })
 
   it('automatically recovers a durable nonterminal run without a local executor', async () => {
@@ -1310,12 +1343,24 @@ describe('GraphModeController', () => {
     const firstRoles = defaults.roles.map(role => role.id === 'engineer'
       ? { ...role, prompt: 'Use the first global template.', model: { provider: 'local', model: 'first-model', reasoningEffort: 'medium' }, maxParallel: 2 }
       : role)
-    const template = { roles: firstRoles, limits: defaults.limits, executionPolicy: defaults.executionPolicy }
+    const template = {
+      roles: firstRoles,
+      limits: defaults.limits,
+      executionPolicy: defaults.executionPolicy,
+      controllerResilience: {
+        ...(defaults.controllerResilience as NonNullable<typeof defaults.controllerResilience>),
+        fallbackModels: [{
+          provider: 'advanced', model: 'controller-large', controller: true, compaction: true,
+        }],
+      },
+    }
     const active = await harness({ settings: { [GRAPH_TEMPLATE_SETTINGS_NAMESPACE]: template } })
     await active.ctx.commands.execute(active.agent, '/graph', [], new AbortController().signal)
     expect(active.ctx.graphMode.state(active.agent).config.roles.find(role => role.id === 'engineer')).toMatchObject({
       prompt: 'Use the first global template.', maxParallel: 2, model: { model: 'first-model' },
     })
+    expect(active.ctx.graphMode.state(active.agent).config.controllerResilience?.fallbackModels[0])
+      .toMatchObject({ provider: 'advanced', model: 'controller-large' })
 
     const secondRoles = firstRoles.map(role => role.id === 'engineer'
       ? { ...role, prompt: 'Use the changed global template.', model: { provider: 'local', model: 'second-model' } }
@@ -1336,6 +1381,91 @@ describe('GraphModeController', () => {
     await active.ctx.commands.execute(secondAgent, '/graph', [], new AbortController().signal)
     expect(active.ctx.graphMode.state(secondAgent).config.roles.find(role => role.id === 'engineer')).toMatchObject({
       prompt: 'Use the changed global template.', model: { model: 'second-model' },
+    })
+  })
+
+  it('escalates controller failures after downstream recovery and routes compaction through ordered models', async () => {
+    const { ctx, agent } = await harness()
+    const signal = new AbortController().signal
+    const configured = defaultGraphModeConfig()
+    const controllerResilience = {
+      ...(configured.controllerResilience as NonNullable<typeof configured.controllerResilience>),
+      maxFallbackAttemptsPerTurn: 2,
+      retryableFailureCodes: ['UNSUPPORTED_REASONING_EFFORT'],
+      fallbackModels: [
+        { provider: 'advanced', model: 'large-a', reasoningEffort: 'high', controller: true, compaction: true },
+        { provider: 'advanced', model: 'large-b', controller: true, compaction: true },
+      ],
+      compaction: {
+        ...(configured.controllerResilience?.compaction as NonNullable<typeof configured.controllerResilience>['compaction']),
+        thresholdRatio: 0.6,
+        retainRatio: 0.08,
+        maxTokens: 12_000,
+        reasoningEffort: 'low',
+      },
+    }
+    ctx.graphMode.setConfig(agent, { ...configured, active: true, controllerResilience })
+    const events = agentEvents(ctx, agent)
+    const downstreamRetry = await events.waterfall(
+      'agent/request-error',
+      {
+        turn: 1,
+        step: 1,
+        provider: 'primary',
+        failure: { code: 'UNSUPPORTED_REASONING_EFFORT', message: 'unsupported' },
+        retryPolicy: undefined,
+        signal,
+      },
+      () => Promise.resolve({ kind: 'retry' as const }),
+    )
+    expect(downstreamRetry).toEqual({ kind: 'retry' })
+    expect(await events.waterfall(
+      'agent/request',
+      { turn: 1, step: 1, signal },
+      () => Promise.resolve({ provider: 'primary', model: 'small' }),
+    )).toMatchObject({ provider: 'primary', model: 'small' })
+
+    const escalated = await events.waterfall(
+      'agent/request-error',
+      {
+        turn: 1,
+        step: 1,
+        provider: 'primary',
+        failure: { code: 'UNSUPPORTED_REASONING_EFFORT', message: 'unsupported' },
+        retryPolicy: undefined,
+        signal,
+      },
+      () => Promise.resolve(undefined),
+    )
+    expect(escalated).toEqual({ kind: 'retry' })
+    expect(await events.waterfall(
+      'agent/request',
+      { turn: 1, step: 1, signal },
+      () => Promise.resolve({ provider: 'primary', model: 'small' }),
+    )).toMatchObject({ provider: 'advanced', model: 'large-a', reasoningEffort: 'high' })
+    expect(await events.waterfall(
+      'agent/request',
+      { turn: 2, step: 1, signal },
+      () => Promise.resolve({ provider: 'primary', model: 'small' }),
+    )).toMatchObject({ provider: 'primary', model: 'small' })
+
+    const policy = await ctx.waterfall(
+      'compaction/policy',
+      agent,
+      'pressure',
+      () => Promise.resolve({
+        target: { provider: 'primary', model: 'small' },
+        thresholdRatio: 0.8,
+        retainRatio: 0.16,
+        maxTokens: 8192,
+        compactionRetries: 1,
+        maxOverflowRetries: 1,
+        summarizationTarget: { provider: 'primary', model: 'small' },
+      }),
+    )
+    expect(policy).toMatchObject({ thresholdRatio: 0.6, retainRatio: 0.08, maxTokens: 12_000 })
+    expect(policy.summarizationTarget).toEqual({
+      provider: 'advanced', model: 'large-a', reasoningEffort: 'high',
     })
   })
 
@@ -2003,7 +2133,7 @@ describe('GraphModeController', () => {
     expect(followup).toHaveBeenCalledTimes(3)
   })
 
-  it('recovers idempotent interrupted work under a fenced generation and preserves attempt numbering', async () => {
+  it('recovers idempotent interrupted work without charging an unfinished attempt', async () => {
     const { ctx, agent, provider } = await harness()
     ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
     const graph = singleRevision('recovery-graph', 2)
@@ -2055,13 +2185,73 @@ describe('GraphModeController', () => {
     await ctx.graphMode.recover(agent)
     const recovered = await terminal(ctx, agent, 1)
     expect(recovered).toMatchObject({ id: runId, generation: 2, ownerEpoch: 2, phase: 'succeeded' })
-    expect(recovered.nodes['a']?.attempts.map(attempt => attempt.number)).toEqual([1, 2])
+    expect(recovered.nodes['a']?.attempts.map(attempt => attempt.number)).toEqual([1])
     expect(provider.requests).toHaveLength(1)
     const journal = ctx.graphMode.state(agent).operations[workId] ?? []
     expect(journal.map(item => item.stage)).toEqual([
       'planned', 'admitted', 'started', 'reconciled', 'admitted', 'started', 'output-staged', 'terminal',
     ])
     expect(journal[3]).toMatchObject({ ownerEpoch: 2, generationId: recovered.generationId })
+  })
+
+  it('creates an actionable checkpoint when settled attempts are exhausted during recovery', async () => {
+    const { ctx, agent, provider } = await harness()
+    ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
+    const graph = singleRevision('recovery-exhausted', 1)
+    const runId = GraphRunId('recovery-exhausted-run')
+    const workId = GraphWorkId('recovery-exhausted-work')
+    agent.session.append('graph/change', { kind: 'graph/revision', version: 2, graph, current: true })
+    agent.session.append('graph/run', {
+      id: runId,
+      graphId: graph.graphId,
+      revision: graph.revision,
+      generation: 1,
+      generationId: GraphRunGenerationId('recovery-exhausted-generation-1'),
+      ownerEpoch: 1,
+      configSnapshot: { ...defaultGraphModeConfig(), active: true },
+      overrides: {},
+      phase: 'running',
+      createdAt: 1,
+      updatedAt: 3,
+      nodes: {
+        a: {
+          workId,
+          nodeId: GraphNodeId('a'),
+          phase: 'running',
+          attempts: [{
+            id: GraphAttemptId('settled-attempt'),
+            number: 1,
+            startedAt: 1,
+            finishedAt: 2,
+            error: { code: 'WORKER_FAILED', message: 'worker failed before Host recovery' },
+          }],
+        },
+      },
+    })
+    agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('recovery-exhausted-planned'),
+      operationId: GraphControlOperationId('recovery-exhausted-operation'),
+      workId,
+      runId,
+      generationId: GraphRunGenerationId('recovery-exhausted-generation-1'),
+      graphId: graph.graphId,
+      revision: graph.revision,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 1,
+      stage: 'planned',
+      at: 1,
+      externalReferences: [],
+    })
+
+    await ctx.graphMode.recover(agent)
+
+    const recovered = ctx.graphMode.state(agent).runs[runId] as GraphRun
+    const checkpoint = Object.values(ctx.graphMode.state(agent).checkpoints).find(item => item.runId === runId)
+    expect(recovered).toMatchObject({ generation: 2, phase: 'awaiting_user', nodes: { a: { phase: 'awaiting_user' } } })
+    expect(checkpoint).toMatchObject({ kind: 'awaiting_user', status: 'pending', nodeId: 'a' })
+    expect(checkpoint?.reason).toContain('attempt budget exhausted during recovery')
+    expect(provider.requests).toHaveLength(0)
   })
 
   it('settles orphan model capacity and cancels a still-claimed LoopX todo during recovery', async () => {
@@ -2072,7 +2262,20 @@ describe('GraphModeController', () => {
       coordination: {
         reconcileResult: {
           status: 'confirmed-running',
-          observation: { status: 'claimed', cursor: '4', events: [], compacted: false },
+          observation: {
+            status: 'claimed',
+            cursor: '4',
+            events: [],
+            compacted: false,
+            claim: {
+              claimId: 'claim-a',
+              todoId: 'todo-a',
+              leaseId: 'lease-a',
+              fencingToken: 1,
+              expiresAt: Date.now() + 60_000,
+              observation: 'live prior claim',
+            },
+          },
           evidence: 'prior lease is still claimed',
         },
       },
@@ -2137,6 +2340,166 @@ describe('GraphModeController', () => {
       .find(item => item.kind === 'coordination' && item.outcome === 'confirmed')
     expect(terminalCancellation).toMatchObject({ kind: 'coordination', outcome: 'confirmed' })
     expect(terminalCancellation?.evidence).toContain('canceled during recovery')
+  })
+
+  it('automatically rechecks a recovery checkpoint and reclaims its expired prior-generation claim', async () => {
+    const active = await harness({
+      cwd: 'D:/work',
+      coordination: {
+        claimFencingTokens: [3, 1],
+        reconcileResult: {
+          status: 'unknown',
+          observation: {
+            status: 'unknown',
+            cursor: '5',
+            events: [],
+            compacted: false,
+            claim: {
+              claimId: 'claim-a',
+              todoId: 'todo-a',
+              leaseId: 'lease-a-2',
+              fencingToken: 2,
+              expiresAt: 0,
+              observation: 'expired renewed claim',
+            },
+          },
+          evidence: 'hard lease expired without terminal evidence',
+        },
+      },
+    })
+    const graph = singleRevision('second-recovery', 3)
+    active.agent.session.append('graph/change', { kind: 'graph/revision', version: 2, graph, current: true })
+    const runId = GraphRunId('second-recovery-run')
+    const workId = GraphWorkId('second-recovery-work')
+    const firstGeneration = GraphRunGenerationId('second-recovery-generation-1')
+    const waitingGeneration = GraphRunGenerationId('second-recovery-generation-2')
+    active.agent.session.append('graph/run', {
+      id: runId,
+      graphId: graph.graphId,
+      revision: 1,
+      generation: 1,
+      generationId: firstGeneration,
+      ownerEpoch: 1,
+      configSnapshot: { ...defaultGraphModeConfig(), active: true },
+      overrides: {},
+      phase: 'running',
+      createdAt: 1,
+      updatedAt: 3,
+      nodes: {
+        a: {
+          workId,
+          nodeId: GraphNodeId('a'),
+          phase: 'running',
+          attempts: [{ id: GraphAttemptId('lost-attempt'), number: 1, startedAt: 2 }],
+        },
+      },
+    })
+    active.agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('second-recovery-planned'),
+      operationId: GraphControlOperationId('second-recovery-operation-1'),
+      workId,
+      runId,
+      generationId: firstGeneration,
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 1,
+      stage: 'planned',
+      at: 1,
+      externalReferences: [],
+    })
+    active.agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('second-recovery-admitted'),
+      operationId: GraphControlOperationId('second-recovery-operation-1'),
+      workId,
+      runId,
+      generationId: firstGeneration,
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 1,
+      stage: 'admitted',
+      expectedPrevious: 'planned',
+      at: 2,
+      externalReferences: [],
+    })
+    active.agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('second-recovery-claimed'),
+      operationId: GraphControlOperationId('second-recovery-operation-1'),
+      workId,
+      runId,
+      generationId: firstGeneration,
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 1,
+      stage: 'claimed',
+      expectedPrevious: 'admitted',
+      at: 3,
+      externalReferences: [
+        { kind: 'coordination', provider: 'graph-coordination', id: 'claim-a' },
+        { kind: 'coordination', provider: 'graph-coordination-lease', id: 'lease-a', fencingToken: 1 },
+      ],
+    })
+    active.agent.session.append('graph/run', {
+      id: runId,
+      graphId: graph.graphId,
+      revision: 1,
+      generation: 2,
+      generationId: waitingGeneration,
+      ownerEpoch: 2,
+      configSnapshot: { ...defaultGraphModeConfig(), active: true },
+      overrides: {},
+      phase: 'awaiting_user',
+      createdAt: 1,
+      updatedAt: 6,
+      nodes: {
+        a: {
+          workId,
+          nodeId: GraphNodeId('a'),
+          phase: 'awaiting_user',
+          attempts: [{ id: GraphAttemptId('lost-attempt'), number: 1, startedAt: 2 }],
+        },
+      },
+    })
+    active.agent.session.append('graph/operation', {
+      version: 1,
+      eventId: GraphOperationEventId('second-recovery-reconciled'),
+      operationId: GraphControlOperationId('second-recovery-operation-2'),
+      workId,
+      runId,
+      generationId: waitingGeneration,
+      graphId: graph.graphId,
+      revision: 1,
+      nodeId: GraphNodeId('a'),
+      ownerEpoch: 2,
+      stage: 'reconciled',
+      expectedPrevious: 'claimed',
+      at: 5,
+      externalReferences: [],
+      detail: 'prior recovery could not prove the coordination identity',
+    })
+
+    await active.ctx.graphMode.recover(active.agent)
+    const recovered = await terminalRunId(active.ctx, active.agent, runId)
+
+    expect(recovered).toMatchObject({
+      generation: 3,
+      phase: 'succeeded',
+      nodes: { a: { phase: 'succeeded' } },
+    })
+    expect(recovered.nodes['a']?.attempts.map(attempt => attempt.number)).toEqual([1])
+    expect(active.coordination?.claims).toEqual(expect.arrayContaining([
+      expect.objectContaining({ workId, ownerEpoch: 1 }),
+      expect.objectContaining({ workId, ownerEpoch: 3 }),
+    ]))
+    expect(active.coordination?.settlements).toEqual(expect.arrayContaining([
+      expect.objectContaining({ workId, ownerEpoch: 1, outcome: 'canceled' }),
+      expect.objectContaining({ workId, ownerEpoch: 3, outcome: 'succeeded' }),
+    ]))
   })
 
   it('settles durable staged output during recovery without re-running the Worker', async () => {
@@ -3141,8 +3504,20 @@ describe('GraphModeController', () => {
     expect(run.phase).toBe('succeeded')
     expect(resources.requests).toHaveLength(2)
     expect(resources.requests[0]).toMatchObject({ model: 'coder', hardMaxParallel: 1, weight: 1 })
-    expect(active.agent.session.events.some(event => event.type === 'graph/run'
-      && (event.data as { nodes?: Record<string, { resourceWait?: { reason?: string } }> }).nodes?.['a']?.resourceWait?.reason === 'memory')).toBe(true)
+    expect(active.agent.session.events.some((event) => {
+      if (event.type === 'graph/run' || event.type === 'graph/run-update') {
+        return event.data.nodes['a']?.resourceWait?.reason === 'memory'
+      }
+      return false
+    })).toBe(true)
+    const runSnapshots = active.agent.session.events.filter(event => event.type === 'graph/run'
+      && event.data.id === accepted.runId)
+    const runUpdates = active.agent.session.events.filter(event => event.type === 'graph/run-update'
+      && event.data.runId === accepted.runId)
+    expect(runSnapshots).toHaveLength(1)
+    expect(runUpdates.length).toBeGreaterThan(1)
+    expect(runUpdates.every(event => event.type !== 'graph/run-update'
+      || Object.keys(event.data.nodes).length <= 1)).toBe(true)
     expect(resources.outcomes).toEqual([expect.objectContaining({ outcome: 'completed', providerId: 'resources' })])
     const projection = active.ctx.graphMode.state(active.agent)
     expect(projection.operations[run.nodes['a']?.workId as string]?.flatMap(operation => operation.externalReferences))
@@ -3645,10 +4020,16 @@ describe('GraphModeController', () => {
       'dsh graph node b canceled: graph revision superseded the active run',
     ])
     expect(active.coordination?.settlementSignals.slice(0, 2)).toEqual([false, false])
-    const oldSnapshots = active.agent.session.events.filter(event => event.type === 'graph/run' && event.data.id === running.id)
-    const terminalIndex = oldSnapshots.findIndex(event => 'terminal' in event.data && event.data.terminal !== undefined)
+    const oldUpdates = active.agent.session.events.filter(event => (
+      (event.type === 'graph/run' && event.data.id === running.id)
+      || (event.type === 'graph/run-update' && event.data.runId === running.id)
+    ))
+    const terminalIndex = oldUpdates.findIndex((event) => {
+      if (event.type === 'graph/run' || event.type === 'graph/run-update') return event.data.terminal !== undefined
+      return false
+    })
     expect(terminalIndex).toBeGreaterThanOrEqual(0)
-    expect(oldSnapshots.slice(terminalIndex + 1)).toHaveLength(0)
+    expect(oldUpdates.slice(terminalIndex + 1)).toHaveLength(0)
   })
 
   it('bounds plugin disposal when a terminal coordination write does not settle', async () => {
@@ -3849,6 +4230,70 @@ describe('GraphModeController', () => {
       revision: 2, nodes: [{ objective: 'corrected implementation objective' }],
     })
     expect(provider.requests).toHaveLength(2)
+  })
+
+  it('commits a replacement revision from the live checkpoint projection', async () => {
+    let releaseRevisionPrepare!: () => void
+    const revisionPrepare = new Promise<void>((resolve) => { releaseRevisionPrepare = resolve })
+    const provider = new GraphWorkerProvider([
+      workerResult({ summary: 'original result', artifacts: [] }),
+      workerResult({ summary: 'revised result', artifacts: [] }),
+    ])
+    const active = await harness({
+      provider,
+      coordination: { prepareWaitFor: graph => graph.revision === 2 ? revisionPrepare : undefined },
+      cwd: 'D:/work',
+    })
+    active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
+    const first = singleRevision('checkpoint-revision-race')
+    const submitted = await active.ctx.graphMode.submit(active.agent, {
+      intent: 'new', reason: 'original task', graph: first,
+    })
+    await terminalRunId(active.ctx, active.agent, submitted.runId as string)
+    const runId = GraphRunId(submitted.runId as string)
+    await active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('control-modify-before-revision'),
+      action: 'modify-task',
+      ...controlAddress(active.ctx, active.agent, runId),
+      nodeId: GraphNodeId('a'),
+      reason: 'replace the task through a revision',
+    })
+    const checkpoint = Object.values(active.ctx.graphMode.state(active.agent).checkpoints)
+      .find(item => item.runId === runId && item.issues?.some(issue => issue.id === 'modify-a'))
+    if (checkpoint === undefined) throw new Error('task modification checkpoint must exist')
+
+    const second: GraphRevision = {
+      ...first,
+      revision: 2,
+      parentRevision: 1,
+      createdAt: 2,
+      userInput: 'corrected requirement',
+      nodes: [task('a', 'corrected implementation objective')],
+    }
+    const revision = active.ctx.graphMode.submit(active.agent, {
+      intent: 'revise', reason: 'apply the task modification', graph: second, changedNodeIds: [GraphNodeId('a')],
+    })
+    await vi.waitFor(() => { expect(active.coordination?.prepares).toHaveLength(2) })
+    await expect(active.ctx.graphMode.control(active.agent, {
+      operationId: GraphControlOperationId('control-approve-modification'),
+      action: 'approve-checkpoint',
+      ...controlAddress(active.ctx, active.agent, runId),
+      checkpointId: checkpoint.id,
+      reason: 'continue the old generation',
+    })).rejects.toThrow(/task modification checkpoint approval requires a replacement revision/)
+    releaseRevisionPrepare()
+
+    const revised = await revision
+    await terminalRunId(active.ctx, active.agent, revised.runId as string)
+    const terminalCheckpointEvents = active.agent.session.events.filter(event => (
+      event.type === 'graph/checkpoint'
+      && event.data.id === checkpoint.id
+      && event.data.status !== 'pending'
+    ))
+    expect(terminalCheckpointEvents).toHaveLength(1)
+    expect(active.ctx.graphMode.state(active.agent).checkpoints[checkpoint.id]).toMatchObject({
+      status: 'resolved', replacementRevision: 2,
+    })
   })
 
   it('interrupts an active modified node before its internal retry', async () => {

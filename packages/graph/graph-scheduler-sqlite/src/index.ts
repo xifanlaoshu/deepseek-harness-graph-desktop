@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
+  GraphSchedulerAuthorityError,
   GraphSchedulerLeaseId,
   type GraphSchedulerAcquireRequest,
   type GraphSchedulerDecision,
@@ -40,9 +41,9 @@ export interface Config {
 export const Config: z<Config> = z.object({
   providerName: z.string().default('sqlite-scheduler'),
   path: z.string().default('.sessions/graph-scheduler.sqlite'),
-  leaseMs: z.natural().min(1_000).max(300_000).default(30_000),
+  leaseMs: z.natural().min(1_000).max(300_000).default(120_000),
   retryMs: z.natural().min(10).max(300_000).default(500),
-  busyTimeoutMs: z.natural().min(1).max(300_000).default(5_000),
+  busyTimeoutMs: z.natural().min(1).max(300_000).default(30_000),
   journalMode: z.union(['wal', 'delete', 'truncate'] as const).default('wal'),
 })
 
@@ -197,10 +198,10 @@ export class SqliteGraphSchedulerProvider implements GraphSchedulerProvider {
 
   private exactLease(request: GraphSchedulerLeaseRequest): SqlRow {
     const value = this.db.prepare('SELECT * FROM graph_scheduler_leases WHERE run_id = ?').get(String(request.runId))
-    if (value === undefined) throw new Error('graph scheduler lease is absent or fenced')
+    if (value === undefined) throw new GraphSchedulerAuthorityError('graph scheduler lease is absent or fenced')
     const current = row(value)
     this.assertExact(current, request)
-    if (numberValue(current.expires_at, 'expires_at') <= request.at) throw new Error('graph scheduler lease expired')
+    if (numberValue(current.expires_at, 'expires_at') <= request.at) throw new GraphSchedulerAuthorityError('graph scheduler lease expired')
     return current
   }
 
@@ -209,7 +210,9 @@ export class SqliteGraphSchedulerProvider implements GraphSchedulerProvider {
       || textValue(current.generation_id, 'generation_id') !== String(request.generationId)
       || textValue(current.owner_id, 'owner_id') !== String(request.ownerId)
       || numberValue(current.owner_epoch, 'owner_epoch') !== request.ownerEpoch
-      || numberValue(current.fencing_token, 'fencing_token') !== request.fencingToken) throw new Error('graph scheduler lease is absent or fenced')
+      || numberValue(current.fencing_token, 'fencing_token') !== request.fencingToken) {
+      throw new GraphSchedulerAuthorityError('graph scheduler lease is absent or fenced')
+    }
   }
 
   private lease(current: SqlRow): GraphSchedulerLease {

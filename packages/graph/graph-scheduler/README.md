@@ -6,6 +6,8 @@ English | [中文](README.zh.md)
 
 Providers must persist fencing counters beyond lease expiry. A replacement owner receives a strictly greater token and Graph Mode uses that token as the run `ownerEpoch`.
 
+`GraphSchedulerAuthorityError` identifies a heartbeat failure that is already known to be fenced or expired. Consumers stop writing immediately for that error; transport and storage failures that do not prove authority loss may be retried only while the current lease remains live.
+
 Every Provider runs the shared Scheduler conformance suite. It verifies exact idempotent acquisition, competing-owner exclusion, immutable session identity, minimum-epoch admission, exact heartbeat and release, replacement fencing, and stale-owner rejection. The exported `MemoryGraphSchedulerProvider` supplies the same semantics for single-process compositions without claiming restart durability.
 
 ## Model Experience

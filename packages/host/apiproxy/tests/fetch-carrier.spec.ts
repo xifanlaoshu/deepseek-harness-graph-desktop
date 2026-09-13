@@ -461,6 +461,65 @@ describe('unary round trip (handler ⇄ client, no network)', () => {
     }
   })
 
+  it('lets session model operations finish after the 30-second default unary deadline', async () => {
+    vi.useFakeTimers()
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+      }, milliseconds)
+      return controller.signal
+    })
+    try {
+      const api = fakeApi()
+      api.sessions.models = async (request) => {
+        await new Promise(resolve => setTimeout(resolve, 30_001))
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              current: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+              routable: true,
+              groups: [],
+              failures: [],
+            },
+          },
+        }
+      }
+      api.sessions.selectModel = async (request) => {
+        await new Promise(resolve => setTimeout(resolve, 30_001))
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: { selected: { provider: request.payload.provider, model: request.payload.model } },
+          },
+        }
+      }
+      const c = client(api)
+      const models = c.sessions.models({ sessionId: 's' as never })
+      const selection = c.sessions.selectModel({
+        sessionId: 's' as never,
+        provider: 'deepseek-official',
+        model: 'deepseek-v4-flash',
+      })
+      const assertion = Promise.all([
+        expect(models).resolves.toMatchObject({ result: { ok: true } }),
+        expect(selection).resolves.toMatchObject({ result: { ok: true } }),
+      ])
+
+      await Promise.all([
+        vi.advanceTimersByTimeAsync(30_001),
+        assertion,
+      ])
+      expect(timeoutSpy).not.toHaveBeenCalled()
+    } finally {
+      timeoutSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('round-trips the subagent domain through the wire form', async () => {
     const c = client()
     expect((await c.subagents.list({ parentSessionId: 'parent' as never })).result)

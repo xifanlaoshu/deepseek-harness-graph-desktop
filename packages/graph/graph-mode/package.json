@@ -22,6 +22,7 @@
   "peerDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
     "@deepseek-ai/dsh-commands": "workspace:^",
+    "@deepseek-ai/dsh-compaction": "workspace:^",
     "@deepseek-ai/dsh-graph": "workspace:^",
     "@deepseek-ai/dsh-graph-artifacts": "workspace:^",
     "@deepseek-ai/dsh-graph-coordination": "workspace:^",
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-agent": "workspace:^",
     "@deepseek-ai/dsh-commands": "workspace:^",
+    "@deepseek-ai/dsh-compaction": "workspace:^",
     "@deepseek-ai/dsh-graph": "workspace:^",
     "@deepseek-ai/dsh-graph-artifacts": "workspace:^",
     "@deepseek-ai/dsh-graph-coordination": "workspace:^",

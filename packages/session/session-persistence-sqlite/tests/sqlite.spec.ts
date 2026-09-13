@@ -15,12 +15,14 @@ import SessionPersistenceSqlite, {
   DEFAULT_BUSY_TIMEOUT_MS,
   SCHEMA_VERSION,
 } from '@deepseek-ai/dsh-session-persistence-sqlite'
+import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import {
   runCoordinatorContract,
   type CoordinatorFixture,
 } from '../../session-persistence/tests/coordinator-contract.ts'
 import {
   meta,
+  oneTurnLog,
   runPersistenceContract,
 } from '../../session-persistence/tests/contract.ts'
 import { MAX_PACKED_DATA_BYTES } from '../src/codec.ts'
@@ -228,6 +230,42 @@ runCoordinatorContract('sqlite', async (): Promise<CoordinatorFixture> => {
     },
     cleanup: async () => { await rm(directory, { recursive: true, force: true }) },
   }
+})
+
+describe('SessionPersistenceSqlite legacy import', () => {
+  it('imports each JSONL identity atomically and skips it on later startups', async () => {
+    const legacyRoot = await mkdtemp(join(tmpdir(), 'dsh-sqlite-legacy-'))
+    dirs.push(legacyRoot)
+    const path = await freshDbPath('dsh-sqlite-import-')
+    const header = meta('legacy-import')
+    const events = oneTurnLog()
+
+    const legacyCtx = new Context()
+    await legacyCtx.plugin(SessionStore)
+    await legacyCtx.plugin(JsonlSessionPersistence, { root: legacyRoot })
+    await legacyCtx.sessionPersistence.create(header)
+    await legacyCtx.sessionPersistence.append(header.id, events)
+    await legacyCtx.fiber.dispose()
+
+    const first = new Context()
+    await first.plugin(SessionStore)
+    await first.plugin(SessionPersistenceSqlite, { path, legacyJsonlRoot: legacyRoot })
+    expect(await first.sessionPersistence.inspect(header.id)).toEqual({
+      meta: { ...header, delegationDepth: 0 },
+      events,
+    })
+    await first.fiber.dispose()
+
+    const second = new Context()
+    await second.plugin(SessionStore)
+    await second.plugin(SessionPersistenceSqlite, { path, legacyJsonlRoot: legacyRoot })
+    expect((await second.sessionPersistence.list()).map(candidate => candidate.id)).toEqual([header.id])
+    expect(await second.sessionPersistence.inspect(header.id)).toEqual({
+      meta: { ...header, delegationDepth: 0 },
+      events,
+    })
+    await second.fiber.dispose()
+  })
 })
 
 describe('SessionPersistenceSqlite physical packing', () => {

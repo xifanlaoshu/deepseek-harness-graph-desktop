@@ -1298,6 +1298,31 @@ describe('default one-shot summarizer', () => {
     expect(policyAdapter.lastOptions?.messages[0]).toEqual(prefix)
   })
 
+  it('routes the single reconstructable summary call through session policy', async () => {
+    const { ctx, compact } = await summarizerHarness([{ type: 'text', text: 'unused primary' }])
+    const fallback = new ScriptedAdapter([{ type: 'text', text: 'fallback checkpoint' }])
+    ctx.llm.registerAdapter(['advanced'], fallback)
+    ctx.on('compaction/policy', async (_agent, _trigger, next) => ({
+      ...await next(),
+      maxTokens: 12_000,
+      summarizationTarget: { provider: 'advanced', model: 'advanced' },
+    }))
+
+    const output = await compact.runSummarize(promptInput('history'), agent(conversation(1), MODEL), SIGNAL)
+
+    expect(output).toMatchObject({
+      summary: [{ type: 'text', text: 'fallback checkpoint' }],
+      provider: 'advanced',
+      model: 'advanced',
+      maxTokens: 12_000,
+    })
+    expect(fallback.lastOptions).toMatchObject({
+      provider: 'advanced',
+      model: 'advanced',
+      maxTokens: 12_000,
+    })
+  })
+
   it('resolves the latest routed provider/model before the AgentOptions pair', async () => {
     const { adapter, compact } = await summarizerHarness([{ type: 'text', text: 'summary' }], undefined, 'routed')
     const session = conversation(1)

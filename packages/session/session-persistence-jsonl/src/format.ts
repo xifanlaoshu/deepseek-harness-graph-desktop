@@ -272,6 +272,7 @@ function parseHeaderRecord(record: Buffer): SessionHeader {
 export class SessionLogScanner {
   private readonly meta: SessionHeader
   private readonly events: SessionEvent[] = []
+  private nextSeq = 0
   private fragments: Buffer[] = []
   private fragmentBytes = 0
   private inputBytes: number
@@ -330,8 +331,18 @@ export class SessionLogScanner {
     return {
       inputBytes: this.inputBytes,
       committedBytes: this.committedBytes,
-      eventCount: this.events.length,
+      eventCount: this.nextSeq,
     }
+  }
+
+  /**
+   * Release decoded complete events while retaining sequence validation state.
+   * Streaming migrations use this after each physical frame so a large legacy
+   * log never accumulates as one in-memory array.
+   * @returns events decoded since the previous drain, in sequence order.
+   */
+  drainEvents(): SessionEvent[] {
+    return this.events.splice(0)
   }
 
   /**
@@ -360,10 +371,12 @@ export class SessionLogScanner {
     }
 
     const rowStart = this.events.length
+    const rowNextSeq = this.nextSeq
     for (const event of decoded) {
-      if (event.seq !== this.events.length) {
-        const expected = this.events.length
+      if (event.seq !== this.nextSeq) {
+        const expected = this.nextSeq
         this.events.length = rowStart
+        this.nextSeq = rowNextSeq
         this.issue = new Error(
           `corrupt session log: seq gap in committed region at line ${this.eventLine} `
           + `(expected ${expected}, got ${event.seq})`,
@@ -372,6 +385,7 @@ export class SessionLogScanner {
         return
       }
       this.events.push(event)
+      this.nextSeq += 1
     }
     this.committedBytes = endByte
   }

@@ -24,4 +24,4 @@ A regression test rejects multi-argument minimum calls and verifies that every p
 
 - Large provenance arrays no longer make history pagination throw solely because of their length.
 - Pagination semantics and wire responses are unchanged.
-- This does not bound the byte size of a history page or the browser cost of replaying it; those performance concerns remain separate from the server-side call-stack failure.
+- Byte and event-count budgets are now owned by the [SQLite-default and incremental Graph history decision](../architecture/2026-08-27-sqlite-default-and-incremental-graph-history.md); this note continues to own provenance scanning without argument expansion.

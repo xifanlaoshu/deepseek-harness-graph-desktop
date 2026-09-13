@@ -4,6 +4,8 @@
 
 `@deepseek-ai/dsh-graph-scheduler-sqlite` 使用 SQLite `BEGIN IMMEDIATE` 事务提供跨进程的 Graph 运行所有权。它在租约过期后继续保留 fencing 计数，在租约存活期间阻止接管，并拒绝陈旧的心跳或释放身份。
 
+默认租约生命周期为 120 秒，SQLite 最多等待 30 秒的事务争用。这些值让临时 Host 停顿期间仍有多次心跳机会，同时保持有界接管；部署可以在 Cordis 配置中覆盖这两个值。
+
 ## 模型体验
 
 ### SQLite 所有权

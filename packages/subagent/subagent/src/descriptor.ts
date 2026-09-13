@@ -25,6 +25,8 @@ import { snapshotJsonValue } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import type { SubagentCapacity } from './capacity.ts'
+import { SubagentCapacityScopeId, validateSubagentCapacity } from './capacity.ts'
 
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
@@ -45,7 +47,7 @@ declare module '@deepseek-ai/dsh-session/types' {
  * Supporting another composition input is a deliberate version change, never
  * an implicit extra field.
  */
-export const SUBAGENT_DESCRIPTOR_VERSION = 3
+export const SUBAGENT_DESCRIPTOR_VERSION = 4
 
 /** Fields shared by every supported `subagent/descriptor` payload. */
 interface SubagentDescriptorBase {
@@ -83,6 +85,8 @@ export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBas
   readonly persona?: string
   /** Child tool scoping reapplied on resume. */
   readonly toolFilter?: ToolRestriction
+  /** Active-subagent pool restored on every cold Activation. */
+  readonly capacity?: SubagentCapacity
 }
 
 /** The supported durable subagent identity and optional continuation composition. */
@@ -120,6 +124,8 @@ export interface ContinuableSubagentDescriptorInput extends SubagentDescriptorIn
   readonly persona?: string
   /** Requested child tool scoping. */
   readonly toolFilter?: ToolRestriction
+  /** Active-subagent pool inherited from the delegating tree. */
+  readonly capacity?: SubagentCapacity
 }
 
 /** Inputs {@link snapshotSubagentDescriptor} validates and detaches. */
@@ -141,8 +147,10 @@ const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
   'reasoningEffort',
   'persona',
   'toolFilter',
+  'capacity',
 ])
 const TOOL_FILTER_KEYS = new Set(['allow', 'deny'])
+const CAPACITY_KEYS = new Set(['scope', 'maxActive'])
 
 /** Whether a persisted JSON value is an object record. */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -198,6 +206,21 @@ function parseToolFilter(value: unknown): ToolRestriction {
   }
 }
 
+/** Validate one persisted active-subagent pool. */
+function parseCapacity(value: unknown): SubagentCapacity {
+  if (!isRecord(value)) throw new Error('persisted subagent descriptor capacity must be an object')
+  assertKnownKeys(value, CAPACITY_KEYS, 'capacity')
+  const scope = value['scope']
+  const maxActive = value['maxActive']
+  if (typeof scope !== 'string') throw new Error('persisted subagent descriptor capacity.scope must be a string')
+  if (typeof maxActive !== 'number') throw new Error('persisted subagent descriptor capacity.maxActive must be a number')
+  try {
+    return validateSubagentCapacity({ scope: SubagentCapacityScopeId(scope), maxActive }) as SubagentCapacity
+  } catch (error) {
+    throw new Error('persisted subagent descriptor capacity is invalid', { cause: error })
+  }
+}
+
 /** Validate one persisted descriptor payload for the current runtime. */
 function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undefined {
   if (!isRecord(value)) {
@@ -242,6 +265,7 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
   const toolFilter = Object.hasOwn(value, 'toolFilter')
     ? parseToolFilter(value['toolFilter'])
     : undefined
+  const capacity = Object.hasOwn(value, 'capacity') ? parseCapacity(value['capacity']) : undefined
   return {
     version: SUBAGENT_DESCRIPTOR_VERSION,
     mode,
@@ -252,6 +276,7 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
     ...reasoningEffort !== undefined ? { reasoningEffort } : {},
     ...persona !== undefined ? { persona } : {},
     ...toolFilter !== undefined ? { toolFilter } : {},
+    ...capacity !== undefined ? { capacity } : {},
   }
 }
 
@@ -294,6 +319,9 @@ export function snapshotSubagentDescriptor(input: SubagentDescriptorInput): Suba
       ...input.reasoningEffort !== undefined ? { reasoningEffort: input.reasoningEffort } : {},
       ...input.persona !== undefined ? { persona: input.persona } : {},
       ...input.toolFilter !== undefined ? { toolFilter: input.toolFilter } : {},
+      ...input.capacity !== undefined
+        ? { capacity: validateSubagentCapacity(input.capacity) as SubagentCapacity }
+        : {},
     }
   const snapshot = snapshotJsonValue(candidate)
   if (snapshot === undefined) {

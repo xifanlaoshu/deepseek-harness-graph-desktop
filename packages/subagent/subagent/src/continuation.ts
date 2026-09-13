@@ -37,6 +37,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
 import { foldSubagentDescriptor, snapshotSubagentDescriptor } from './descriptor.ts'
+import { resolveSubagentCapacity } from './capacity.ts'
 import type { SubagentDescriptorData } from './descriptor.ts'
 import {
   appendDelegatedPolicyOverrides,
@@ -187,6 +188,13 @@ interface ContinuationHost {
    * @returns the observer whose edges this epoch publishes.
    */
   observeActivation(provider: string, childId: SessionId, parent: Agent): ActivationObserver
+  /**
+   * Reserve inherited active capacity until a cold-resumed child is published.
+   * @param parent exact live delegating parent.
+   * @param agentOptions durable child options reconstructed from its descriptor.
+   * @returns idempotent reservation release.
+   */
+  acquireCapacity(parent: Agent, agentOptions: AgentOptions): () => void
 }
 
 /**
@@ -420,6 +428,7 @@ export class SubagentContinuationManager {
     const agentProvider = request.agentOptions?.provider ?? parent.options.provider
     const agentModel = request.agentOptions?.model ?? parent.options.model
     const reasoningEffort = request.agentOptions?.reasoningEffort ?? parent.options.reasoningEffort
+    const capacity = resolveSubagentCapacity(parent, request.agentOptions)
     const descriptor = snapshotSubagentDescriptor({
       mode: 'continuable',
       provider: spec.provider,
@@ -429,6 +438,7 @@ export class SubagentContinuationManager {
       ...reasoningEffort !== undefined ? { reasoningEffort } : {},
       ...request.persona !== undefined ? { persona: request.persona } : {},
       ...request.toolFilter !== undefined ? { toolFilter: request.toolFilter } : {},
+      ...capacity !== undefined ? { capacity } : {},
     })
     // Capture before the first await: a later parent switch belongs to the
     // parent's future, not to this child.
@@ -974,17 +984,20 @@ export class SubagentContinuationManager {
         'NOT_RESUMABLE',
       )
     }
+    const agentOptions: AgentOptions = {
+      ...descriptor.agentProvider !== undefined ? { provider: descriptor.agentProvider } : {},
+      ...descriptor.agentModel !== undefined ? { model: descriptor.agentModel } : {},
+      ...descriptor.reasoningEffort !== undefined ? { reasoningEffort: descriptor.reasoningEffort } : {},
+      ...descriptor.capacity !== undefined ? { subagentCapacity: descriptor.capacity } : {},
+    }
+    const releaseCapacity = this.host.acquireCapacity(parent, agentOptions)
     let activation: Activation
     try {
       activation = await this.materialize({
         childId,
         provider: descriptor.provider,
         parent,
-        agentOptions: {
-          ...descriptor.agentProvider !== undefined ? { provider: descriptor.agentProvider } : {},
-          ...descriptor.agentModel !== undefined ? { model: descriptor.agentModel } : {},
-          ...descriptor.reasoningEffort !== undefined ? { reasoningEffort: descriptor.reasoningEffort } : {},
-        },
+        agentOptions,
         composition: { persona: descriptor.persona, toolFilter: descriptor.toolFilter },
         signal: options.signal,
       })
@@ -992,6 +1005,8 @@ export class SubagentContinuationManager {
       options.signal.throwIfAborted()
       if (error instanceof SubagentError) throw error
       throw new SubagentError(`subagent "${childId}" is unavailable`, 'NOT_RESUMABLE', { cause: error })
+    } finally {
+      releaseCapacity()
     }
     return this.submitMaterialized(activation, content, options.source, parent, options.signal)
   }

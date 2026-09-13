@@ -494,6 +494,17 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 来源：[`packages/graph/graph/src/index.ts:47`](../packages/graph/graph/src/index.ts)
 
+<a id="graphrun-update--log-only"></a>
+
+#### `graph/run-update` — log-only
+
+```ts persistence-catalog
+/** Incremental state replacement within one existing execution generation. */
+'graph/run-update': GraphRunUpdate
+```
+
+来源：[`packages/graph/graph/src/index.ts:51`](../packages/graph/graph/src/index.ts)
+
 <a id="graphsettlement--log-only"></a>
 
 #### `graph/settlement` — log-only

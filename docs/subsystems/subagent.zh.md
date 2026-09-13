@@ -30,12 +30,14 @@ interface SubagentCapabilities {
   readonly toolFilter: boolean
   readonly persona: boolean
   readonly sandboxMode?: boolean
+  /** Provider publishes an in-process child carrying inherited active-capacity options. */
+  readonly activeCapacity?: boolean
 }
 ```
 
 ## 单次启动请求
 
-工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系与委派深度。可选的 output schema、depth、工具过滤器、persona 和沙箱模式上限需要对应的能力 flag 匹配。不支持的 schema 在启动时即失败；进程内后端将 filter 和 persona 的作用域限定在子 agent 创建阶段，通过强制 capture 工具实现所支持的 object-rooted schema，并且可以收窄子 agent 的生效沙箱模式而不放宽父级权限。
+工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系、委派深度和可选的继承活动容量作用域。可选的 output schema、depth、工具过滤器、persona、沙箱模式上限和活动容量传递需要对应的能力 flag 匹配。不支持的请求在启动时即失败；进程内后端将 filter 和 persona 的作用域限定在子 agent 创建阶段，通过强制 capture 工具实现所支持的 object-rooted schema，可以收窄子 agent 的生效沙箱模式而不放宽父级权限，并且在不放宽的前提下携带父级容量上限。
 
 ```ts type-equiv
 /**

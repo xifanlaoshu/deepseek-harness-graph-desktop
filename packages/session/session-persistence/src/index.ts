@@ -40,6 +40,50 @@ export interface SessionRawArtifact {
   readonly content: string
 }
 
+/** Bounds for a durable event-range read. */
+export interface SessionEventRangeRequest {
+  /** First logical sequence included in the result. */
+  readonly fromSeq: number
+  /** First logical sequence excluded from the result; omission reads through the durable tail. */
+  readonly toSeq?: number
+}
+
+/** Index-only lookup for logical event positions. */
+export interface SessionEventSequenceRequest {
+  /** Event discriminants to match. */
+  readonly types: readonly string[]
+  /** First logical sequence excluded while scanning backward; omission starts after the durable tail. */
+  readonly beforeSeq?: number
+  /** Restrict matching surface events to append-origin records. */
+  readonly surfaceOp?: 'append'
+  /** Maximum matching positions returned. */
+  readonly limit: number
+}
+
+/** Newest-first selection limits for a detached event page. */
+export interface SessionEventPageRequest {
+  /** First logical sequence eligible for the page. */
+  readonly fromSeq: number
+  /** First logical sequence excluded; omission starts after the durable tail. */
+  readonly beforeSeq?: number
+  /** Event-type prefixes omitted before payload decoding where the backend supports it. */
+  readonly excludeTypePrefixes: readonly string[]
+  /** Maximum logical events returned. */
+  readonly maxEvents: number
+  /** Soft maximum UTF-8 JSON bytes returned; one event may exceed it so pagination always advances. */
+  readonly maxBytes: number
+}
+
+/** One bounded detached event page in ascending sequence order. */
+export interface SessionEventPage {
+  /** Persisted session metadata. */
+  readonly meta: SessionHeader
+  /** Selected events in ascending logical sequence order. */
+  readonly events: SessionEvent[]
+  /** Whether another matching event exists before this page within the requested interval. */
+  readonly hasMore: boolean
+}
+
 // The backend-agnostic write-path orchestration first-party backends compose.
 export {
   DEFAULT_PREPARED_SESSION_CACHE_SIZE,
@@ -221,6 +265,84 @@ export abstract class SessionPersistence extends Service {
   Promise<{ meta: SessionHeader; events: SessionEvent[] }>
 
   /**
+   * Read one bounded contiguous logical event interval without preparing or
+   * publishing a Session. Backends with range indexes override this method;
+   * the default preserves correctness by filtering one immutable inspection.
+   * @param id - persisted session to read.
+   * @param request - inclusive start and optional exclusive end sequence.
+   * @param signal - optional cancellation for queued and backend read work.
+   * @returns stored header and events within the requested interval.
+   */
+  async readRange(
+    id: SessionId,
+    request: SessionEventRangeRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; events: SessionEvent[] }> {
+    validateSessionEventRangeRequest(request)
+    const inspected = await this.inspect(id, signal)
+    signal?.throwIfAborted()
+    return {
+      meta: inspected.meta,
+      events: inspected.events.filter(event => event.seq >= request.fromSeq
+        && (request.toSeq === undefined || event.seq < request.toSeq)),
+    }
+  }
+
+  /**
+   * Find matching logical event positions in newest-first order without
+   * returning payloads. Backends with metadata indexes override this method;
+   * the default scans one immutable inspection.
+   * @param id - persisted session to search.
+   * @param request - event types, exclusive upper sequence, and result bound.
+   * @param signal - optional cancellation for queued and backend read work.
+   * @returns stored header and newest-first matching sequence numbers.
+   */
+  async findEventSequences(
+    id: SessionId,
+    request: SessionEventSequenceRequest,
+    signal?: AbortSignal,
+  ): Promise<{ meta: SessionHeader; sequences: number[] }> {
+    validateSessionEventSequenceRequest(request)
+    const inspected = await this.inspect(id, signal)
+    signal?.throwIfAborted()
+    const accepted = new Set(request.types)
+    return {
+      meta: inspected.meta,
+      sequences: inspected.events
+        .filter(event => accepted.has(event.type)
+          && (request.beforeSeq === undefined || event.seq < request.beforeSeq)
+          && (request.surfaceOp === undefined
+            || (event as { surfaceOp?: string }).surfaceOp === request.surfaceOp))
+        .slice()
+        .reverse()
+        .slice(0, request.limit)
+        .map(event => event.seq),
+    }
+  }
+
+  /**
+   * Read the newest event page that satisfies explicit event-count and
+   * serialized-byte budgets. Backends with indexed filtering override this
+   * method so excluded domains are never decoded; the default preserves the
+   * result contract over one immutable inspection.
+   * @param id - persisted session to read.
+   * @param request - sequence interval, excluded prefixes, and page budgets.
+   * @param signal - optional cancellation for queued and backend read work.
+   * @returns one ascending page plus whether an older matching event remains.
+   */
+  async readEventPage(
+    id: SessionId,
+    request: SessionEventPageRequest,
+    signal?: AbortSignal,
+  ): Promise<SessionEventPage> {
+    validateSessionEventPageRequest(request)
+    const inspected = await this.inspect(id, signal)
+    signal?.throwIfAborted()
+    const selected = selectSessionEventPage(inspected.events, request)
+    return { meta: inspected.meta, ...selected }
+  }
+
+  /**
    * Lightweight listing from metadata, without a full-log parse.
    * @param signal - optional cancellation for backend listing work.
    * @returns one header per materialized session.
@@ -238,6 +360,79 @@ export abstract class SessionPersistence extends Service {
    * @returns one header and opaque revision per materialized session without loading full logs.
    */
   abstract listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]>
+}
+
+/**
+ * Validate one bounded event-range request at a provider boundary.
+ * @param request - range request to validate.
+ */
+export function validateSessionEventRangeRequest(request: SessionEventRangeRequest): void {
+  if (!Number.isSafeInteger(request.fromSeq) || request.fromSeq < 0
+    || (request.toSeq !== undefined
+      && (!Number.isSafeInteger(request.toSeq) || request.toSeq < request.fromSeq))) {
+    throw new RangeError('session event range requires non-negative safe integers with toSeq at or after fromSeq')
+  }
+}
+
+/**
+ * Validate one event-position query at a provider boundary.
+ * @param request - sequence query to validate.
+ */
+export function validateSessionEventSequenceRequest(request: SessionEventSequenceRequest): void {
+  if (request.types.length === 0 || request.types.some(type => type.trim().length === 0)
+    || !Number.isSafeInteger(request.limit) || request.limit < 1
+    || (request.beforeSeq !== undefined
+      && (!Number.isSafeInteger(request.beforeSeq) || request.beforeSeq < 0))) {
+    throw new RangeError('session event sequence query requires event types, a positive safe limit, and an optional non-negative beforeSeq')
+  }
+}
+
+/**
+ * Validate one detached event-page request at a provider boundary.
+ * @param request - page request to validate.
+ */
+export function validateSessionEventPageRequest(request: SessionEventPageRequest): void {
+  if (!Number.isSafeInteger(request.fromSeq) || request.fromSeq < 0
+    || (request.beforeSeq !== undefined
+      && (!Number.isSafeInteger(request.beforeSeq) || request.beforeSeq < request.fromSeq))
+    || request.excludeTypePrefixes.some(prefix => prefix.length === 0)
+    || !Number.isSafeInteger(request.maxEvents) || request.maxEvents < 1
+    || !Number.isSafeInteger(request.maxBytes) || request.maxBytes < 1) {
+    throw new RangeError('session event page requires a valid interval, non-empty excluded prefixes, and positive safe budgets')
+  }
+}
+
+/**
+ * Select the newest bounded logical page from an already materialized event set.
+ * @param events - immutable logical events.
+ * @param request - validated event-page request.
+ * @returns ascending selected events and an older-match indicator.
+ */
+export function selectSessionEventPage(
+  events: readonly SessionEvent[],
+  request: SessionEventPageRequest,
+): Pick<SessionEventPage, 'events' | 'hasMore'> {
+  validateSessionEventPageRequest(request)
+  const selected: SessionEvent[] = []
+  const encoder = new TextEncoder()
+  let bytes = 0
+  let hasMore = false
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index] as SessionEvent
+    if (event.seq < request.fromSeq
+      || (request.beforeSeq !== undefined && event.seq >= request.beforeSeq)
+      || request.excludeTypePrefixes.some(prefix => event.type.startsWith(prefix))) continue
+    const eventBytes = encoder.encode(JSON.stringify(event)).byteLength
+    if (selected.length >= request.maxEvents
+      || (selected.length > 0 && bytes + eventBytes > request.maxBytes)) {
+      hasMore = true
+      break
+    }
+    selected.push(event)
+    bytes += eventBytes
+  }
+  selected.reverse()
+  return { events: selected, hasMore }
 }
 
 export default SessionPersistence

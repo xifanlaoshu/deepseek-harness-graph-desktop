@@ -29,7 +29,7 @@ The ownership rule is strict: Harness session events remain authoritative for wh
 |---|---|---|
 | Model messages and tool activity | Harness | Session events and child sessions |
 | Graph definitions and revisions | Harness | `graph/change` events |
-| Node and run lifecycle | Harness | Whole `graph/run` snapshots |
+| Node and run lifecycle | Harness | Initial `graph/run` checkpoints plus incremental `graph/run-update` events |
 | Goal and todo lifecycle | LoopX | Selected LoopX registry and goal state |
 | Peer identity and claim | LoopX | Registered agent id and todo claim |
 | Cross-agent progress sharing | LoopX | Todo status, claim, and public-safe evidence |
@@ -76,7 +76,7 @@ flowchart LR
 |---|---|---|---|
 | Global `graph-mode` template | Host settings provider | First activation of a new session and Plugins settings UI | One revision-fenced settings document write |
 | Session Graph configuration and immutable revisions | Graph Mode command/controller | Projection, scheduler, UI, replay | One `graph/change` append |
-| Whole run and node state | Graph Mode scheduler | Projection, UI, startup recovery, controller follow-up | One `graph/run` append; later snapshots replace by run id |
+| Whole run and node state | Graph Mode scheduler | Projection, UI, startup recovery, controller follow-up | One `graph/run` checkpoint per generation; later `graph/run-update` events merge by run id |
 | Operation, settlement, checkpoint, and control evidence | Graph Mode scheduler/control service | Recovery and audit | One session-event append per record |
 | Worker transcript and tool evidence | Agent loop in the child session | Child-session UI, Graph progress monitor, replay | Child session append stream |
 | Scheduler lease | Scheduler Provider | Competing Hosts and recovery | Provider transaction; referenced by `ownerEpoch` in Graph state |
@@ -141,7 +141,7 @@ The session log is the source from which Harness reconstructs model history. Gra
 | [`dsh-graph-resources-sqlite`](../packages/graph/graph-resources-sqlite/README.md) | Durable same-filesystem model-route reservations, fencing, and runtime backoff | SQLite database file |
 | [`dsh-client-ui-graph`](../packages/client/ui-graph/README.md) | Browser projection, DAG canvas, evidence navigation, and settings | Client session, commands, model directory, and slots |
 
-`dsh-graph` declares seven durable session event types. `graph/submission` records a provisional immutable Revision and queued Run before external admission; only an accepted submission publishes `graph/change` and `graph/run`. Append-only `graph/operation` and `graph/settlement` events preserve execution transitions and numbered external-write attempts, while whole-state `graph/checkpoint` and idempotent `graph/control` records preserve planning and human decisions. Folding events keeps all revisions and evidence, selects the latest snapshot for each run and submission, and exposes them through the `graph` projection.
+`dsh-graph` declares nine durable session event types. `graph/submission` records a provisional immutable Revision and queued Run before external admission; only an accepted submission publishes `graph/change` and the initial `graph/run`. Append-only `graph/run-update`, `graph/operation`, and `graph/settlement` events preserve incremental run state, execution transitions, and numbered external-write attempts, while whole-state `graph/checkpoint` and idempotent `graph/control` records preserve planning and human decisions. Folding events keeps all revisions and evidence, merges validated updates into each run, and exposes the result through the `graph` projection.
 
 The configuration contains exactly one enabled controller, editable worker roles, per-role prompts and model selections, and scheduler limits. A graph revision contains a stable graph id, a contiguous revision number, a parent revision after revision one, nodes, and edges. A run contains every node in that revision, attempt metadata, structured outputs, reuse provenance, invalidation sources, and an optional terminal error.
 
@@ -179,7 +179,7 @@ The scheduler runs outside the controller tool call, so the conversation remains
 
 A pending node waits until all predecessors are terminal. A failed required predecessor cancels dependent work. Conditional edges are evaluated against predecessor output data; a node whose incoming edges all become inactive is skipped. Every other eligible node becomes ready.
 
-Ready nodes enter a FIFO admission queue. Admission simultaneously enforces the worker share of the global cap, the role cap, an exact provider/model cap, and an optional model weight budget. The worker share is `globalMaxParallel - controllerReserve`; the reserve prevents worker saturation from consuming the configured controller capacity. Role model fields inherit the parent agent's provider, model, and reasoning selector before admission and child dispatch when the role omits them.
+Ready nodes enter a FIFO admission queue. Admission simultaneously enforces the worker share of the global cap, the role cap, an exact provider/model cap, an optional model weight budget, and `maxActiveSubagents`. The last limit counts live Graph Workers plus their in-process descendants under one Run-scoped capacity id. Top-level Workers wait in FIFO order, while an over-cap nested start fails with `CAPACITY_EXHAUSTED` so a limit of one cannot deadlock behind the parent holding the sole permit. The controller must respond by decomposing large work into dependency-ordered, model-sized Graph nodes instead of retrying recursive fan-out. The worker share is `globalMaxParallel - controllerReserve`; the reserve prevents worker saturation from consuming the configured controller capacity. Role model fields inherit the parent agent's provider, model, and reasoning selector before admission and child dispatch when the role omits them.
 
 Each admitted attempt follows one lifecycle:
 
@@ -579,7 +579,7 @@ The durable target is met only when the following scenarios pass with process-st
 - [Graph Artifacts README](../packages/graph/graph-artifacts/README.md) owns manifests, content addressing, capture, materialization, and reconciliation.
 - [Graph Resources README](../packages/graph/graph-resources/README.md) owns expiring model telemetry, reservations, wait reasons, and resource outcomes.
 - [Session persistence README](../packages/session/session-persistence/README.md) owns asynchronous append coordination, flush barriers, lifecycle, and failure reporting.
-- [JSONL persistence README](../packages/session/session-persistence-jsonl/README.md) owns the default compressed on-disk session encoding and crash-tail recovery.
+- [SQLite persistence README](../packages/session/session-persistence-sqlite/README.md) owns the default session database, bounded history reads, legacy JSONL import, and crash-tail recovery.
 - [Settings README](../packages/settings/settings/README.md) owns revision-fenced global template storage.
 - [Web bundle patch](../packages/bundle/web-app/cordis.patch.yml) assembles the concrete Scheduler, Resource, Artifact, Worker, Graph Mode, and optional LoopX Provider rows.
 - [Graph UI README](../packages/client/ui-graph/README.md) owns Design/Execution presentation, settings, evidence navigation, and precisely addressed controls.

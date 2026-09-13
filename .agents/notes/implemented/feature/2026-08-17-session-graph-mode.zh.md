@@ -20,7 +20,7 @@ Graph Mode 是位于 `packages/graph/` 的会话所有插件族。`dsh-graph` �
 
 任务图边是数据。必需边规定完成顺序；条件边在前置节点发布的 JSON 上计算 `exists`、`truthy`、`equals` 或 `not-equals`。只有所有入向条件边都生效，节点才会运行。修订进入会话日志前会拒绝可执行谓词和环。每个子代理发布受 schema 约束的摘要、JSON 数据和产物路径。它的消息和工具事件保留在执行尝试记录所指向的子会话中。
 
-外部认领和子代理创建之前先执行准入。一个 FIFO 控制器同时执行全局上限中的 worker 份额、角色上限、精确提供方／模型上限和可选的模型加权上限。`controllerReserve` 从 worker 份额中移除许可，避免扇出耗尽为主控配置的容量。角色的提供方、模型、推理强度、提示词和上限都是可由用户编辑的持久设置。Graph Mode 启用时，主控角色会覆盖父级提示词组装和 `agent/request` 路由；工作角色选择会成为子级 `AgentOptions`。初始推理强度是 `AgentOptions` 输入，并由子代理继承；continuable subagent 描述符现在会显式持久化该值，以供冷恢复。
+外部认领和子代理创建之前先执行准入。一个 FIFO 控制器同时执行全局上限中的 worker 份额、角色上限、精确提供方／模型上限、可选的模型加权上限，以及 `maxActiveSubagents`——同一次 Run 内存活 Graph Worker 及其进程内后代的总数。`controllerReserve` 从 worker 份额中移除许可，避免扇出耗尽为主控配置的容量。顶层 Worker 在 FIFO 队列中等待；嵌套的进程内启动若会超过共享总数，则以 `CAPACITY_EXHAUSTED` 失败，因为上限为一时让它等待父级持有的许可会形成死锁。容量作用域与上限经子级 `AgentOptions` 传递，后代不得放宽，并保存在 continuable descriptor 中供冷恢复。角色的提供方、模型、推理强度、提示词和上限都是可由用户编辑的持久设置。Graph Mode 启用时，主控角色会覆盖父级提示词组装和 `agent/request` 路由；工作角色选择会成为子级 `AgentOptions`。初始推理强度同样是 `AgentOptions` 输入，并由子代理继承。
 
 宿主前置条件使用由[环境操作决策](2026-08-22-graph-environment-operations.zh.md)管理的不可变 `environment` 节点。它们把已精确批准的 Shell 命令与普通模型 Worker 权限隔离，并把自身完成作为依赖工程节点的前置条件。
 
@@ -52,6 +52,8 @@ Web UI 在所选 Graph 上方放置有序 Campaign Batch 轨道。每张卡片�
 
 一次浏览器修订运行通过真实 LoopX CLI 覆盖了取消补偿。修订一认领了一个子代理正在执行 `sleep 30` 的节点，修订二在其活动期间进行替换。第一个运行和子会话以明确的父级取消结束，其已认领 todo 转为不可执行的 blocker；替换运行创建了不同的 claim，并以 `--no-follow-up` 到达 `done`。父会话与两个完整子会话日志合计包含 362 条可解析记录和 194 个完整 Zstandard 帧，没有残缺帧、工具失败、步骤失败或意外错误事件。替换运行的产物包含精确预期的 3 个字节，而取消运行的产物不存在。
 
+容量测试覆盖并发待发布启动、继承上限、拒绝变更容量、descriptor 持久化、冷恢复、顶层 FIFO 准入和两个设置编辑器。无密钥 Graph Snapshot 固定活动子代理上限的 Run 配置、主控策略与 Worker 策略。
+
 ## 曾考虑的替代方案
 
 **扩展动态工作流。** 工作流脚本在一次工具调用内不可变，并且有意允许通用 JavaScript。加入跨轮次变更、会话修订语义和常驻主控会混合两个各自有用的产品，并让持久化任务图数据继承可执行条件风险。
@@ -62,6 +64,8 @@ Web UI 在所选 Graph 上方放置有序 Campaign Batch 轨道。每张卡片�
 
 **自动创建并注册 LoopX goal。** 否决，因为 LoopX registry 和 peer 身份属于外部管理权限。Harness 可以向选定 goal 添加 todo，但不得静默编造部署身份或把工作改送到新的控制面。
 
+**让超过上限的嵌套子代理启动排队。** 否决，因为父 Worker 等待期间仍然存活。上限为一时，子级只有等父级退出后才能取得唯一许可，因此永远无法继续。嵌套启动立即失败会把控制权先交还 Worker，再交还主控，主控可把剩余工作表示为顺序 Graph 节点。
+
 ## 后果
 
-Graph Mode 在不修改 Loop 的情况下让依赖感知的多代理工作可见、可修订、可恢复并可独立路由，并使并行度成为可执行的准入决策，而不是主控建议。代价是增加 Submission、会话、子会话、Operation 与 Settlement 记录及部署配置。静态上限会降低 OOM 风险；只有 Resource Provider 才能观察实际模型服务器或设备状态。恢复可以通过新 Activation 重试终态逻辑 Work，也可以通过持久 Claim Todo ID 结算已暂存 LoopX 输出，但没有 Provider Reconciliation API 时仍无法证明任意外部效果。按需创建 Todo 可避免为已取消、已跳过或永远不能进入 Ready 的节点产生推测性外部工作。只有部署提供已有 Goal 和完整角色到 Peer 的映射后，LoopX 协调才可用。
+Graph Mode 在不修改 Loop 的情况下让依赖感知的多代理工作可见、可修订、可恢复并可独立路由，并使并行度成为可执行的准入决策，而不是主控建议。代价是增加 Submission、会话、子会话、Operation 与 Settlement 记录及部署配置。静态上限会降低 OOM 风险；只有 Resource Provider 才能观察实际模型服务器或设备状态。活动子代理上限很小时，主控必须把大型工作拆成具有依赖顺序、单个模型可完成的节点，因为递归扇出会被拒绝而不是排队。进程内容量作用域不会跨远程 Worker Host 变成分布式信号量。恢复可以通过新 Activation 重试终态逻辑 Work，也可以通过持久 Claim Todo ID 结算已暂存 LoopX 输出，但没有 Provider Reconciliation API 时仍无法证明任意外部效果。按需创建 Todo 可避免为已取消、已跳过或永远不能进入 Ready 的节点产生推测性外部工作。只有部署提供已有 Goal 和完整角色到 Peer 的映射后，LoopX 协调才可用。

@@ -235,4 +235,29 @@ pruneSession(session: Session): PruneResult
 Types: [ContentBlock](llm-streaming.md) · [Session](session.md)
 
 Source: [`packages/compaction/compaction-tool-result-pruner/src/index.ts`](../../packages/compaction/compaction-tool-result-pruner/src/index.ts)
+
+<a id="compaction-events"></a>
+
+### `compaction/*` events
+
+<a id="compactionpolicy--waterfall"></a>
+
+#### `compaction/policy` — waterfall
+
+Replace the resolved policy for one session before pressure measurement or summarization. Listeners must call `next()` before applying a scoped override so independently composed policies retain deterministic order.
+
+```ts cordis-catalog
+/**
+ * Replace the resolved policy for one session before pressure measurement
+ * or summarization. Listeners must call `next()` before applying a scoped
+ * override so independently composed policies retain deterministic order.
+ * @param agent - agent context whose session owns the compaction.
+ * @param trigger - automatic trigger, or undefined for an explicit region or manual request.
+ * @param next - downstream policy resolver.
+ * @mode waterfall
+ */
+'compaction/policy'( agent: CompactionAgentContext, trigger: CompactionTrigger | undefined, next: () => Promise<CompactionRequestPolicy>, ): Promise<CompactionRequestPolicy>
+```
+
+Source: [`packages/compaction/compaction/src/index.ts`](../../packages/compaction/compaction/src/index.ts)
 <!-- END GENERATED cordis-surface -->

@@ -172,6 +172,33 @@ describe('GraphTemplateSettingsTab', () => {
     })
   })
 
+  it('persists the run-wide active-subagent ceiling for new sessions', async () => {
+    const { saveTemplate } = setup(ready())
+    fireEvent.change(screen.getByLabelText(zh.activeSubagentLimit), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: zh.save }))
+    await waitFor(() => {
+      expect(saveTemplate.mock.calls[0]?.[0].limits.maxActiveSubagents).toBe(1)
+    })
+  })
+
+  it('persists controller fallback and Graph compaction defaults', async () => {
+    const { saveTemplate } = setup(ready())
+    fireEvent.click(screen.getByRole('button', { name: zh['resilience.addFallback'] }))
+    fireEvent.change(screen.getByLabelText(zh['resilience.maxAttempts']), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(zh['resilience.thresholdRatio']), { target: { value: '0.55' } })
+    fireEvent.change(screen.getByLabelText(zh['resilience.retainRatio']), { target: { value: '0.08' } })
+    fireEvent.change(screen.getByLabelText(zh['resilience.maxTokens']), { target: { value: '12000' } })
+    fireEvent.click(screen.getByRole('button', { name: zh.save }))
+
+    await waitFor(() => { expect(saveTemplate).toHaveBeenCalledTimes(1) })
+    expect(saveTemplate.mock.calls[0]?.[0].controllerResilience).toMatchObject({
+      enabled: true,
+      maxFallbackAttemptsPerTurn: 1,
+      fallbackModels: [{ provider: 'local', model: 'coder', controller: true, compaction: true }],
+      compaction: { enabled: true, thresholdRatio: 0.55, retainRatio: 0.08, maxTokens: 12_000 },
+    })
+  })
+
   it('does not persist a role effort omitted by the selected model', async () => {
     const withoutReasoning: ModelDirectoryState = {
       ...models,

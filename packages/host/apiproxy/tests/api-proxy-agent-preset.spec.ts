@@ -11,7 +11,8 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type AgentFactory } from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { selectSessionEventPage } from '@deepseek-ai/dsh-session-persistence'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { RpcId, type RpcRequest } from '../src/api/rpc.ts'
 import type { HostFrame } from '../src/api/events.ts'
@@ -21,7 +22,7 @@ import {
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import { GoalId } from '@deepseek-ai/dsh-goal'
 import { createApiProxy } from '../src/api-proxy.ts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 let nextRpc = 0
 function request<P>(payload: P): RpcRequest<P> {
@@ -673,6 +674,114 @@ describe('skills over the layered host registry', () => {
 })
 
 describe('session.history presenter scope', () => {
+  it('reads a bounded cold page and latest preset without inspecting the complete log', async () => {
+    const meta = { id: SessionId('p-range'), createdAt: 1, cwd: '/tmp/p-range', agentPreset: 'standard' }
+    const events = [
+      { type: 'agent-preset/selected', seq: 0, time: 0, data: { agentPreset: 'minimal' } },
+      { type: 'user/message', seq: 1, time: 1, data: {}, surfaceOp: 'append' },
+      { type: 'assistant/message', seq: 2, time: 2, data: {}, surfaceOp: 'append' },
+      { type: 'user/message', seq: 3, time: 3, data: {}, surfaceOp: 'append' },
+    ] as unknown as SessionEvent[]
+    const inspect = vi.fn(() => Promise.reject(new Error('full inspection must not run')))
+    const persistence = {
+      list: () => Promise.resolve([meta]),
+      inspect,
+      findEventSequences: (_id: unknown, request: {
+        types: readonly string[]
+        beforeSeq?: number
+        surfaceOp?: 'append'
+        limit: number
+      }) => {
+        const accepted = new Set(request.types)
+        return Promise.resolve({
+          meta,
+          sequences: events.filter(event => accepted.has(event.type)
+            && (request.beforeSeq === undefined || event.seq < request.beforeSeq)
+            && (request.surfaceOp === undefined
+              || (event as { surfaceOp?: string }).surfaceOp === request.surfaceOp))
+            .map(event => event.seq).reverse().slice(0, request.limit),
+        })
+      },
+      readRange: (_id: unknown, request: { fromSeq: number; toSeq?: number }) => Promise.resolve({
+        meta,
+        events: events.filter(event => event.seq >= request.fromSeq
+          && (request.toSeq === undefined || event.seq < request.toSeq)),
+      }),
+      readEventPage: (_id: unknown, pageRequest: Parameters<typeof selectSessionEventPage>[1]) => Promise.resolve({
+        meta,
+        ...selectSessionEventPage(events, pageRequest),
+      }),
+    }
+    const { api } = await harness(['standard', 'minimal'], persistence)
+
+    standingKeyRequests.length = 0
+    const response = await api.sessions.history(request({ sessionId: meta.id, maxMessages: 1 }))
+
+    expect(response.result).toMatchObject({
+      ok: true,
+      value: { hasMore: true, events: [{ event: { seq: 3 } }] },
+    })
+    expect(standingKeyRequests).toEqual(['minimal'])
+    expect(inspect).not.toHaveBeenCalled()
+  })
+
+  it('does not decode Graph events between a cold message boundary and the durable tail', async () => {
+    const meta = { id: SessionId('p-graph-dense'), createdAt: 1, cwd: '/tmp/p-graph-dense', agentPreset: 'standard' }
+    const graphEvents = Array.from({ length: 20_000 }, (_, index) => ({
+      type: 'graph/run', seq: index + 2, time: index + 2, data: { payload: 'x'.repeat(1024) }, ignorable: true,
+    })) as unknown as SessionEvent[]
+    const events = [
+      { type: 'agent-preset/selected', seq: 0, time: 0, data: { agentPreset: 'standard' } },
+      { type: 'user/message', seq: 1, time: 1, data: {}, surfaceOp: 'append' },
+      ...graphEvents,
+      { type: 'assistant/message', seq: 20_002, time: 20_002, data: {}, surfaceOp: 'append' },
+      ...Array.from({ length: 5_000 }, (_, index) => ({
+        type: 'graph/operation', seq: 20_003 + index, time: 20_003 + index, data: { payload: 'y'.repeat(1024) }, ignorable: true,
+      })) as unknown as SessionEvent[],
+    ] as unknown as SessionEvent[]
+    const readRange = vi.fn((_id: unknown, range: { fromSeq: number; toSeq?: number }) => Promise.resolve({
+      meta,
+      events: events.filter(event => event.seq >= range.fromSeq
+        && (range.toSeq === undefined || event.seq < range.toSeq)),
+    }))
+    const readEventPage = vi.fn((_id: unknown, pageRequest: Parameters<typeof selectSessionEventPage>[1]) => Promise.resolve({
+      meta,
+      ...selectSessionEventPage(events, pageRequest),
+    }))
+    const persistence = {
+      list: () => Promise.resolve([meta]),
+      inspect: vi.fn(() => Promise.reject(new Error('full inspection must not run'))),
+      findEventSequences: (_id: unknown, query: {
+        types: readonly string[]
+        beforeSeq?: number
+        surfaceOp?: 'append'
+        limit: number
+      }) => Promise.resolve({
+        meta,
+        sequences: events.filter(event => query.types.includes(event.type)
+          && (query.beforeSeq === undefined || event.seq < query.beforeSeq)
+          && (query.surfaceOp === undefined
+            || (event as { surfaceOp?: string }).surfaceOp === query.surfaceOp))
+          .map(event => event.seq).reverse().slice(0, query.limit),
+      }),
+      readRange,
+      readEventPage,
+    }
+    const { api } = await harness(['standard'], persistence)
+
+    const response = await api.sessions.history(request({ sessionId: meta.id, maxMessages: 1 }))
+
+    expect(response.result).toMatchObject({
+      ok: true,
+      value: { hasMore: true, events: [{ event: { seq: 20_002, type: 'assistant/message' } }] },
+    })
+    expect(readEventPage).toHaveBeenCalledWith(meta.id, expect.objectContaining({
+      fromSeq: 20_002,
+      excludeTypePrefixes: ['graph/'],
+    }))
+    expect(readRange.mock.calls.every(([, range]) => range.toSeq === range.fromSeq + 1)).toBe(true)
+  })
+
   it('asks the roster for the RECORDED preset\'s standing key on a cold read', async () => {
     const { api } = await harness(['standard', 'minimal'])
     await api.sessions.create(request({ sessionId: SessionId('p1'), agentPreset: 'minimal' }))

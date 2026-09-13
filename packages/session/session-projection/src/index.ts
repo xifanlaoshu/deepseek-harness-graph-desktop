@@ -351,13 +351,23 @@ export class SessionProjectionRegistry extends Service {
    * yields an end below every watermark and the restore rejects for a full
    * re-read.
    * @param checkpoint - persisted rows for one session (possibly stale or empty).
+   * @param selection - registered units included in the floor calculation.
    * @returns the seq to hand the persistence `readFrom`, or `undefined`
    *   when no unit is registered (no read needed — {@link restore} would
    *   serve empty values regardless).
    */
-  restoreFloor(checkpoint: ProjectionCheckpoint): number | undefined {
+  restoreFloor(
+    checkpoint: ProjectionCheckpoint,
+    selection: {
+      readonly includeKeys?: readonly string[]
+      readonly excludeKeys?: readonly string[]
+    } = {},
+  ): number | undefined {
     let floor: number | undefined
+    const included = selection.includeKeys === undefined ? undefined : new Set(selection.includeKeys)
+    const excluded = new Set(selection.excludeKeys ?? [])
     for (const registration of this.registrations.values()) {
+      if ((included !== undefined && !included.has(registration.def.key)) || excluded.has(registration.def.key)) continue
       const row = checkpoint[registration.def.key]
       const need = row !== undefined && row.ver === registration.def.stateVersion
         ? Math.max(row.seq + 1, 0)
@@ -413,6 +423,7 @@ export class SessionProjectionRegistry extends Service {
    * @param checkpoint - persisted rows for one session (possibly stale or empty).
    * @param events - the stored events with `seq >= baseSeq`, in seq order.
    * @param baseSeq - the seq `events` starts at (its first event's seq when non-empty).
+   * @param selection - registered units included in this fold.
    * @returns the snapshot cut at the supplied log end (`asOfSeq` is the last
    *   supplied event's seq, `baseSeq - 1` for an empty tail) plus the
    *   refreshed checkpoint rows at that cut, ready for a durable write-back.
@@ -421,13 +432,20 @@ export class SessionProjectionRegistry extends Service {
     checkpoint: ProjectionCheckpoint,
     events: readonly SessionEvent[],
     baseSeq: number,
+    selection: {
+      readonly includeKeys?: readonly string[]
+      readonly excludeKeys?: readonly string[]
+    } = {},
   ):
   { snapshot: ProjectionSnapshot; checkpoint: ProjectionCheckpoint } {
     const endSeq = events.at(-1)?.seq ?? baseSeq - 1
     const values: Record<string, unknown> = {}
     const refreshed: ProjectionCheckpoint = {}
+    const included = selection.includeKeys === undefined ? undefined : new Set(selection.includeKeys)
+    const excluded = new Set(selection.excludeKeys ?? [])
     for (const registration of this.registrations.values()) {
       const def = registration.def
+      if ((included !== undefined && !included.has(def.key)) || excluded.has(def.key)) continue
       const row = checkpoint[def.key]
       const usable = row !== undefined
         && row.ver === def.stateVersion

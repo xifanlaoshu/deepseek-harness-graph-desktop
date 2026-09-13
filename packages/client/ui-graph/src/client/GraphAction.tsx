@@ -14,6 +14,8 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type {
   GraphModeConfig,
   GraphCampaign,
+  GraphControllerFallbackModel,
+  GraphControllerResiliencePolicy,
   GraphModelSelection,
   GraphCheckpoint,
   GraphId,
@@ -254,6 +256,27 @@ const executionPolicyFields = [
   'maxRuntimeContinuations',
 ] as const
 
+/** Browser-safe defaults used when editing a legacy Graph snapshot. */
+export const defaultControllerResilience = (): GraphControllerResiliencePolicy => ({
+  enabled: true,
+  maxFallbackAttemptsPerTurn: 2,
+  retryableFailureCodes: [
+    'CONTEXT_WINDOW_EXCEEDED',
+    'UNSUPPORTED_REASONING_EFFORT',
+    'UNSUPPORTED_CONTENT',
+    'INVALID_MODEL_MAX_TOKENS',
+    'LLM_STREAM_IDLE_TIMEOUT',
+    'STREAM_CLOSED',
+  ],
+  fallbackModels: [],
+  compaction: {
+    enabled: true,
+    thresholdRatio: 0.65,
+    retainRatio: 0.1,
+    maxTokens: 16_384,
+  },
+})
+
 function effectiveNodeBudget(node: GraphNode, config: GraphModeConfig): GraphNodeExecutionBudget {
   const stored = (node as { readonly executionBudget?: GraphNodeExecutionBudget }).executionBudget
   return stored ?? {
@@ -275,7 +298,22 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
   readonly t: GraphActionProps['t']
 }) {
   const choices = modelChoices(models)
-  const updateLimit = (key: 'globalMaxParallel' | 'controllerReserve', value: number): void => {
+  const resilience = config.controllerResilience ?? defaultControllerResilience()
+  const updateResilience = (next: GraphControllerResiliencePolicy): void => {
+    setConfig({ ...config, controllerResilience: next })
+  }
+  const updateFallback = (
+    index: number,
+    update: (current: GraphControllerFallbackModel) => GraphControllerFallbackModel,
+  ): void => {
+    updateResilience({
+      ...resilience,
+      fallbackModels: resilience.fallbackModels.map((current, currentIndex) => (
+        currentIndex === index ? update(current) : current
+      )),
+    })
+  }
+  const updateLimit = (key: 'globalMaxParallel' | 'controllerReserve' | 'maxActiveSubagents', value: number): void => {
     setConfig({ ...config, limits: { ...config.limits, [key]: value } })
   }
   const updateExecutionPolicy = (key: typeof executionPolicyFields[number], value: number): void => {
@@ -322,6 +360,17 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
             onChange={(event) => { updateLimit('controllerReserve', Number(event.target.value)) }}
           />
         </label>
+        <label>
+          {t('activeSubagentLimit')}
+          <input
+            type="number"
+            min={1}
+            title={t('activeSubagentLimitHelp')}
+            value={config.limits.maxActiveSubagents
+              ?? Math.max(1, config.limits.globalMaxParallel - config.limits.controllerReserve)}
+            onChange={(event) => { updateLimit('maxActiveSubagents', Number(event.target.value)) }}
+          />
+        </label>
       </div>
       <fieldset className={css.role}>
         <legend>{t('policy.title')}</legend>
@@ -336,6 +385,186 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
               onChange={(event) => { updateExecutionPolicy(key, Number(event.target.value)) }}
             />
           </label>)}
+        </div>
+      </fieldset>
+      <fieldset className={css.role}>
+        <legend>{t('resilience.title')}</legend>
+        <p className={css.policyHelp}>{t('resilience.help')}</p>
+        <div className={css.roleGrid}>
+          <label className={css.checkLabel}>
+            {t('resilience.enabled')}
+            <input
+              type="checkbox"
+              checked={resilience.enabled}
+              onChange={(event) => { updateResilience({ ...resilience, enabled: event.target.checked }) }}
+            />
+          </label>
+          <label>
+            {t('resilience.maxAttempts')}
+            <input
+              type="number"
+              min={1}
+              value={resilience.maxFallbackAttemptsPerTurn}
+              onChange={(event) => {
+                updateResilience({ ...resilience, maxFallbackAttemptsPerTurn: Number(event.target.value) })
+              }}
+            />
+          </label>
+          <label className={css.wideField}>
+            {t('resilience.failureCodes')}
+            <textarea
+              rows={3}
+              value={resilience.retryableFailureCodes.join('\n')}
+              onChange={(event) => {
+                updateResilience({
+                  ...resilience,
+                  retryableFailureCodes: event.target.value.split(/\s+/u).filter(Boolean),
+                })
+              }}
+            />
+          </label>
+        </div>
+        <h4>{t('resilience.fallbacks')}</h4>
+        {resilience.fallbackModels.map((fallback, index) => {
+          const selected = choices.find(choice => (
+            choice.provider === fallback.provider && choice.model === fallback.model
+          ))
+          return <div key={`${fallback.provider}/${fallback.model}/${String(index)}`} className={css.roleGrid}>
+            <label>
+              {t('model')}
+              <select
+                value={selected?.key ?? 'unavailable'}
+                onChange={(event) => {
+                  const choice = choices.find(candidate => candidate.key === event.target.value)
+                  if (choice === undefined) return
+                  updateFallback(index, current => ({
+                    ...current,
+                    provider: choice.provider,
+                    model: choice.model,
+                    ...choice.defaultReasoningEffort === undefined
+                      ? {}
+                      : { reasoningEffort: choice.defaultReasoningEffort },
+                  }))
+                }}
+              >
+                {selected === undefined
+                  ? <option value="unavailable" disabled>{t('model.unavailable', { model: fallback.model })}</option>
+                  : null}
+                {choices.map(choice => <option key={choice.key} value={choice.key}>{choice.label}</option>)}
+              </select>
+            </label>
+            <label>
+              {t('reasoning')}
+              <input
+                value={fallback.reasoningEffort ?? ''}
+                list={`graph-fallback-reasoning-${String(index)}`}
+                onChange={(event) => {
+                  const value = event.target.value
+                  updateFallback(index, (current) => {
+                    if (value !== '') return { ...current, reasoningEffort: value }
+                    const { reasoningEffort: _removed, ...rest } = current
+                    return rest
+                  })
+                }}
+              />
+              <datalist id={`graph-fallback-reasoning-${String(index)}`}>
+                {selected?.reasoningEfforts?.map(effort => <option key={effort} value={effort} />)}
+              </datalist>
+            </label>
+            <label className={css.checkLabel}>
+              {t('resilience.controllerUse')}
+              <input
+                type="checkbox"
+                checked={fallback.controller}
+                onChange={(event) => { updateFallback(index, current => ({ ...current, controller: event.target.checked })) }}
+              />
+            </label>
+            <label className={css.checkLabel}>
+              {t('resilience.compactionUse')}
+              <input
+                type="checkbox"
+                checked={fallback.compaction}
+                onChange={(event) => { updateFallback(index, current => ({ ...current, compaction: event.target.checked })) }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                updateResilience({
+                  ...resilience,
+                  fallbackModels: resilience.fallbackModels.filter((_item, currentIndex) => currentIndex !== index),
+                })
+              }}
+            >{t('resilience.deleteFallback')}</button>
+          </div>
+        })}
+        <button
+          type="button"
+          disabled={choices.length === 0}
+          onClick={() => {
+            const choice = choices.find(candidate => !resilience.fallbackModels.some(fallback => (
+              fallback.provider === candidate.provider && fallback.model === candidate.model
+            )))
+            if (choice === undefined) return
+            updateResilience({
+              ...resilience,
+              fallbackModels: [...resilience.fallbackModels, {
+                provider: choice.provider,
+                model: choice.model,
+                ...choice.defaultReasoningEffort === undefined
+                  ? {}
+                  : { reasoningEffort: choice.defaultReasoningEffort },
+                controller: true,
+                compaction: true,
+              }],
+            })
+          }}
+        >{t('resilience.addFallback')}</button>
+        <h4>{t('resilience.compaction')}</h4>
+        <div className={css.roleGrid}>
+          <label className={css.checkLabel}>
+            {t('resilience.compactionEnabled')}
+            <input
+              type="checkbox"
+              checked={resilience.compaction.enabled}
+              onChange={(event) => {
+                updateResilience({
+                  ...resilience,
+                  compaction: { ...resilience.compaction, enabled: event.target.checked },
+                })
+              }}
+            />
+          </label>
+          {(['thresholdRatio', 'retainRatio', 'maxTokens'] as const).map(key => <label key={key}>
+            {t(`resilience.${key}`)}
+            <input
+              type="number"
+              min={key === 'maxTokens' ? 1 : 0.01}
+              max={key === 'maxTokens' ? undefined : 1}
+              step={key === 'maxTokens' ? 1 : 0.01}
+              value={resilience.compaction[key]}
+              onChange={(event) => {
+                updateResilience({
+                  ...resilience,
+                  compaction: { ...resilience.compaction, [key]: Number(event.target.value) },
+                })
+              }}
+            />
+          </label>)}
+          <label>
+            {t('resilience.compactionReasoning')}
+            <input
+              value={resilience.compaction.reasoningEffort ?? ''}
+              onChange={(event) => {
+                const reasoningEffort = event.target.value
+                const { reasoningEffort: _removed, ...rest } = resilience.compaction
+                updateResilience({
+                  ...resilience,
+                  compaction: reasoningEffort === '' ? rest : { ...rest, reasoningEffort },
+                })
+              }}
+            />
+          </label>
         </div>
       </fieldset>
       {models.status === 'loading' ? <p role="status">{t('model.loading')}</p> : null}
@@ -966,6 +1195,7 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
   const checkpoint = run === undefined
     ? undefined
     : Object.values(projection?.checkpoints ?? {}).find(item => item.runId === run.id && item.status === 'pending')
+  const checkpointRequiresRevision = checkpoint?.issues?.some(issue => issue.id === `modify-${checkpoint.nodeId}`) === true
   const controls = run === undefined
     ? []
     : Object.values(projection?.controls ?? {})
@@ -1258,7 +1488,11 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                           {controlError === undefined ? null : <p role="status">{controlError}</p>}
                           {checkpoint === undefined ? null : <div className={css.checkpoint}>
                             <strong>{checkpoint.kind}</strong><span>{checkpoint.reason}</span>
-                            <button type="button" onClick={() => { operate('approve-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.approve')}</button>
+                            {checkpoint.kind !== 'repair'
+                              && !checkpointRequiresRevision
+                              && !checkpoint.issues?.some(issue => issue.id.startsWith('recovery-'))
+                              ? <button type="button" onClick={() => { operate('approve-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.approve')}</button>
+                              : null}
                             <button type="button" onClick={() => { operate('reject-checkpoint', { checkpointId: checkpoint.id }) }}>{t('control.reject')}</button>
                           </div>}
                           {tab === 'design'
@@ -1353,7 +1587,9 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                                   {selectedRun?.phase === 'running'
                                     ? <button type="button" onClick={() => { operate('cancel-node', { nodeId: selectedNode.id }) }}><IconStopFill16 size={14} />{t('control.cancelNode')}</button>
                                     : null}
-                                  {selectedRun !== undefined && ['failed', 'canceled', 'exhausted', 'blocked'].includes(selectedRun.phase)
+                                  {selectedRun !== undefined
+                                    && ['failed', 'canceled', 'exhausted', 'blocked', 'awaiting_user'].includes(selectedRun.phase)
+                                    && (selectedRun.phase !== 'awaiting_user' || selectedNode.effectPolicy === 'idempotent')
                                     ? <button type="button" onClick={() => { operate('retry-node', { nodeId: selectedNode.id }) }}>{t('control.retry')}</button>
                                     : null}
                                   {['succeeded', 'failed', 'canceled', 'exhausted'].includes(run.phase)

@@ -935,6 +935,17 @@
   width: auto;
 }
 
+.settings .wideField {
+  grid-column: 1 / -1;
+}
+
+.settings h4 {
+  margin: 16px 0 8px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .settings input,
 .settings select,
 .settings textarea {

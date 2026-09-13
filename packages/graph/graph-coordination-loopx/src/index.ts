@@ -567,17 +567,28 @@ export class LoopxGraphCoordination extends GraphCoordination {
   async reconcile(request: GraphCoordinationReconcileRequest, signal: AbortSignal): Promise<GraphCoordinationReconcileResult> {
     const observation = await this.observe(request, signal)
     if (observation.status === 'absent') return { status: 'absent', observation, evidence: 'LoopX has no known Graph-tagged claim' }
-    if (observation.status === 'unknown') return { status: 'unknown', observation, evidence: 'LoopX lease inspection was inconclusive' }
     const terminal = this.terminals.get(request.activationId)
     if (terminal !== undefined) {
       const status = request.expectedOutcome === undefined || request.expectedOutcome === terminal.outcome ? 'confirmed-terminal' : 'conflict'
       return { status, observation, evidence: status === 'conflict' ? 'LoopX terminal outcome differs from Graph' : 'LoopX terminal outcome confirmed' }
     }
-    const claim = this.claims.get(request.activationId) as GraphCoordinationClaim
-    if ((request.claimId !== undefined && request.claimId !== claim.claimId)
-      || (request.leaseId !== undefined && request.leaseId !== claim.leaseId)
-      || (request.fencingToken !== undefined && request.fencingToken !== claim.fencingToken)) {
+    const claim = observation.claim
+    if (claim === undefined) return { status: 'unknown', observation, evidence: 'LoopX lease inspection returned no claim identity' }
+    const staleOrConflictingLease = request.fencingToken !== undefined
+      ? claim.fencingToken < request.fencingToken
+        || (claim.fencingToken === request.fencingToken && request.leaseId !== undefined && claim.leaseId !== request.leaseId)
+      : request.leaseId !== undefined && claim.leaseId !== request.leaseId
+    if ((request.claimId !== undefined && request.claimId !== claim.claimId) || staleOrConflictingLease) {
       return { status: 'conflict', observation, evidence: 'LoopX claim or fencing identity differs from Graph' }
+    }
+    if (observation.status === 'unknown') {
+      return {
+        status: 'unknown',
+        observation,
+        evidence: claim.expiresAt <= Date.now()
+          ? 'LoopX hard lease expired without terminal evidence'
+          : 'LoopX lease inspection was inconclusive',
+      }
     }
     return { status: claim.expiresAt > Date.now() ? 'confirmed-running' : 'unknown', observation, evidence: claim.expiresAt > Date.now() ? 'LoopX hard lease is live' : 'LoopX hard lease expired without terminal evidence' }
   }

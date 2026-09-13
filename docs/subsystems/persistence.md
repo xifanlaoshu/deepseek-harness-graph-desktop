@@ -18,6 +18,8 @@ Repair applies only to cold sessions. For a live id, `SessionPersistence.load(id
 
 `SessionPersistence.inspect(id)` constructs an immutable logical Session without publishing it or writing recovery. Cold inspection balances an interrupted turn in memory while leaving torn physical tails untouched; inspection of an already-live Session borrows its current immutable snapshot and may therefore contain an open turn. Coordinator-backed implementations retain the exact cold unpublished Session in a bounded LRU, so repeated history reads and a later `prepare(id)` share one read, decompression, validation, freeze, and Session construction. `prepare(id)` reserves the Session, commits pending repair, and returns a disposable publication handle; `load(id)` uses the same machinery to commit repair without publication. The [Session preparation decision](../../.agents/notes/implemented/architecture/2026-08-05-session-preparation.md) owns this lifecycle.
 
+Read-only consumers that need a window rather than a resumable Session use `readRange`, `findEventSequences`, and `readEventPage`. The last operation applies excluded event-type prefixes plus event-count and UTF-8 JSON-byte budgets. Indexed backends filter before decoding where possible; sequential backends preserve the same returned-page limits even when their physical medium must be scanned. This keeps transcript transport independent from large domain projections such as Graph execution state.
+
 ## `SessionLocation` — optional per-session artifact target
 
 `SessionPersistence.locate(meta)` synchronously resolves a backend-owned independent artifact without reading, creating, or flushing it. JSONL returns the absolute transcript path inside its project/session directory; SQLite returns `undefined` because sessions share one database. A returned path can therefore name a file that does not yet exist or lacks the current unflushed turn; it is a location hint, not authorization or a freshness guarantee.
@@ -232,8 +234,8 @@ interface SessionPersistenceSnapshot {
 
 All implement the same abstract `SessionPersistence` (locate/create/append/prepare/load/inspect/readFrom/list/listSnapshots over `SessionEvent`, with optional cancellation on observation methods) and pass the shared `runPersistenceContract` suite:
 
-- **[dsh-session-persistence-jsonl](../../packages/session/session-persistence-jsonl)** — an append-only logical JSONL log per session, stored as checksummed concatenated Zstandard frames by default or raw lines by configuration, with crash-safe atomic writes, interrupted-turn recovery, and a read/replay path.
-- **[dsh-session-persistence-sqlite](../../packages/session/session-persistence-sqlite)** — an opt-in `node:sqlite` backend using schema 17 to store exact same-block delta runs in bounded physical `text-chunks`, `reasoning-chunks`, and `tool-call-chunks` rows. It reconstructs the complete logical event stream before returning it, packs only newly durable batches, and rejects older schemas rather than migrating them.
+- **[dsh-session-persistence-jsonl](../../packages/session/session-persistence-jsonl)** — the former default and current migration source: an append-only logical JSONL log per session, stored as checksummed concatenated Zstandard frames by default or raw lines by configuration, with crash-safe atomic writes, interrupted-turn recovery, and a read/replay path.
+- **[dsh-session-persistence-sqlite](../../packages/session/session-persistence-sqlite)** — the shipped default `node:sqlite` backend using schema 17 to store exact same-block delta runs in bounded physical `text-chunks`, `reasoning-chunks`, and `tool-call-chunks` rows. It supports filtered, count-bounded, and byte-bounded reads for cold history, imports missing legacy JSONL sessions one physical frame at a time in per-session transactions, packs only newly durable batches, and rejects older SQLite schemas rather than migrating them.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -358,6 +360,40 @@ abstract inspect(id: SessionId, signal?: AbortSignal): Promise<SessionInspection
  * @returns the header and the stored events with `seq >= fromSeq`.
  */
 abstract readFrom(id: SessionId, fromSeq: number, signal?: AbortSignal): Promise<{ meta: SessionHeader; events: SessionEvent[] }>
+
+/**
+ * Read one bounded contiguous logical event interval without preparing or
+ * publishing a Session. Backends with range indexes override this method;
+ * the default preserves correctness by filtering one immutable inspection.
+ * @param id - persisted session to read.
+ * @param request - inclusive start and optional exclusive end sequence.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns stored header and events within the requested interval.
+ */
+async readRange( id: SessionId, request: SessionEventRangeRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; events: SessionEvent[] }>
+
+/**
+ * Find matching logical event positions in newest-first order without
+ * returning payloads. Backends with metadata indexes override this method;
+ * the default scans one immutable inspection.
+ * @param id - persisted session to search.
+ * @param request - event types, exclusive upper sequence, and result bound.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns stored header and newest-first matching sequence numbers.
+ */
+async findEventSequences( id: SessionId, request: SessionEventSequenceRequest, signal?: AbortSignal, ): Promise<{ meta: SessionHeader; sequences: number[] }>
+
+/**
+ * Read the newest event page that satisfies explicit event-count and
+ * serialized-byte budgets. Backends with indexed filtering override this
+ * method so excluded domains are never decoded; the default preserves the
+ * result contract over one immutable inspection.
+ * @param id - persisted session to read.
+ * @param request - sequence interval, excluded prefixes, and page budgets.
+ * @param signal - optional cancellation for queued and backend read work.
+ * @returns one ascending page plus whether an older matching event remains.
+ */
+async readEventPage( id: SessionId, request: SessionEventPageRequest, signal?: AbortSignal, ): Promise<SessionEventPage>
 
 /**
  * Lightweight listing from metadata, without a full-log parse.

@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-一个可选启用的 SQLite `SessionPersistence` 提供方。它将符合条件的 `assistant/chunk` 连续段存入打包后的物理行，对大型 payload 选择性应用 Zstandard 压缩，并对来源序列进行 delta 编码，同时恢复完全一致的逻辑 `SessionEvent[]`。随产品交付的组合均不选择它；部署方需显式挂载本包并提供数据库路径。
+随产品配置默认启用的 SQLite `SessionPersistence` 提供方。它将符合条件的 `assistant/chunk` 连续段存入打包后的物理行，对大型 payload 选择性应用 Zstandard 压缩，并对来源序列进行 delta 编码，同时恢复完全一致的逻辑 `SessionEvent[]`。基础配置使用 `$DSH_HOME/sessions.sqlite`，并在启动时把旧 `$DSH_HOME/sessions` JSONL 根目录中尚未导入的会话以事务方式导入。
 
 `locate(meta)` 返回 `undefined`，因为所有会话共享同一个数据库。该提供方不暴露逐会话原始产物。
 
@@ -18,6 +18,10 @@ Schema 17 在本包内拥有 codec，不导入其他持久化格式中可变的�
 
 完整读取按首个逻辑序列号的顺序扫描物理行。反向扫描会定位最后一个有效 `turn/end`，但不会保留每个物理行的解码副本；正向扫描则逐行解码并校验，写入最终返回的逻辑事件数组。`readFrom(id, fromSeq)` 只检查最大行跨度内的打包前驱，并把后缀锚定在可能包含 `fromSeq` 的最早前驱；这样既可包含从打包行内部开始的事件范围，也能检测相互重叠的物理损坏，而不会解析无关的更早标量行。畸形打包行按全有或全无处理：已提交区域中的损坏会拒绝读取，最终撕裂行则在可变恢复期间从其物理起点删除。修复会在持有写锁时重新读取尾部，并在删除任何数据前拒绝陈旧 marker。打包 `data` 超出 schema 字节上限时，会在解析 JSON 前拒绝。
 
+`readRange`、`findEventSequences` 和 `readEventPage` 支持冷会话记录分页，而无需重建完整会话。Host 会定位追加来源的消息位置，在事件数与 UTF-8 JSON 字节预算内读取最新页面，在解码 payload 前排除 `graph/*` 行，并单独取得最后一次 preset 选择事件。Graph 状态通过投影 checkpoint 到达尾页，不再依赖重复的原始执行事件。
+
+配置 `legacyJsonlRoot` 后，启动流程只读取旧存储的 header 列表，然后导入 SQLite 中尚不存在的会话。每份 Zstandard 日志按物理 frame 解码，并在单个 SQLite 事务内写入。来源错误或中断会回滚该会话的完整导入，使后续启动可以重试；JSONL 文件保持不变，作为恢复副本。
+
 ## Schema 兼容性
 
 全新数据库直接初始化为 schema 17。旧 schema、外部 application identity、非空未版本化数据库以及不兼容 schema 对象都会被拒绝；这个预发布提供方不提供迁移。每条语句和固定 pragma 都位于随包发布的 `.sql` 资源中；值使用 SQLite 参数，运行时代码不会拼装查询文本。
@@ -31,6 +35,8 @@ interface Config {
   busyTimeoutMs?: number
   preparedSessionCacheSize?: number
   writeBatchMaxDelayMs?: number
+  legacyJsonlRoot?: string
+  legacyJsonlCompression?: 'zstd' | 'none'
 }
 ```
 

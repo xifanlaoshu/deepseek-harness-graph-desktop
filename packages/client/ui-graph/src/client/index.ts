@@ -122,6 +122,7 @@ export function apply(ctx: ClientContext): void {
           { op: 'unset', path: ['roles'] },
           { op: 'unset', path: ['limits'] },
           { op: 'unset', path: ['executionPolicy'] },
+          { op: 'unset', path: ['controllerResilience'] },
         ],
         expectedRevision,
       })

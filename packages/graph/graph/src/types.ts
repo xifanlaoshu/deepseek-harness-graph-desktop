@@ -154,6 +154,48 @@ export interface GraphModelSelection {
   readonly reasoningEffort?: string
 }
 
+/** Explicit advanced-model route available to controller recovery. */
+export interface GraphControllerFallbackModel {
+  /** Provider route; fallback routes never inherit an ambiguous session default. */
+  readonly provider: string
+  /** Model id within {@link provider}. */
+  readonly model: string
+  /** Provider-supported reasoning selector; omission uses the model default. */
+  readonly reasoningEffort?: string
+  /** Whether request failures may move the Graph controller to this route. */
+  readonly controller: boolean
+  /** Whether compaction may try this route after the controller's primary route. */
+  readonly compaction: boolean
+}
+
+/** Session-owned compaction policy used while Graph Mode is active. */
+export interface GraphControllerCompactionPolicy {
+  /** Apply the Graph-specific policy and advanced-model route list. */
+  readonly enabled: boolean
+  /** Fraction of the routed model context at which automatic compaction begins. */
+  readonly thresholdRatio: number
+  /** Fraction of recent context retained verbatim after compaction. */
+  readonly retainRatio: number
+  /** Maximum output tokens for each summarization attempt. */
+  readonly maxTokens: number
+  /** Optional reasoning selector applied to compaction targets that do not override it. */
+  readonly reasoningEffort?: string
+}
+
+/** Bounded controller escalation and compaction policy snapshotted by one session. */
+export interface GraphControllerResiliencePolicy {
+  /** Permit controller request retries on the ordered fallback route list. */
+  readonly enabled: boolean
+  /** Maximum advanced routes attempted during one controller turn. */
+  readonly maxFallbackAttemptsPerTurn: number
+  /** Exact normalized LLM failure codes eligible for controller escalation. */
+  readonly retryableFailureCodes: readonly string[]
+  /** Ordered advanced-model routes. */
+  readonly fallbackModels: readonly GraphControllerFallbackModel[]
+  /** Graph-owned automatic and manual compaction policy. */
+  readonly compaction: GraphControllerCompactionPolicy
+}
+
 /** Editable role definition used by the controller and scheduler. */
 export interface GraphRole {
   readonly id: GraphRoleId
@@ -183,6 +225,8 @@ export interface GraphSchedulerLimits {
   readonly globalMaxParallel: number
   /** Permits held aside so a saturated worker pool cannot starve the controller. */
   readonly controllerReserve: number
+  /** Maximum live Graph Workers and their in-process subagent descendants in one run. */
+  readonly maxActiveSubagents?: number
   readonly models: readonly GraphModelLimit[]
 }
 
@@ -194,6 +238,11 @@ export interface GraphModeConfig {
   readonly limits: GraphSchedulerLimits
   /** Hard ceilings copied into each accepted graph revision. */
   readonly executionPolicy: GraphExecutionPolicy
+  /**
+   * Controller recovery and compaction settings. Older snapshots omit this
+   * field and keep pre-resilience behavior.
+   */
+  readonly controllerResilience?: GraphControllerResiliencePolicy
 }
 
 /** Deployment ceilings for one graph and its automatic feedback work. */
@@ -709,6 +758,26 @@ export interface GraphRun {
   readonly nodes: Readonly<Record<string, GraphNodeRun>>
   readonly terminal?: GraphTerminalEvidence
   /** Terminal failure evidence retained even when no child attempt started. */
+  readonly error?: GraphRunError
+}
+
+/** Incremental replacement fields for one existing Graph execution generation. */
+export interface GraphRunUpdate {
+  readonly version: 1
+  readonly runId: GraphRunId
+  readonly graphId: GraphId
+  readonly revision: number
+  readonly generation: number
+  readonly generationId: GraphRunGenerationId
+  readonly ownerEpoch: number
+  /** Run phase after applying this update. */
+  readonly phase: GraphRunPhase
+  readonly updatedAt: number
+  /** Complete replacement state only for nodes changed by this update. */
+  readonly nodes: Readonly<Record<string, GraphNodeRun>>
+  /** Terminal evidence added by this update. */
+  readonly terminal?: GraphTerminalEvidence
+  /** Run failure evidence added by this update. */
   readonly error?: GraphRunError
 }
 

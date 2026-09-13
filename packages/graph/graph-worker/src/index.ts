@@ -180,6 +180,8 @@ export interface GraphWorkerAssignment {
   readonly generationId: GraphRunGenerationId
   readonly ownerEpoch: number
   readonly fencingToken: number
+  /** Run-wide ceiling shared by this Worker and its in-process subagent descendants. */
+  readonly activeSubagentLimit?: number
   /** Live delegating Agent used only by same-process Worker Providers. */
   readonly parent: Agent
   readonly node: GraphNode

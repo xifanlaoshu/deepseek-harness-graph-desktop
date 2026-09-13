@@ -23,7 +23,7 @@ import {
   type GraphWorkspaceAllocation,
 } from '@deepseek-ai/dsh-graph-worker'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type { SubagentResult, SubagentRun } from '@deepseek-ai/dsh-subagent'
+import { SubagentCapacityScopeId, type SubagentResult, type SubagentRun } from '@deepseek-ai/dsh-subagent'
 
 export const name = 'graph-worker-local'
 export const inject = ['graphWorkers', 'subagents']
@@ -139,6 +139,12 @@ class LocalGraphWorkerProvider implements GraphWorkerProvider {
             ? {}
             : { reasoningEffort: ReasoningEffortId(assignment.role.model.reasoningEffort) },
           maxTokens: assignment.budget.maxOutputTokens,
+          ...assignment.activeSubagentLimit === undefined ? {} : {
+            subagentCapacity: {
+              scope: SubagentCapacityScopeId(`graph-run:${assignment.runId}`),
+              maxActive: assignment.activeSubagentLimit,
+            },
+          },
         },
         outputSchema: assignment.outputSchema,
         ...assignment.toolFilter === undefined ? {} : { toolFilter: assignment.toolFilter },

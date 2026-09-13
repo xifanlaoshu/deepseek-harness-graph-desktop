@@ -9,7 +9,7 @@ import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import * as SessionInvariant from '@deepseek-ai/dsh-session/invariant'
 import * as AgentInvariant from '@deepseek-ai/dsh-agent/invariant'
 import * as AgentLoopInvariant from '@deepseek-ai/dsh-agent-loop/invariant'
-import SubagentRuntime, { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
+import SubagentRuntime, { SubagentCapacityScopeId, snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import { maxTokensResponse, MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { startInProcessRun } from '../src/index.ts'
@@ -80,6 +80,22 @@ describe('startInProcessRun', () => {
     expect(child.session.header.cwd).toBe('/workspace')
     await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
     await run.dispose()
+  })
+
+  it('inherits one active-subagent capacity pool without allowing a child override', async () => {
+    const capacity = { scope: SubagentCapacityScopeId('graph-run:inheritance'), maxActive: 2 }
+    const { ctx, parent } = await setup([textResponse('driver answer')], { subagentCapacity: capacity })
+    const run = await startInProcessRun(request(parent), {})
+    expect(ctx.agents.get(run.id)?.options.subagentCapacity).toEqual(capacity)
+    await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
+    await run.dispose()
+
+    await expect(startInProcessRun({
+      ...request(parent),
+      agentOptions: {
+        subagentCapacity: { scope: SubagentCapacityScopeId('graph-run:other'), maxActive: 3 },
+      },
+    }, {})).rejects.toThrow('cannot replace or widen')
   })
 
   it('uses an explicit activation workspace without changing the parent session', async () => {

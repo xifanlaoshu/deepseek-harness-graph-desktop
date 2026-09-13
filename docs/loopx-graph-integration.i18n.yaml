@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/loopx-graph-integration.md
-loopx-graph-integration.md: 75741eace99e0509496b79096641cb769efbcef3
-loopx-graph-integration.zh.md: 4a82740bd310df7754dc2443d5ce40d2a0459f1d
+loopx-graph-integration.md: 0f6224c4ffb62f09586d65af738d09354a5e2f53
+loopx-graph-integration.zh.md: e4219de780373e4894cf78444e8493a43897f45e

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -18,6 +18,7 @@ import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import { MockAdapter, maxTokensResponse, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import SubagentRuntime, {
   SubagentError,
+  SubagentCapacityScopeId,
   SUBAGENT_DESCRIPTOR_VERSION,
 } from '../src/index.ts'
 import type { SubagentRunEndInfo, SubagentRunInfo } from '../src/index.ts'
@@ -65,7 +66,7 @@ afterEach(async () => {
 })
 
 /** Boot the full continuable stack: loop, persistence, providers, and subagents. */
-async function setupWith(adapter: LlmAdapter, options: { persistence?: boolean } = {}) {
+async function setupWith(adapter: LlmAdapter, options: { persistence?: boolean; parentOptions?: AgentOptions } = {}) {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
   let disposePersistence: (() => Promise<void>) | undefined
@@ -85,7 +86,9 @@ async function setupWith(adapter: LlmAdapter, options: { persistence?: boolean }
   await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
   await ctx.plugin(SubagentFork, { providerName: 'fork' })
   ctx.llm.registerAdapter(['mock'], adapter)
-  const parent = ctx.agentLoop.create(SessionId('parent'), { provider: 'mock', model: 'mock' })
+  const parent = ctx.agentLoop.create(SessionId('parent'), {
+    provider: 'mock', model: 'mock', ...options.parentOptions,
+  })
   return { ctx, parent, disposePersistence, root }
 }
 
@@ -180,6 +183,16 @@ function observeCancel(agent: Agent, callback: () => void): void {
 }
 
 describe('SubagentRuntime.startContinuable', () => {
+  it('rejects nested work when the Graph Worker occupies the only active slot', async () => {
+    const capacity = { scope: SubagentCapacityScopeId('graph-run:serial'), maxActive: 1 }
+    const { ctx, parent } = await setupWith(new MockAdapter([]), {
+      parentOptions: { subagentCapacity: capacity },
+    })
+    await expect(ctx.subagents.startContinuable(startSpec(parent)))
+      .rejects.toMatchObject({ code: 'CAPACITY_EXHAUSTED' })
+    expect(ctx.agents.list()).toEqual([parent])
+  })
+
   it('returns both identities at inbox acceptance, without waiting for the turn or the log', async () => {
     const { ctx, parent, adapter } = await setup([textResponse('first answer')])
     const enqueued: { id: MessageId; loggedYet: boolean }[] = []
@@ -480,6 +493,30 @@ describe('SubagentRuntime.startContinuable', () => {
     await waitNoActivation(ctx, started.childId)
     const resumed = await ctx.sessionPersistence.load(started.childId)
     expect(hasUserText(resumed.events, 'resume it')).toBe(true)
+  })
+
+  it('records and restores the inherited active-capacity pool on cold resume', async () => {
+    const releaseFirst = Promise.withResolvers<undefined>()
+    const releaseSecond = Promise.withResolvers<undefined>()
+    const capacity = { scope: SubagentCapacityScopeId('graph-run:durable'), maxActive: 2 }
+    const adapter = new GatedAdapter([
+      { chunks: textResponse('first'), gate: releaseFirst.promise },
+      { chunks: textResponse('second'), gate: releaseSecond.promise },
+    ])
+    const { ctx, parent } = await setupWith(adapter, { parentOptions: { subagentCapacity: capacity } })
+    const started = await ctx.subagents.startContinuable(startSpec(parent))
+    expect(ctx.agents.get(started.childId)?.options.subagentCapacity).toEqual(capacity)
+    releaseFirst.resolve(undefined)
+    await waitNoActivation(ctx, started.childId)
+
+    const loaded = await ctx.sessionPersistence.load(started.childId)
+    const descriptor = loaded.events.find(event => event.type === 'subagent/descriptor')
+    expect(descriptor?.data).toMatchObject({ capacity })
+
+    await followup(ctx, parent, started.childId, message('resume within capacity'))
+    expect(ctx.agents.get(started.childId)?.options.subagentCapacity).toEqual(capacity)
+    releaseSecond.resolve(undefined)
+    await waitNoActivation(ctx, started.childId)
   })
 })
 

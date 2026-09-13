@@ -145,6 +145,32 @@ describe('graph scheduler primitives', () => {
     await sameRole
   })
 
+  it('queues Graph Workers at the run-wide active-subagent ceiling', async () => {
+    const admission = new GraphAdmissionController()
+    const config = {
+      ...defaultGraphModeConfig(),
+      limits: {
+        globalMaxParallel: 4,
+        controllerReserve: 1,
+        maxActiveSubagents: 1,
+        models: [],
+      },
+    }
+    const role = { ...configuredRole(3), model: {} }
+    const signal = new AbortController().signal
+    const release = await admission.acquire(role, config, 1, signal)
+    let admitted = false
+    const queued = admission.acquire(role, config, 1, signal).then((permit) => {
+      admitted = true
+      permit()
+    })
+    await Promise.resolve()
+    expect(admitted).toBe(false)
+    release()
+    await queued
+    expect(admitted).toBe(true)
+  })
+
   it('admits inherited and uncapped models and enforces weighted model budgets', async () => {
     const admission = new GraphAdmissionController()
     const signal = new AbortController().signal

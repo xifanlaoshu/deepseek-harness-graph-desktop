@@ -29,9 +29,9 @@ Provider 无关的 Service Definition 与 LoopX CLI Provider 实现全部八个�
 
 ## Lease and recovery semantics
 
-Claim 是有过期时间的租约，而非永久所有权。所有权转移时 fencing token 必须增加；如果 Provider 把 lease CAS version 作为 fenced 身份，同一 Owner 续租时 token 也可以推进。每次 Heartbeat 都返回当前 lease id 与 token；Consumer 必须持久化该身份，并在下一次进度、取消、对账或结算写入前替换旧身份。只有当前 token 可以写入。迟到 Worker 可以完成本地计算，但 LoopX 拒绝其写入，Graph 把 fenced 结果记录为非权威证据。
+Claim 是有过期时间的租约，而非永久所有权。所有权转移时 fencing token 必须增加；如果 Provider 把 lease CAS version 作为 fenced 身份，同一 Owner 续租时 token 也可以推进。每次 Heartbeat 都返回当前 lease id 与 token；Consumer 必须持久化该身份，并在下一次进度、取消、对账或结算写入前替换旧身份。对账把同一 Claim 的更高 token 视为向前推进；Claim 被替换、token 降低或相同 token 对应不同 Lease 时属于冲突。只有当前 token 可以写入。迟到 Worker 可以完成本地计算，但 LoopX 拒绝其写入，Graph 把 fenced 结果记录为非权威证据。
 
-心跳频率和租约时长是带最小值与宽限策略的部署设置。漏掉一次心跳不会立即使工作失败。确认过期后，Graph 在恢复 Claim、让非幂等操作进入 `awaiting_user` 或记录终态失败之前，会先对账 Provider 与 Worker。恢复保留同一 `GraphWorkId` 并使用新的 `GraphAttemptId`。
+心跳频率和租约时长是带最小值与宽限策略的部署设置。漏掉一次心跳不会立即使工作失败。确认过期后，Graph 在恢复 Claim、让非幂等操作进入 `awaiting_user` 或记录终态失败之前，会先对账 Provider 与 Worker。Worker 被确认停止后，Graph 会重新获取匹配的过期 Claim，把其原始 Activation 结算为已取消，并在新 Generation 中重试幂等节点。由恢复流程创建、且自身没有执行身份的 `awaiting_user` Generation 会自动依据原始 Generation 重新检查；未解决的冲突保持稳定，不会反复生成恢复历史。恢复保留同一 `GraphWorkId` 并使用新的 `GraphAttemptId`。
 
 `watch` 基于 Cursor 且采用 at-least-once 投递。Consumer 按事件 ID 去重，并在压缩后获取新快照。进度序号在一个 Work Identity 内单调递增，且有数量与字节上限；详细转录仍归子会话所有。背压可以合并进度，但不得合并租约、取消或终态转换。
 

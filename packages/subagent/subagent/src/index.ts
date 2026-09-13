@@ -68,10 +68,14 @@ import { listChildren as listSubagentChildren, listDescendants as listSubagentDe
 import type { SubagentDescendantListEntry, SubagentListEntry } from './list-children.ts'
 import { snapshotSubagentDescriptor } from './descriptor.ts'
 import { subagentIdentityProjectionDefinition, subagentTimingProjectionDefinition } from './projection.ts'
+import { resolveSubagentCapacity } from './capacity.ts'
+import type { SubagentCapacity } from './capacity.ts'
 
 export * from './out-of-process.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
+export { SubagentCapacityScopeId, resolveSubagentCapacity, validateSubagentCapacity } from './capacity.ts'
+export type { SubagentCapacity } from './capacity.ts'
 export type {
   ContinuableCreateRequest,
   ContinuableCreateSpec,
@@ -180,6 +184,8 @@ export class SubagentRuntime extends Service {
    * composes into the carrier.
    */
   private readonly emitLifecycle: LifecycleEmitter
+  /** Starts admitted before their child is visible in the live Agent registry. */
+  private readonly pendingCapacity = new Map<string, number>()
 
   constructor(ctx: Context) {
     super(ctx, 'subagents')
@@ -188,6 +194,7 @@ export class SubagentRuntime extends Service {
       const manager = new SubagentContinuationManager(childCtx, {
         prepareContinuable: (name, request) => this.prepareContinuable(name, request),
         observeActivation: (provider, childId, parent) => this.observeActivation(provider, childId, parent),
+        acquireCapacity: (parent, agentOptions) => this.acquireCapacity({ parent, agentOptions }),
       }, this.setupRegistry)
       this.continuations = manager
       childCtx.effect(() => () => {
@@ -211,7 +218,13 @@ export class SubagentRuntime extends Service {
    * @throws when continuation services are unavailable or materialization fails.
    */
   async startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart> {
-    return this.requireContinuations().startContinuable(spec)
+    const manager = this.requireContinuations()
+    const release = this.acquireCapacity(spec.request)
+    try {
+      return await manager.startContinuable(spec)
+    } finally {
+      release()
+    }
   }
 
   /**
@@ -430,7 +443,8 @@ export class SubagentRuntime extends Service {
    */
   async start(name: string, request: SubagentStartRequest): Promise<SubagentRun> {
     const provider = this.expectProvider(name)
-    this.assertCapabilities(provider, request)
+    const capacity = resolveSubagentCapacity(request.parent, request.agentOptions)
+    this.assertCapabilities(provider, request, capacity)
     assertSubagentMaxDepth(request.maxDepth)
     if (request.workspaceCwd !== undefined && (!request.workspaceCwd.trim() || !isAbsolute(request.workspaceCwd))) {
       throw new SubagentError('subagent workspaceCwd must be a non-empty absolute path', 'INVALID_REQUEST')
@@ -442,7 +456,12 @@ export class SubagentRuntime extends Service {
       ...request.label !== undefined ? { label: request.label } : {},
     })
     const resolved: ResolvedSubagentStartRequest = { ...request, descriptor }
-    return observeRun(this.emitLifecycle, name, request.parent, await provider.start(resolved))
+    const release = this.acquireCapacity(request, capacity)
+    try {
+      return observeRun(this.emitLifecycle, name, request.parent, await provider.start(resolved))
+    } finally {
+      release()
+    }
   }
 
   /**
@@ -498,13 +517,18 @@ export class SubagentRuntime extends Service {
   }
 
   /** Reject the first requested capability that the provider lacks. */
-  private assertCapabilities(provider: SubagentProvider, request: SubagentStartRequest): void {
+  private assertCapabilities(
+    provider: SubagentProvider,
+    request: SubagentStartRequest,
+    capacity: SubagentCapacity | undefined,
+  ): void {
     const needs: { when: boolean; cap: keyof SubagentCapabilities }[] = [
       { when: request.outputSchema !== undefined, cap: 'outputSchema' },
       { when: request.maxDepth !== undefined, cap: 'depthLimit' },
       { when: request.toolFilter !== undefined, cap: 'toolFilter' },
       { when: request.persona !== undefined, cap: 'persona' },
       { when: request.sandboxModeCap !== undefined, cap: 'sandboxMode' },
+      { when: capacity !== undefined, cap: 'activeCapacity' },
     ]
     for (const { when, cap } of needs) {
       if (when && !provider.capabilities[cap]) {
@@ -513,6 +537,39 @@ export class SubagentRuntime extends Service {
           'UNSUPPORTED_CAPABILITY',
         )
       }
+    }
+  }
+
+  /** Reserve one pool slot until the provider publishes its capacity-bearing child. */
+  private acquireCapacity(
+    request: Pick<SubagentStartRequest, 'parent' | 'agentOptions'>,
+    resolved = resolveSubagentCapacity(request.parent, request.agentOptions),
+  ): () => void {
+    if (resolved === undefined) return () => {}
+    const agents = this.ctx.get('agents')
+    if (agents === undefined) {
+      throw new SubagentError('active subagent capacity requires the agents service', 'CAPACITY_UNAVAILABLE')
+    }
+    const active = agents.list().filter(agent => (
+      agent.options.subagentCapacity?.scope === resolved.scope
+    )).length
+    const key = String(resolved.scope)
+    const pending = this.pendingCapacity.get(key) ?? 0
+    if (active + pending >= resolved.maxActive) {
+      throw new SubagentError(
+        `active subagent limit ${String(resolved.maxActive)} reached for capacity scope ${JSON.stringify(key)}; `
+        + 'do not retry unchanged work inside this agent—return it to the Graph controller for smaller sequential nodes',
+        'CAPACITY_EXHAUSTED',
+      )
+    }
+    this.pendingCapacity.set(key, pending + 1)
+    let held = true
+    return () => {
+      if (!held) return
+      held = false
+      const current = this.pendingCapacity.get(key) as number
+      if (current === 1) this.pendingCapacity.delete(key)
+      else this.pendingCapacity.set(key, current - 1)
     }
   }
 }

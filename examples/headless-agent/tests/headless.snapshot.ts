@@ -1032,6 +1032,7 @@ describe('headless stream-json snapshots', () => {
         expect(terminal).toMatchObject({
           graphId: 'prove-one-complete-graph-mode-worker-run-7934e3266c98',
           phase: 'succeeded',
+          configSnapshot: { limits: { maxActiveSubagents: 7 } },
           nodes: { implement: { phase: 'succeeded', output: { summary: 'GRAPH_CHILD_OK', data: { passed: true } } } },
         })
         expect(parentRecords.filter(record => record.type === 'tool/call')
@@ -1040,6 +1041,8 @@ describe('headless stream-json snapshots', () => {
         expect(parent.content).toContain("Preserve each still-valid accepted node's id, semantic definition, and incoming dependencies")
         expect(parent.content).toContain('campaign.planExtension containing the complete newly discovered ordered suffix')
         expect(parent.content).toContain('assign the browser-tester role when available')
+        expect(parent.content).toContain('Graph run-wide active subagent limit: 7')
+        expect(child.content).toContain('Do not retry CAPACITY_EXHAUSTED')
         expect(parseJsonl(child.content).filter(record => record.type === 'tool/call')
           .map(record => (record.data as JsonObject | undefined)?.name)).toEqual(['structured_output'])
       },

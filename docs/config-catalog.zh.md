@@ -878,7 +878,7 @@ export interface Config {
 
 依赖：[`GraphEnvironmentCapability`](../packages/graph/graph/src/index.ts) · [`GraphWorkspaceMode`](../packages/graph/graph-worker/src/index.ts)
 
-来源：[`packages/graph/graph-mode/src/index.ts:113`](../packages/graph/graph-mode/src/index.ts)
+来源：[`packages/graph/graph-mode/src/index.ts:127`](../packages/graph/graph-mode/src/index.ts)
 
 <a id="deepseek-aidsh-graph-resources-local"></a>
 
@@ -1006,7 +1006,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/graph/graph-scheduler-sqlite/src/index.ts:24`](../packages/graph/graph-scheduler-sqlite/src/index.ts)
+来源：[`packages/graph/graph-scheduler-sqlite/src/index.ts:25`](../packages/graph/graph-scheduler-sqlite/src/index.ts)
 
 <a id="deepseek-aidsh-graph-worker-local"></a>
 
@@ -1272,10 +1272,14 @@ export interface Config {
    * @default 1024
    */
   coldBlankProbeMaxBytes?: number
+  /** Maximum logical events returned by one history page. @default 10000 */
+  historyPageMaxEvents?: number
+  /** Soft maximum UTF-8 JSON bytes returned by one history page. @default 33554432 */
+  historyPageMaxBytes?: number
 }
 ```
 
-来源：[`packages/host/apiproxy/src/index.ts:41`](../packages/host/apiproxy/src/index.ts)
+来源：[`packages/host/apiproxy/src/index.ts:46`](../packages/host/apiproxy/src/index.ts)
 
 <a id="deepseek-aidsh-host-directory-picker-browse"></a>
 
@@ -2199,7 +2203,7 @@ export interface Config {
 export type JsonlCompression = 'zstd' | 'none'
 ```
 
-来源：[`packages/session/session-persistence-jsonl/src/index.ts:60`](../packages/session/session-persistence-jsonl/src/index.ts)
+来源：[`packages/session/session-persistence-jsonl/src/index.ts:62`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="deepseek-aidsh-session-persistence-sqlite"></a>
 
@@ -2220,13 +2224,19 @@ export interface Config {
   preparedSessionCacheSize?: number
   /** Fixed live-event coalescing window; not a backend completion deadline. */
   writeBatchMaxDelayMs?: number
+  /** Legacy JSONL root imported transactionally before this provider serves. */
+  legacyJsonlRoot?: string
+  /** Encoding used by the legacy root; defaults to `zstd`. */
+  legacyJsonlCompression?: JsonlCompression
 }
 
 /** Durable journal modes accepted by the backend. */
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 ```
 
-来源：[`packages/session/session-persistence-sqlite/src/index.ts:36`](../packages/session/session-persistence-sqlite/src/index.ts)
+依赖：[`JsonlCompression`](../packages/session/session-persistence-jsonl/src/index.ts)
+
+来源：[`packages/session/session-persistence-sqlite/src/index.ts:44`](../packages/session/session-persistence-sqlite/src/index.ts)
 
 <a id="deepseek-aidsh-session-projection-cache"></a>
 
