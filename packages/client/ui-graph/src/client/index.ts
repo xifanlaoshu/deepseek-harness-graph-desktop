@@ -1,13 +1,13 @@
 /** Browser graph surface registration. */
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
-import {
-  createSnapshotStore,
-  type ClientContext,
-  type ISessions,
-  type ObservableSnapshot,
-  type SessionId,
-} from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
@@ -49,13 +49,12 @@ export interface GraphActionInjected {
 
 /** Required client services. */
 export const inject = [
-  'slots', 'sessions', 'connection', 'remote', 'remote.commands', 'locale', 'modelDirectories', 'settingsScope',
+  'slots', 'sessions', 'remote', 'remote.commands', 'remote.session', 'locale', 'modelDirectories', 'settingsScope',
 ]
 
 /** Register the session-header Graph Mode action. */
 export function apply(ctx: ClientContext): void {
   const sessions = ctx.get('sessions') as unknown as ISessions
-  const { api } = ctx.get('connection') as ConnectionHandle
   const graphTemplates = ctx.settingsScope.bind<GraphTemplateSettings>({ namespace: 'graph-mode' })
   const templateModels = createSnapshotStore<ModelDirectoryState>({
     current: null,
@@ -70,9 +69,8 @@ export function apply(ctx: ClientContext): void {
   const loadTemplateModels = (): void => {
     const generation = ++modelGeneration
     templateModels.update((state) => { state.status = 'loading'; state.error = null })
-    void api.llm.models({}).then((response) => {
+    void ctx.remote.session.modelCatalog().then((result) => {
       if (generation !== modelGeneration) return
-      const { result } = response
       if (!result.ok) {
         const message = `${result.error.code}: ${result.error.message}`
         templateModels.update((state) => {
@@ -81,8 +79,10 @@ export function apply(ctx: ClientContext): void {
         })
         return
       }
-      const { groups, failures } = result.value
+      const { default: current, groups, failures, routableProviders } = result.value
       templateModels.update((state) => {
+        state.current = current
+        state.routable = routableProviders.includes(current.provider)
         state.groups = groups
         state.failures = failures
         state.status = 'ready'
@@ -101,35 +101,41 @@ export function apply(ctx: ClientContext): void {
     expectedRevision: number,
   ): Promise<GraphTemplateSaveResult> => {
     try {
-      const response = await api.settings.update({
-        ns: 'graph-mode',
-        patch: template,
-        expectedRevision,
-      })
-      if (!response.result.ok) {
-        return { ok: false, error: `${response.result.error.message} (${response.result.error.code})` }
+      const operations: SettingsPathOpView[] = [
+        { op: 'set', path: ['roles'], value: template.roles as unknown as JsonValue },
+        { op: 'set', path: ['limits'], value: template.limits as unknown as JsonValue },
+        { op: 'set', path: ['executionPolicy'], value: template.executionPolicy as unknown as JsonValue },
+        template.controllerResilience === undefined
+          ? { op: 'unset', path: ['controllerResilience'] }
+          : {
+            op: 'set',
+            path: ['controllerResilience'],
+            value: template.controllerResilience as unknown as JsonValue,
+          },
+      ]
+      await graphTemplates.mutate(operations, expectedRevision)
+      const revision = graphTemplates.getSnapshot().revision
+      if (revision === undefined || revision === expectedRevision) {
+        return { ok: false, error: 'Graph settings update was rejected; reload the latest settings and retry.' }
       }
-      return { ok: true, revision: response.result.value.revision }
+      return { ok: true, revision }
     } catch (reason) {
       return { ok: false, error: reason instanceof Error ? reason.message : String(reason) }
     }
   }
   const resetTemplate = async (expectedRevision: number): Promise<GraphTemplateSaveResult> => {
     try {
-      const response = await api.settings.mutate({
-        ns: 'graph-mode',
-        ops: [
-          { op: 'unset', path: ['roles'] },
-          { op: 'unset', path: ['limits'] },
-          { op: 'unset', path: ['executionPolicy'] },
-          { op: 'unset', path: ['controllerResilience'] },
-        ],
-        expectedRevision,
-      })
-      if (!response.result.ok) {
-        return { ok: false, error: `${response.result.error.message} (${response.result.error.code})` }
+      await graphTemplates.mutate([
+        { op: 'unset', path: ['roles'] },
+        { op: 'unset', path: ['limits'] },
+        { op: 'unset', path: ['executionPolicy'] },
+        { op: 'unset', path: ['controllerResilience'] },
+      ], expectedRevision)
+      const revision = graphTemplates.getSnapshot().revision
+      if (revision === undefined || revision === expectedRevision) {
+        return { ok: false, error: 'Graph settings reset was rejected; reload the latest settings and retry.' }
       }
-      return { ok: true, revision: response.result.value.revision }
+      return { ok: true, revision }
     } catch (reason) {
       return { ok: false, error: reason instanceof Error ? reason.message : String(reason) }
     }

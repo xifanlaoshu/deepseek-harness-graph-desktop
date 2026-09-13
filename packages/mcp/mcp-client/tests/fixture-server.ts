@@ -62,12 +62,6 @@ server.registerTool('crash', {
   return { content: [{ type: 'text', text: 'crashing' }] }
 })
 
-server.registerTool('hang', {
-  title: 'Hang Tool',
-  description: 'Never settles its response (request-timeout recovery test).',
-  inputSchema: {},
-}, async () => await new Promise<never>(() => {}))
-
 // Dotted name: legal in MCP, illegal in the DeepSeek function-name contract.
 // Exercises the bridge's normalize-and-hash public-name path end to end.
 server.registerTool('admin.reset', {

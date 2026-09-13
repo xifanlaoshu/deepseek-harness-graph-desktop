@@ -31,7 +31,16 @@ afterEach(async () => {
 class WritingProvider implements SubagentProvider {
   readonly name = 'stub'
   readonly inheritsParentContext = false
-  readonly capabilities: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true, sandboxMode: true }
+  readonly capabilities: SubagentCapabilities = {
+    agentOptions: true,
+    outputSchema: true,
+    depthLimit: true,
+    toolFilter: true,
+    persona: true,
+    workspace: true,
+    sandboxMode: true,
+    activeCapacity: true,
+  }
   readonly requests: ResolvedSubagentStartRequest[] = []
 
   constructor(

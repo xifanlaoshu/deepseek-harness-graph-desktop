@@ -8,8 +8,8 @@ export type SubagentCapacityScopeId = Branded<'SubagentCapacityScopeId'>
 
 /**
  * Brand one validated capacity-pool identity.
- * @param value stable non-empty pool identity.
- * @returns branded pool identity.
+ * @param value normalized non-empty capacity-pool identity.
+ * @returns branded capacity-pool identity.
  */
 export function SubagentCapacityScopeId(value: string): SubagentCapacityScopeId {
   if (!value.trim() || value !== value.trim() || value.length > 512) {
@@ -33,8 +33,8 @@ declare module '@deepseek-ai/dsh-agent' {
 
 /**
  * Validate and detach one optional capacity declaration.
- * @param value capacity declaration from trusted runtime options.
- * @returns a detached validated declaration, or `undefined`.
+ * @param value optional capacity declaration from an agent boundary.
+ * @returns detached validated capacity, or `undefined` when omitted.
  */
 export function validateSubagentCapacity(value: SubagentCapacity | undefined): SubagentCapacity | undefined {
   if (value === undefined) return undefined
@@ -46,16 +46,16 @@ export function validateSubagentCapacity(value: SubagentCapacity | undefined): S
 }
 
 /**
- * Resolve the capacity inherited by a child without permitting a descendant to change pools or widen its ceiling.
- * @param parent delegating live Agent.
- * @param requested optional child Agent options.
- * @returns the inherited or newly declared capacity.
+ * Resolve inherited capacity without permitting a descendant to replace or widen it.
+ * @param parent delegating parent agent.
+ * @param requested optional child agent options.
+ * @returns inherited or newly declared capacity, or `undefined` when neither exists.
  */
 export function resolveSubagentCapacity(
   parent: Agent,
   requested: AgentOptions | undefined,
 ): SubagentCapacity | undefined {
-  const inherited = validateSubagentCapacity(parent.options.subagentCapacity)
+  const inherited = validateSubagentCapacity(parent.options?.subagentCapacity)
   const declared = validateSubagentCapacity(requested?.subagentCapacity)
   if (inherited !== undefined && declared !== undefined
     && (inherited.scope !== declared.scope || inherited.maxActive !== declared.maxActive)) {

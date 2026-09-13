@@ -7,15 +7,12 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { CompactionEngine, ManualCompactionError } from '@deepseek-ai/dsh-compaction'
-import type {
-  CompactionRequestPolicy,
-  CompactionResult,
-  CompactionTrigger,
-} from '@deepseek-ai/dsh-compaction'
+import type { CompactionRequestPolicy, CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
 import type { TokenMeter } from '@deepseek-ai/dsh-token-meter'
-import type { Session } from '@deepseek-ai/dsh-session'
-import { CONTEXT_WINDOW_EXCEEDED_CODE, assertNever } from '@deepseek-ai/dsh-llm'
+import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
+import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
+import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
 // Type-only: makes the optional sibling service available to `ctx.get()`.
@@ -47,9 +44,7 @@ function requestPolicy(policy: ResolvedTargetPolicy): CompactionRequestPolicy {
   return {
     target: policy.target,
     thresholdRatio: policy.thresholdRatio,
-    ...policy.retainTokens === undefined
-      ? { retainRatio: policy.retainRatio }
-      : { retainTokens: policy.retainTokens },
+    ...policy.retainTokens === undefined ? { retainRatio: policy.retainRatio } : { retainTokens: policy.retainTokens },
     maxTokens: policy.maxTokens,
     compactionRetries: policy.compactionRetries,
     maxOverflowRetries: policy.maxOverflowRetries,
@@ -58,15 +53,12 @@ function requestPolicy(policy: ResolvedTargetPolicy): CompactionRequestPolicy {
 }
 
 function compactSpecPolicy(policy: CompactionRequestPolicy): ResolvedTargetPolicy {
-  const target = policy.summarizationTarget
   return {
     target: policy.target,
     thresholdRatio: policy.thresholdRatio,
-    ...policy.retainTokens === undefined
-      ? { retainRatio: policy.retainRatio as number }
-      : { retainTokens: policy.retainTokens },
-    summarizationProvider: target.provider,
-    summarizationModel: target.model,
+    ...policy.retainTokens === undefined ? { retainRatio: policy.retainRatio as number } : { retainTokens: policy.retainTokens },
+    summarizationProvider: policy.summarizationTarget.provider,
+    summarizationModel: policy.summarizationTarget.model,
     maxTokens: policy.maxTokens,
     compactionRetries: policy.compactionRetries,
     maxOverflowRetries: policy.maxOverflowRetries,
@@ -167,9 +159,7 @@ export class BasicCompactionEngine extends CompactionEngine {
     target: Pick<LlmCallConfig, 'provider' | 'model'>,
   ): Promise<CompactionRequestPolicy> {
     const base = requestPolicy(resolveTargetPolicy(this.config, target))
-    const resolved = await this.ctx.waterfall(
-      'compaction/policy', agent, trigger, () => Promise.resolve(base),
-    )
+    const resolved = await this.ctx.waterfall('compaction/policy', agent, trigger, () => Promise.resolve(base))
     if (resolved.summarizationTarget.provider.length === 0 || resolved.summarizationTarget.model.length === 0) {
       throw new Error('compaction policy requires one complete summarization target')
     }
@@ -292,20 +282,7 @@ export class BasicCompactionEngine extends CompactionEngine {
     signal?: AbortSignal,
   ): Promise<SummaryResult> {
     const target = conversationTarget(agent)
-    if (target === undefined) {
-      return summarizeWithLlm(this.ctx, requestPolicy({
-        target: { provider: this.config.summarizationProvider, model: this.config.summarizationModel },
-        thresholdRatio: this.config.thresholdRatio,
-        ...this.config.retainTokens === undefined
-          ? { retainRatio: this.config.retainRatio }
-          : { retainTokens: this.config.retainTokens },
-        summarizationProvider: this.config.summarizationProvider,
-        summarizationModel: this.config.summarizationModel,
-        maxTokens: this.config.maxTokens,
-        compactionRetries: this.config.compactionRetries,
-        maxOverflowRetries: this.config.maxOverflowRetries,
-      }), input, agent, signal)
-    }
+    if (target === undefined) return summarizeWithLlm(this.ctx, this.config, input, agent, signal)
     const policy = await this.resolveRequestPolicy(agent, undefined, target)
     return summarizeWithLlm(this.ctx, policy, input, agent, signal)
   }
@@ -406,8 +383,8 @@ export class BasicCompactionEngine extends CompactionEngine {
    * @returns the successful durable compaction result.
    */
   override async compactRegion(
-    start: number,
-    end: number,
+    start: SessionSeq,
+    end: SessionSeq,
     agent: Agent,
     signal?: AbortSignal,
   ): Promise<CompactionResult> {

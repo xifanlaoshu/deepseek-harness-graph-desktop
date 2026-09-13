@@ -26,10 +26,12 @@ class RemoteStub implements SubagentProvider {
   readonly name = 'transport'
   readonly inheritsParentContext = false
   readonly capabilities: SubagentCapabilities = {
+    agentOptions: true,
     outputSchema: false,
     depthLimit: false,
     toolFilter: false,
     persona: false,
+    workspace: true,
     sandboxMode: false,
   }
   request: ResolvedSubagentStartRequest | undefined

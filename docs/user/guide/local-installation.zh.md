@@ -249,7 +249,7 @@ pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 start
 pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 uninstall
 ```
 
-默认任务名是 `DeepSeekHarnessWeb`；运行时状态以及轮转后的 stdout/stderr 日志位于 `%LOCALAPPDATA%\DeepSeekHarness\Service`。`uninstall` 会保留这些诊断文件。任务会记录安装时提供的仓库、DSH home、Node 可执行文件和端口，因此移动或更新检出目录前必须停止服务；Node.js 或这些路径变化后，使用 `install -Force` 重新安装。该服务只在对应用户已登录时运行；不需要 WSL 或可视化 Chrome 的非交互式服务器部署需要单独的 SCM 包装程序和服务专用 DSH home。
+默认任务名是 `DeepSeekHarnessWeb`；运行时状态以及轮转后的 stdout/stderr 日志位于 `%LOCALAPPDATA%\DeepSeekHarness\Service`。`uninstall` 会保留这些诊断文件。健康探针接受已认证的根响应或 DSH 精确的未认证浏览器挑战，因此 `status` 和 `restart` 不需要把启动令牌复制给服务管理器。任务会记录安装时提供的仓库、DSH home、Node 可执行文件和端口，因此移动或更新检出目录前必须停止服务；Node.js 或这些路径变化后，使用 `install -Force` 重新安装。该服务只在对应用户已登录时运行；不需要 WSL 或可视化 Chrome 的非交互式服务器部署需要单独的 SCM 包装程序和服务专用 DSH home。
 
 ## Linux
 

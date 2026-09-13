@@ -17,7 +17,7 @@ import { realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { ListToolsResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
+import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
@@ -25,14 +25,11 @@ import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, SaveImageAtta
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { ToolDefinition, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { assertSupportedJsonSchema } from '@deepseek-ai/dsh-tools'
-import type { JsonSchemaNode, JsonValue } from '@deepseek-ai/dsh-tools'
+import type { JsonSchemaNode } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 
 /** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
-  /** Whether this definition's connection generation may accept a new call. */
-  isGenerationAvailable?: () => boolean
-  /** Report an SDK request deadline so the connection owner can retire the generation. */
-  onRequestTimeout?: (rawName: string, error: McpError) => void
   /** Whether a registry conflict is contained or rejects this synchronization. */
   registrationFailure: 'contain' | 'throw'
   serverName: string
@@ -44,7 +41,7 @@ export interface ToolBridgeOptions {
 /** State for one sync generation: the current set of disposers keyed by public name. */
 export type ToolDisposers = Map<string, () => void>
 
-/** Canonical MCP result exposed to Code Mode without discarding protocol blocks. */
+/** Canonical MCP result exposed to PTC mode without discarding protocol blocks. */
 export type McpResult<Structured extends JsonValue = JsonValue> = {
   content: JsonValue[]
   structuredContent?: Structured
@@ -64,9 +61,6 @@ const HASH_LENGTH = 12
 
 /** Raw result record: the bridge owns JSON-value validation after transport. */
 const RawCallToolResultSchema = z.record(z.string(), z.unknown())
-
-/** MCP SDK protocol code for a client-side request deadline. */
-const MCP_REQUEST_TIMEOUT_CODE = -32_001
 
 /** Raster formats supported by the durable attachment vocabulary. */
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
@@ -90,10 +84,8 @@ async function canonicalTarget(path: string): Promise<string> {
     try {
       return join(await realpath(ancestor), ...suffix)
     } catch (error: unknown) {
-      /* v8 ignore if -- non-missing realpath failures require a host permission or I/O fault during the immediate containment check. */
       if (!MISSING_PATH_CODES.has((error as NodeJS.ErrnoException).code)) throw error
       const parent = dirname(ancestor)
-      /* v8 ignore if -- every supported absolute filesystem root exists after the calling workspace itself was realpathed. */
       if (parent === ancestor) throw error
       suffix.unshift(basename(ancestor))
       ancestor = parent
@@ -107,11 +99,7 @@ function isWithin(target: string, root: string): boolean {
   return child === '' || (child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child))
 }
 
-/**
- * Confine configured path arguments and replace them with the exact canonical
- * targets that passed containment, so relative paths use the calling workspace
- * and the MCP server cannot re-resolve a swapped symlink.
- */
+/** Confine configured path arguments to the exact calling Agent workspace. */
 async function prepareWorkspacePathArguments(
   rawName: string,
   args: Record<string, unknown>,
@@ -169,11 +157,6 @@ function callToolUncached(
   )
 }
 
-/** Whether the MCP SDK ended one request at its configured deadline. */
-function isRequestTimeout(error: unknown): error is McpError {
-  return error instanceof McpError && error.code === MCP_REQUEST_TIMEOUT_CODE
-}
-
 /**
  * Derive the model-facing public name for one MCP tool.
  *
@@ -203,8 +186,8 @@ export function publicToolName(serverName: string, rawName: string): string {
  *
  * 1. Fetch: drain uncached `tools/list` pagination and build the full next
  *    generation of `ToolDefinition`s under public names. Any failure here
- *    (network error, duplicate raw name in the server's list) rejects and
- *    leaves the previous generation registered untouched.
+ *    (network error, duplicate raw name, repeated continuation cursor) rejects
+ *    and leaves the previous generation registered untouched.
  * 2. Swap: dispose the previous generation, register the new one. A registry
  *    conflict here can only mean a foreign registration squats on this
  *    server's `mcp__<serverName>__` namespace — the partial generation is
@@ -228,6 +211,7 @@ export async function syncTools(
 ): Promise<ToolDisposers> {
   // Phase 1: fetch and build the next generation without touching the registry.
   const definitions = new Map<string, ToolDefinition>()
+  const seenCursors = new Set<string>()
   let cursor: string | undefined
   do {
     const response = await listToolsUncached(client, cursor)
@@ -251,6 +235,14 @@ export async function syncTools(
       ))
     }
     cursor = response.nextCursor
+    if (cursor) {
+      if (seenCursors.has(cursor)) {
+        throw new Error(
+          `mcp-client(${opts.serverName}): server repeated a tools/list continuation cursor — invalid tool list`,
+        )
+      }
+      seenCursors.add(cursor)
+    }
   } while (cursor)
 
   // Phase 2: swap generations.
@@ -389,11 +381,6 @@ function createExecutor(
   projections: WeakMap<ToolExecution, PreparedProjection>,
 ): ToolDefinition['execute'] {
   return async (args: unknown, exec: ToolExecution) => {
-    if (opts.isGenerationAvailable?.() === false) {
-      throw new Error(
-        `MCP_CONNECTION_UNAVAILABLE: mcp-client(${opts.serverName}): the connection generation for tool ${JSON.stringify(rawName)} is unavailable; wait for reconnection or reload the plugin before retrying`,
-      )
-    }
     if (taskRequired) {
       throw new Error(`Tool "${rawName}" requires task-based execution, which this bridge does not support`)
     }
@@ -403,17 +390,7 @@ function createExecutor(
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
     const wireArgs = await prepareWorkspacePathArguments(rawName, argsObj, exec, opts)
-    let result: Awaited<ReturnType<typeof callToolUncached>>
-    try {
-      result = await callToolUncached(client, rawName, wireArgs, exec, opts)
-    } catch (error: unknown) {
-      if (!isRequestTimeout(error)) throw error
-      opts.onRequestTimeout?.(rawName, error)
-      throw new Error(
-        `MCP_REQUEST_TIMEOUT: mcp-client(${opts.serverName}): tool ${JSON.stringify(rawName)} exceeded its ${opts.toolCallTimeoutMs}ms deadline; the operation outcome is unknown, so inspect remote state before repeating an operation with side effects`,
-        { cause: error },
-      )
-    }
+    const result = await callToolUncached(client, rawName, wireArgs, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

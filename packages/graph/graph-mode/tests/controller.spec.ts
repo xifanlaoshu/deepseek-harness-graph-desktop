@@ -64,7 +64,7 @@ import GraphSchedulerRuntime, {
   type GraphSchedulerLeaseRequest,
   type GraphSchedulerProvider,
 } from '@deepseek-ai/dsh-graph-scheduler'
-import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
@@ -76,7 +76,7 @@ import type {
 } from '@deepseek-ai/dsh-subagent'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import LlmRuntime, {
-  CallId,
+  ToolCallId,
   LlmAdapter,
   ReasoningEffortId,
   createToolResultMessage,
@@ -97,11 +97,14 @@ import GraphModeController, {
 } from '../src/index.ts'
 
 const CAPABILITIES: SubagentCapabilities = {
+  agentOptions: true,
   outputSchema: true,
   depthLimit: true,
   toolFilter: true,
   persona: true,
+  workspace: true,
   sandboxMode: true,
+  activeCapacity: true,
 }
 
 const successfulShellResult = (): ShellRunResult => ({
@@ -689,7 +692,7 @@ const durableWorkerResult = (
   structured: unknown,
   stopReason: Awaited<SubagentRun['result']>['stopReason'] = 'completed',
 ): (request: ResolvedSubagentStartRequest, session: Session) => Promise<Awaited<SubagentRun['result']>> => async (_request, session) => {
-  const callId = CallId(`durable-${String(session.seq)}`)
+  const callId = ToolCallId(`durable-${String(session.seq)}`)
   session.append('turn/start', { turn: 1 })
   session.append('step/start', { turn: 1, step: 1 })
   session.append('tool/call', { turn: 1, step: 1, callId, name: 'write', arguments: '{"file_path":"src/progress.ts"}' })
@@ -707,7 +710,7 @@ const commandWorkerResult = (
   structured: unknown,
   stopReason: Awaited<SubagentRun['result']>['stopReason'] = 'completed',
 ): (request: ResolvedSubagentStartRequest, session: Session) => Promise<Awaited<SubagentRun['result']>> => async (_request, session) => {
-  const callId = CallId(`command-${String(session.seq)}`)
+  const callId = ToolCallId(`command-${String(session.seq)}`)
   session.append('turn/start', { turn: 1 })
   session.append('step/start', { turn: 1, step: 1 })
   session.append('tool/call', { turn: 1, step: 1, callId, name: 'pwsh', arguments: JSON.stringify({ command }) })
@@ -725,10 +728,10 @@ const reasoningOnlyWorkerResult = async (
 ): Promise<Awaited<SubagentRun['result']>> => {
   session.append('turn/start', { turn: 1 })
   session.append('step/start', { turn: 1, step: 1 })
-  session.append('assistant/chunk', {
+  session.append('assistant/attempt', {
     turn: 1,
     step: 1,
-    chunk: { type: 'reasoning-delta', index: 0, text: 'unrecoverable hidden reasoning' },
+    stream: [{ type: 'reasoning-chunks', time0: Date.now(), index: 0, dt: [], texts: ['unrecoverable hidden reasoning'] }],
   })
   return { output: [], stopReason: 'max-tokens' }
 }
@@ -956,7 +959,7 @@ describe('GraphModeController', () => {
     expect(run.phase).toBe('running')
     expect(run.terminal).toBeUndefined()
     expect(ctx.graphMode.state(agent).operations[run.nodes['a']!.workId]?.at(-1)?.stage).toBe('started')
-    expect(agent.session.events.some(event => event.type === 'graph/run'
+    expect(agent.session.snapshotEvents().some(event => event.type === 'graph/run'
       && event.data.id === run.id && event.data.terminal !== undefined)).toBe(false)
     expect(followup).not.toHaveBeenCalled()
   })
@@ -1086,7 +1089,7 @@ describe('GraphModeController', () => {
     active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
     let flushedPending = false
     active.ctx.on('session/flush', (session) => {
-      if (session === active.agent.session && session.events.some(event => (
+      if (session === active.agent.session && session.snapshotEvents().some(event => (
         event.type === 'graph/submission' && event.data.outcome === 'pending'
       ))) flushedPending = true
     })
@@ -1150,7 +1153,7 @@ describe('GraphModeController', () => {
     expect(run.phase).toBe('succeeded')
     expect(provider.requests).toHaveLength(1)
     expect(active.coordination?.claims).toHaveLength(1)
-    expect(active.agent.session.events.filter(event => event.type === 'graph/operation'
+    expect(active.agent.session.snapshotEvents().filter(event => event.type === 'graph/operation'
       && event.data.runId === run.id && event.data.stage === 'planned')).toHaveLength(1)
   })
 
@@ -1159,7 +1162,7 @@ describe('GraphModeController', () => {
     const active = await harness({ scheduler })
     active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })
     const stopFailure = active.ctx.on('session/flush', (session) => {
-      if (session === active.agent.session && session.events.some(event => (
+      if (session === active.agent.session && session.snapshotEvents().some(event => (
         event.type === 'graph/change'
         && event.data.kind === 'graph/revision'
         && event.data.graph.graphId === 'handoff-flush-failure'
@@ -1371,7 +1374,9 @@ describe('GraphModeController', () => {
     expect(active.ctx.graphMode.state(active.agent).config.roles.find(role => role.id === 'engineer')?.model.model).toBe('first-model')
 
     const secondId = SessionId('graph-second-session')
-    const secondSession = Session.create(secondId, [], { version: 0, id: secondId, createdAt: 2 })
+    const secondSession = Session.create(secondId, [], {
+      version: SESSION_FORMAT_VERSION, id: secondId, createdAt: 2, isSeeded: false,
+    })
     const secondAgent = { ...active.agent, id: secondId, session: secondSession, steer: vi.fn(), followup: vi.fn() } as unknown as Agent
     let secondScope!: Scope
     await active.ctx.plugin(Object.assign((inner: Context) => { secondScope = createScope(inner, secondAgent) }, {
@@ -1510,7 +1515,7 @@ describe('GraphModeController', () => {
     const { ctx, agent } = await harness()
     const signal = new AbortController().signal
     const withoutAgent = await ctx.tools.execute({
-      signal, callId: CallId('without-agent'), name: 'graph_submit',
+      signal, callId: ToolCallId('without-agent'), name: 'graph_submit',
       arguments: { intent: 'direct', reason: 'answer directly' },
     })
     expect(withoutAgent.isError).toBe(true)
@@ -1551,7 +1556,7 @@ describe('GraphModeController', () => {
       'string',
     )
     const direct = await ctx.tools.execute({
-      signal, callId: CallId('direct'), name: 'graph_submit', agent,
+      signal, callId: ToolCallId('direct'), name: 'graph_submit', agent,
       arguments: { intent: 'direct', reason: 'answer directly' },
     })
     expect(direct).toMatchObject({
@@ -1560,7 +1565,7 @@ describe('GraphModeController', () => {
       content: [{ type: 'text', text: 'Controller classification accepted: direct.' }],
     })
     const rejected = await ctx.tools.execute({
-      signal, callId: CallId('invalid-new'), name: 'graph_submit', agent,
+      signal, callId: ToolCallId('invalid-new'), name: 'graph_submit', agent,
       arguments: {
         intent: 'new', reason: 'invalid work',
         graph: { graphId: 'bad graph id', objective: ' ', userInput: '', nodes: [] },
@@ -1571,7 +1576,7 @@ describe('GraphModeController', () => {
     expect(rejectedText?.type === 'text' ? rejectedText.text : '').toContain('Corrected minimal example: {"objective"')
     expect(rejectedText?.type === 'text' ? rejectedText.text : '').not.toContain('"revision"')
     const rejectedWorkspace = await ctx.tools.execute({
-      signal, callId: CallId('invalid-workspace'), name: 'graph_submit', agent,
+      signal, callId: ToolCallId('invalid-workspace'), name: 'graph_submit', agent,
       arguments: {
         intent: 'new', reason: 'invalid workspace',
         graph: {
@@ -1591,7 +1596,7 @@ describe('GraphModeController', () => {
       'nodes[0].workspace.readRoots[0]: use "." for the whole workspace or a normalized source-relative path; empty roots are invalid',
     )
     const started = await ctx.tools.execute({
-      signal, callId: CallId('new'), name: 'graph_submit', agent,
+      signal, callId: ToolCallId('new'), name: 'graph_submit', agent,
       arguments: {
         intent: 'new',
         reason: 'new work',
@@ -1643,7 +1648,7 @@ describe('GraphModeController', () => {
     if (rendered?.type === 'text') expect(rendered.text).toContain('not a JobRuntime job')
     await settled(ctx, agent, 1)
     const revised = await ctx.tools.execute({
-      signal, callId: CallId('revise'), name: 'graph_submit', agent,
+      signal, callId: ToolCallId('revise'), name: 'graph_submit', agent,
       arguments: {
         intent: 'revise',
         reason: 'change B',
@@ -1979,7 +1984,7 @@ describe('GraphModeController', () => {
       })
     })
 
-    expect(() => foldGraph(active.agent.session.events)).not.toThrow()
+    expect(() => foldGraph(active.agent.session.snapshotEvents())).not.toThrow()
   })
 
   it('explains how to correct a campaign that starts with a later ordered batch', async () => {
@@ -3058,10 +3063,10 @@ describe('GraphModeController', () => {
       session: Session,
     ): Promise<Awaited<SubagentRun['result']>> => {
       const partial = await durableWorkerResult({ summary: 'partial', artifacts: [] }, 'max-tokens')(request, session)
-      session.append('assistant/chunk', {
+      session.append('assistant/attempt', {
         turn: 1,
         step: 1,
-        chunk: { type: 'reasoning-delta', index: 0, text: 'reasoning after recoverable work' },
+        stream: [{ type: 'reasoning-chunks', time0: Date.now(), index: 0, dt: [], texts: ['reasoning after recoverable work'] }],
       })
       return partial
     }
@@ -3504,15 +3509,15 @@ describe('GraphModeController', () => {
     expect(run.phase).toBe('succeeded')
     expect(resources.requests).toHaveLength(2)
     expect(resources.requests[0]).toMatchObject({ model: 'coder', hardMaxParallel: 1, weight: 1 })
-    expect(active.agent.session.events.some((event) => {
+    expect(active.agent.session.snapshotEvents().some((event) => {
       if (event.type === 'graph/run' || event.type === 'graph/run-update') {
         return event.data.nodes['a']?.resourceWait?.reason === 'memory'
       }
       return false
     })).toBe(true)
-    const runSnapshots = active.agent.session.events.filter(event => event.type === 'graph/run'
+    const runSnapshots = active.agent.session.snapshotEvents().filter(event => event.type === 'graph/run'
       && event.data.id === accepted.runId)
-    const runUpdates = active.agent.session.events.filter(event => event.type === 'graph/run-update'
+    const runUpdates = active.agent.session.snapshotEvents().filter(event => event.type === 'graph/run-update'
       && event.data.runId === accepted.runId)
     expect(runSnapshots).toHaveLength(1)
     expect(runUpdates.length).toBeGreaterThan(1)
@@ -4020,7 +4025,7 @@ describe('GraphModeController', () => {
       'dsh graph node b canceled: graph revision superseded the active run',
     ])
     expect(active.coordination?.settlementSignals.slice(0, 2)).toEqual([false, false])
-    const oldUpdates = active.agent.session.events.filter(event => (
+    const oldUpdates = active.agent.session.snapshotEvents().filter(event => (
       (event.type === 'graph/run' && event.data.id === running.id)
       || (event.type === 'graph/run-update' && event.data.runId === running.id)
     ))
@@ -4051,7 +4056,7 @@ describe('GraphModeController', () => {
     await new Promise(resolve => setImmediate(resolve))
     await disposal
     expect(disposed).toBe(true)
-    const settlement = active.agent.session.events.filter(event => event.type === 'graph/settlement').at(-1)
+    const settlement = active.agent.session.snapshotEvents().filter(event => event.type === 'graph/settlement').at(-1)
     expect(settlement?.data.outcome).toBe('pending')
     expect(active.coordination?.settlements).toHaveLength(0)
     releaseSettlement()
@@ -4285,7 +4290,7 @@ describe('GraphModeController', () => {
 
     const revised = await revision
     await terminalRunId(active.ctx, active.agent, revised.runId as string)
-    const terminalCheckpointEvents = active.agent.session.events.filter(event => (
+    const terminalCheckpointEvents = active.agent.session.snapshotEvents().filter(event => (
       event.type === 'graph/checkpoint'
       && event.data.id === checkpoint.id
       && event.data.status !== 'pending'
@@ -4514,7 +4519,7 @@ describe('GraphModeController', () => {
     })
     const second = await terminalRunId(active.ctx, active.agent, submitted.runId as string)
     expect(second).toMatchObject({ generation: 2, phase: 'succeeded' })
-    const activations = active.agent.session.events
+    const activations = active.agent.session.snapshotEvents()
       .filter(event => event.type === 'graph/operation' && event.data.stage === 'claimed')
       .map(event => (event.data as GraphOperationTransition).generationId)
     expect(new Set(activations)).toEqual(new Set([first.generationId, second.generationId]))

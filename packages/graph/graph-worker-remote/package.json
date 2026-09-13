@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-graph-worker-remote",
   "description": "Authenticated HTTP and out-of-process remote Graph Worker Providers",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.5-rc.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/graph/graph-worker-remote" },
   "type": "module",
@@ -21,6 +21,7 @@
     "@deepseek-ai/dsh-agent": "workspace:^",
     "@deepseek-ai/dsh-credentials": "workspace:^",
     "@deepseek-ai/dsh-graph-artifacts": "workspace:^",
+    "@deepseek-ai/dsh-graph": "workspace:^",
     "@deepseek-ai/dsh-graph-resources": "workspace:^",
     "@deepseek-ai/dsh-graph-scheduler": "workspace:^",
     "@deepseek-ai/dsh-graph-worker": "workspace:^",

@@ -109,6 +109,7 @@ import {
 } from '@deepseek-ai/dsh-graph-worker'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
+import { expandAssistantStream } from '@deepseek-ai/dsh-llm/assistant-stream'
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-commands'
@@ -116,7 +117,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-shell'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -194,7 +195,7 @@ interface GraphRecoverySource {
 }
 
 /** User-settings namespace rendered by plugin settings surfaces. */
-export const GRAPH_TEMPLATE_SETTINGS_NAMESPACE = settingsNamespace('graph-mode')
+export const GRAPH_TEMPLATE_SETTINGS_NAMESPACE = 'graph-mode'
 
 const modelSelectionConfig = z.object({ provider: z.string(), model: z.string(), reasoningEffort: z.string() })
 const controllerFallbackModelConfig = z.object({
@@ -377,8 +378,10 @@ class WorkerProgressMonitor {
   private firstActionTimer: ReturnType<typeof setTimeout> | undefined
   private noProgressTimer: ReturnType<typeof setTimeout> | undefined
   private reasoningTokensSinceDurableProgress = 0
+  private liveChunksSinceSettlement = false
   private disposed = false
   private readonly disposeEvent: () => void
+  private readonly disposeStream: () => void
 
   constructor(
     ctx: Context,
@@ -409,8 +412,13 @@ class WorkerProgressMonitor {
     this.disposeEvent = ctx.on('session/event', (session, event) => {
       if (String(session.id) === run.childSessionId) this.accept(event)
     })
+    this.disposeStream = ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+      if (String(agent.session.id) !== run.childSessionId || frame.type !== 'chunk') return
+      this.liveChunksSinceSettlement = true
+      this.acceptModelChunk(frame.chunk, frame.time)
+    })
     const session = run.childSessionId === undefined ? undefined : ctx.sessions.get(SessionId(run.childSessionId))
-    for (const event of session?.events ?? []) this.accept(event)
+    for (const event of session?.snapshotEvents() ?? []) this.accept(event)
     this.firstActionTimer = setTimeout(() => { this.stall('first-durable-action-timeout') }, budget.firstDurableActionMs)
     this.resetNoProgressTimer()
     this.publish(this.snapshot())
@@ -420,6 +428,7 @@ class WorkerProgressMonitor {
     if (!this.disposed) {
       this.disposed = true
       this.disposeEvent()
+      this.disposeStream()
       if (this.firstActionTimer !== undefined) clearTimeout(this.firstActionTimer)
       if (this.noProgressTimer !== undefined) clearTimeout(this.noProgressTimer)
     }
@@ -444,24 +453,11 @@ class WorkerProgressMonitor {
     if (this.disposed || this.seen.has(event.seq)) return
     this.seen.add(event.seq)
     const at = event.time
-    if (event.type === 'assistant/chunk') {
-      const chunk = event.data.chunk
-      this.health = { ...this.health, lastModelActivityAt: at }
-      if (chunk.type === 'reasoning-delta') {
-        const characters = Array.from(chunk.text).length
-        const estimated = Math.ceil(Buffer.byteLength(chunk.text, 'utf8') / 4)
-        this.health = {
-          ...this.health,
-          status: this.health.durableActions === 0 ? 'reasoning' : this.health.status,
-          reasoningCharacters: this.health.reasoningCharacters + characters,
-          estimatedReasoningTokens: this.health.estimatedReasoningTokens + estimated,
-        }
-        this.reasoningTokensSinceDurableProgress += estimated
-        if (this.reasoningTokensSinceDurableProgress >= this.budget.maxReasoningOnlyTokens) {
-          this.stall('reasoning-budget')
-        }
+    if (event.type === 'assistant/message' || event.type === 'assistant/attempt') {
+      if (!this.liveChunksSinceSettlement) {
+        for (const item of expandAssistantStream(event.data.stream)) this.acceptModelChunk(item.chunk, item.time)
       }
-      return
+      this.liveChunksSinceSettlement = false
     }
     if (event.type === 'request/context') {
       this.health = {
@@ -538,6 +534,22 @@ class WorkerProgressMonitor {
     }
     this.resetNoProgressTimer()
     this.publish(this.snapshot())
+  }
+
+  private acceptModelChunk(chunk: import('@deepseek-ai/dsh-llm').StreamChunk, at: number): void {
+    if (this.disposed) return
+    this.health = { ...this.health, lastModelActivityAt: at }
+    if (chunk.type !== 'reasoning-delta') return
+    const characters = Array.from(chunk.text).length
+    const estimated = Math.ceil(Buffer.byteLength(chunk.text, 'utf8') / 4)
+    this.health = {
+      ...this.health,
+      status: this.health.durableActions === 0 ? 'reasoning' : this.health.status,
+      reasoningCharacters: this.health.reasoningCharacters + characters,
+      estimatedReasoningTokens: this.health.estimatedReasoningTokens + estimated,
+    }
+    this.reasoningTokensSinceDurableProgress += estimated
+    if (this.reasoningTokensSinceDurableProgress >= this.budget.maxReasoningOnlyTokens) this.stall('reasoning-budget')
   }
 
   private resetNoProgressTimer(): void {
@@ -2068,20 +2080,26 @@ export class GraphModeController extends Service {
       controllerResilience: defaults.controllerResilience ?? defaultGraphControllerResiliencePolicy(),
     }
     this.templateSource = () => templateDefaults
-    installSettingsSection(ctx, GRAPH_TEMPLATE_SETTINGS_NAMESPACE, GraphTemplateSettings, templateDefaults, {
-      setSource: (current) => { this.templateSource = current },
-      onChange: () => {},
-      validate: (template) => {
-        validateGraphModeConfig({
-          version: 2,
-          active: false,
-          roles: template.roles,
-          limits: template.limits,
-          executionPolicy: template.executionPolicy,
-          controllerResilience: template.controllerResilience,
-        })
+    ctx.inject(['settings'], settingsCtx => settingsCtx.settings.installSection(
+      ctx,
+      GRAPH_TEMPLATE_SETTINGS_NAMESPACE,
+      GraphTemplateSettings,
+      templateDefaults,
+      {
+        setSource: (current) => { this.templateSource = current },
+        onChange: () => {},
+        validate: (template) => {
+          validateGraphModeConfig({
+            version: 2,
+            active: false,
+            roles: template.roles,
+            limits: template.limits,
+            executionPolicy: template.executionPolicy,
+            controllerResilience: template.controllerResilience,
+          })
+        },
       },
-    })
+    ))
 
     ctx.systemPrompt.section({
       name: 'graph:controller',
@@ -2231,7 +2249,7 @@ export class GraphModeController extends Service {
           }
         }
         const active = input !== 'off'
-        const hasSessionConfig = agent.session.events.some(event => event.type === 'graph/change' && event.data.kind === 'graph/config')
+        const hasSessionConfig = agent.session.snapshotEvents().some(event => event.type === 'graph/change' && event.data.kind === 'graph/config')
         const sessionConfig = hasSessionConfig
           ? projection.config
           : {
@@ -2458,7 +2476,7 @@ export class GraphModeController extends Service {
    */
   state(agent: Agent): GraphProjection {
     return this.ctx.get('sessionProjections')?.stateOf(agent.session, 'graph')
-      ?? foldGraph(agent.session.events)
+      ?? foldGraph(agent.session.snapshotEvents())
   }
 
   private clearRecoveryWatch(agent: Agent): void {

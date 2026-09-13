@@ -7,11 +7,12 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { Context } from '@deepseek-ai/cordis'
 import AttachmentStore, { AttachmentError, AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
-import { CallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { type JsonValue } from '@deepseek-ai/dsh-tools'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { PostToolDecision } from '@deepseek-ai/dsh-tools'
 import { publicToolName, syncTools, type ToolBridgeOptions } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
 import { createTransport } from '@deepseek-ai/dsh-mcp-client/src/transport.ts'
@@ -191,6 +192,117 @@ describe('syncTools', () => {
     ctx = await mountRegistry()
   })
 
+  it('resolves configured path arguments inside the calling agent workspace', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      const filePath = join('test-evidence', 'shot.png')
+      const outputDirPath = 'test-evidence'
+      const canonicalRoot = await realpath(root)
+      await syncTools(client as never, ctx, {
+        ...defaultOpts,
+        workspacePathArguments: ['filePath', 'outputDirPath'],
+      }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: ToolCallId('workspace-path-ok'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath, outputDirPath },
+        agent: { session: { header: { cwd: root } } } as never,
+      })
+
+      expect(result.isError).toBe(false)
+      expect(client.callTool).toHaveBeenCalledWith(
+        {
+          name: 'capture',
+          arguments: { filePath: join(canonicalRoot, filePath), outputDirPath: join(canonicalRoot, outputDirPath) },
+        },
+        undefined,
+        expect.anything(),
+      )
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects invalid configured path arguments before MCP dispatch', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+      const execute = (callId: string, arguments_: Record<string, unknown>, agent?: unknown) => ctx.tools.execute({
+        signal: testToolSignal,
+        callId: ToolCallId(callId),
+        name: 'mcp__srv__capture',
+        arguments: arguments_,
+        ...agent === undefined ? {} : { agent: agent as never },
+      })
+
+      expect((await execute('workspace-path-omitted', {}, { session: { header: { cwd: root } } })).isError).toBe(false)
+      expect((await execute('workspace-path-number', { filePath: 7 }, { session: { header: { cwd: root } } })).error?.message)
+        .toContain('must be a non-empty path string')
+      expect((await execute('workspace-path-empty', { filePath: '' }, { session: { header: { cwd: root } } })).error?.message)
+        .toContain('must be a non-empty path string')
+      expect((await execute('workspace-path-agentless', { filePath: 'shot.png' })).error?.message)
+        .toContain('requires a calling agent with a session workspace')
+      expect(client.callTool).toHaveBeenCalledTimes(1)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects configured paths outside the calling agent workspace', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    const workspace = join(root, 'workspace')
+    const outside = join(root, 'outside')
+    await Promise.all([mkdir(workspace), mkdir(outside)])
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: ToolCallId('workspace-path-denied'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath: join(outside, 'shot.png') },
+        agent: { session: { header: { cwd: workspace } } } as never,
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.error?.message).toContain('must stay within the calling agent workspace')
+      expect(client.callTool).not.toHaveBeenCalled()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects configured workspace paths that escape through an existing symlink', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
+    const workspace = join(root, 'workspace')
+    const outside = join(root, 'outside')
+    await Promise.all([mkdir(workspace), mkdir(outside)])
+    await symlink(outside, join(workspace, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
+    try {
+      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
+      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
+
+      const result = await ctx.tools.execute({
+        signal: testToolSignal,
+        callId: ToolCallId('workspace-path-symlink'),
+        name: 'mcp__srv__capture',
+        arguments: { filePath: join(workspace, 'escape', 'shot.png') },
+        agent: { session: { header: { cwd: workspace } } } as never,
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.error?.message).toContain('must stay within the calling agent workspace')
+      expect(client.callTool).not.toHaveBeenCalled()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('registers tools under server-qualified public names', async () => {
     const client = createMockClient([
       { name: 'greet', description: 'Say hello', inputSchema: { type: 'object', properties: { name: { type: 'string' } } } },
@@ -232,7 +344,7 @@ describe('syncTools', () => {
 
     expect(ctx.tools.get('search')).toBeDefined()
     expect(ctx.tools.get('mcp__srv__search')).toBeDefined()
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'search', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'search', arguments: {} })
     expect(result.content[0]).toEqual({ type: 'text', text: 'native' })
   })
 
@@ -312,6 +424,50 @@ describe('syncTools', () => {
     expect(ctx.tools.get('mcp__srv__page2')).toBeDefined()
   })
 
+  it.each([
+    ['immediate', ['cursor1', 'cursor1']],
+    ['multi-page', ['cursor1', 'cursor2', 'cursor1']],
+  ])('rejects a pagination cycle through empty pages (%s)', async (_kind, cursors) => {
+    const client = createMockClient([])
+    client.listTools.mockRejectedValue(new Error('pagination continued after the repeated cursor'))
+    for (const nextCursor of cursors) {
+      client.listTools.mockResolvedValueOnce({ tools: [], nextCursor })
+    }
+
+    await expect(syncTools(client as never, ctx, defaultOpts, new Map()))
+      .rejects.toThrow('mcp-client(srv): server repeated a tools/list continuation cursor — invalid tool list')
+    expect(client.listTools).toHaveBeenCalledTimes(cursors.length)
+    expect(ctx.tools.schemas()).toEqual([])
+  })
+
+  it('keeps callable tools after a pagination cycle and accepts a later complete list', async () => {
+    const client = createMockClient([{ name: 'stable', inputSchema: { type: 'object' } }])
+    const previous = await syncTools(client as never, ctx, defaultOpts, new Map())
+    const stable = ctx.tools.get('mcp__srv__stable')
+    client.listTools
+      .mockResolvedValueOnce({ tools: [{ name: 'partial', inputSchema: { type: 'object' } }], nextCursor: 'cursor1' })
+      .mockResolvedValueOnce({ tools: [], nextCursor: 'cursor1' })
+      .mockRejectedValue(new Error('pagination continued after the repeated cursor'))
+
+    await expect(syncTools(client as never, ctx, defaultOpts, previous)).rejects.toThrow(/repeated.*cursor/)
+    expect(client.listTools).toHaveBeenCalledTimes(3)
+    expect(ctx.tools.get('mcp__srv__stable')).toBe(stable)
+    expect(ctx.tools.get('mcp__srv__partial')).toBeUndefined()
+    const result = await ctx.tools.execute({
+      signal: testToolSignal, callId: ToolCallId('pagination-retained'), name: 'mcp__srv__stable', arguments: {},
+    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: 'ok' }])
+
+    client.listTools
+      .mockResolvedValueOnce({ tools: [], nextCursor: 'cursor1' })
+      .mockResolvedValueOnce({ tools: [{ name: 'recovered', inputSchema: { type: 'object' } }], nextCursor: undefined })
+    const recovered = await syncTools(client as never, ctx, defaultOpts, previous)
+    expect([...recovered.keys()]).toEqual(['mcp__srv__recovered'])
+    expect(ctx.tools.get('mcp__srv__stable')).toBeUndefined()
+    expect(client.listTools).toHaveBeenLastCalledWith({ cursor: 'cursor1' })
+  })
+
   it('owns output validation independently of the SDK per-page cache', async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     serverTransport.onmessage = (message) => {
@@ -369,14 +525,14 @@ describe('syncTools', () => {
 
       const missing = await ctx.tools.execute({
         signal: testToolSignal,
-        callId: CallId('missing'), name: 'mcp__srv__supported', arguments: {},
+        callId: ToolCallId('missing'), name: 'mcp__srv__supported', arguments: {},
       })
       expect(missing.error).toMatchObject({ info: { code: 'INVALID_TOOL_OUTPUT' } })
       expect(missing.error?.message).toContain('structuredContent')
 
       const fallback = await ctx.tools.execute({
         signal: testToolSignal,
-        callId: CallId('fallback'), name: 'mcp__srv__future-schema', arguments: {},
+        callId: ToolCallId('fallback'), name: 'mcp__srv__future-schema', arguments: {},
       })
       if (fallback.isError) throw new Error('unsupported schema must use the bridge fallback')
       expect(fallback.value).toEqual({
@@ -403,7 +559,7 @@ describe('tool execution', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__echo', arguments: { msg: 'hi' } })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__echo', arguments: { msg: 'hi' } })
 
     expect(result.isError).toBe(false)
     expect(result.content).toEqual([{ type: 'text', text: 'hello world' }])
@@ -417,22 +573,6 @@ describe('tool execution', () => {
     )
   })
 
-  it('preserves a non-timeout request failure without retiring the connection', async () => {
-    const client = createMockClient([{ name: 'echo', inputSchema: { type: 'object' } }])
-    client.callTool.mockRejectedValueOnce(new Error('remote unavailable'))
-    const onRequestTimeout = vi.fn()
-
-    await syncTools(client as never, ctx, { ...defaultOpts, onRequestTimeout }, new Map())
-    const result = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: CallId('ordinary-error'), name: 'mcp__srv__echo', arguments: {},
-    })
-
-    expect(result.isError).toBe(true)
-    expect(result.error?.message).toBe('remote unavailable')
-    expect(onRequestTimeout).not.toHaveBeenCalled()
-  })
-
   it('sends the raw name for normalized public names', async () => {
     const client = createMockClient(
       [{ name: 'admin.reset', inputSchema: { type: 'object' } }],
@@ -441,7 +581,7 @@ describe('tool execution', () => {
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const publicName = publicToolName('srv', 'admin.reset')
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: publicName, arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: publicName, arguments: {} })
 
     expect(result.isError).toBe(false)
     expect(client.callTool).toHaveBeenCalledWith(
@@ -458,7 +598,7 @@ describe('tool execution', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__multi', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__multi', arguments: {} })
 
     expect(result.content).toEqual([{ type: 'text', text: 'line1\nline2' }])
   })
@@ -480,7 +620,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('c1'),
+      callId: ToolCallId('c1'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -514,7 +654,7 @@ describe('tool execution', () => {
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const result = await ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('no-store'),
+      callId: ToolCallId('no-store'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -542,7 +682,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('bad-batch'),
+      callId: ToolCallId('bad-batch'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -568,7 +708,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('strict-batch'),
+      callId: ToolCallId('strict-batch'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -591,7 +731,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('text-route'),
+      callId: ToolCallId('text-route'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn('text') as never,
@@ -611,7 +751,7 @@ describe('tool execution', () => {
 
     const noProvider = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('no-provider'),
+      callId: ToolCallId('no-provider'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: { options: { model: 'vision' }, session: { requestHeader: () => undefined } } as never,
@@ -620,7 +760,7 @@ describe('tool execution', () => {
 
     const noModel = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('no-model'),
+      callId: ToolCallId('no-model'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: { options: { provider: 'visual' }, session: { requestHeader: () => undefined } } as never,
@@ -632,7 +772,7 @@ describe('tool execution', () => {
     await syncTools(client as never, noLlmCtx, defaultOpts, new Map())
     const noLlm = await noLlmCtx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('no-llm'),
+      callId: ToolCallId('no-llm'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -642,7 +782,7 @@ describe('tool execution', () => {
     vi.spyOn(rich.ctx.llm, 'resolveModelInfo').mockRejectedValueOnce(new Error('catalog down'))
     const unverified = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('unverified'),
+      callId: ToolCallId('unverified'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -654,7 +794,7 @@ describe('tool execution', () => {
     })
     const unknown = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('unknown-modalities'),
+      callId: ToolCallId('unknown-modalities'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -668,7 +808,7 @@ describe('tool execution', () => {
     })
     const canceled = await rich.ctx.tools.execute({
       signal: controller.signal,
-      callId: CallId('canceled'),
+      callId: ToolCallId('canceled'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -689,7 +829,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('store-rejected'),
+      callId: ToolCallId('store-rejected'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -711,7 +851,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('policy-rejected'),
+      callId: ToolCallId('policy-rejected'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -735,7 +875,7 @@ describe('tool execution', () => {
     await syncTools(client as never, rich.ctx, defaultOpts, new Map())
     const result = await rich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('replaced'),
+      callId: ToolCallId('replaced'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -758,7 +898,7 @@ describe('tool execution', () => {
     await syncTools(valueClient as never, valueRich.ctx, defaultOpts, new Map())
     const replaced = await valueRich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('value-replaced'),
+      callId: ToolCallId('value-replaced'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -777,7 +917,7 @@ describe('tool execution', () => {
     await syncTools(blockedClient as never, blockedRich.ctx, defaultOpts, new Map())
     const blocked = await blockedRich.ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('blocked'),
+      callId: ToolCallId('blocked'),
       name: 'mcp__srv__img',
       arguments: {},
       agent: agentOn() as never,
@@ -796,7 +936,7 @@ describe('tool execution', () => {
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const result = await ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('primitive'), name: 'mcp__srv__primitive-blocks', arguments: {},
+      callId: ToolCallId('primitive'), name: 'mcp__srv__primitive-blocks', arguments: {},
     })
 
     expect(result.content[0]).toEqual({
@@ -819,7 +959,7 @@ describe('tool execution', () => {
       { content: [{ type: 'text', text: '42' }], structuredContent: { answer: 42 } },
     )
     await syncTools(valid as never, ctx, defaultOpts, new Map())
-    const success = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('valid'), name: 'mcp__srv__structured', arguments: {} })
+    const success = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('valid'), name: 'mcp__srv__structured', arguments: {} })
     if (success.isError) throw new Error('expected supported structuredContent to validate')
     expect(success.value).toEqual({ content: [{ type: 'text', text: '42' }], structuredContent: { answer: 42 } })
 
@@ -829,7 +969,7 @@ describe('tool execution', () => {
       { content: [{ type: 'text', text: 'wrong' }], structuredContent: { answer: 'forty-two' } },
     )
     await syncTools(invalid as never, invalidCtx, defaultOpts, new Map())
-    const failure = await invalidCtx.tools.execute({ signal: testToolSignal, callId: CallId('invalid'), name: 'mcp__srv__structured', arguments: {} })
+    const failure = await invalidCtx.tools.execute({ signal: testToolSignal, callId: ToolCallId('invalid'), name: 'mcp__srv__structured', arguments: {} })
     expect(failure.error).toMatchObject({ info: { code: 'INVALID_TOOL_OUTPUT' } })
     expect(failure.content[0]?.type === 'text' ? failure.content[0].text : '')
       .toContain('value.structuredContent.answer')
@@ -845,7 +985,7 @@ describe('tool execution', () => {
       { content: [], structuredContent: ['kept', { nested: true }] },
     )
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('fallback'), name: 'mcp__srv__future-schema', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('fallback'), name: 'mcp__srv__future-schema', arguments: {} })
     if (result.isError) throw new Error('unsupported MCP output schemas must fall back')
     expect(result.value).toEqual({ content: [], structuredContent: ['kept', { nested: true }] })
   })
@@ -857,7 +997,7 @@ describe('tool execution', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__fail', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__fail', arguments: {} })
 
     expect(result.isError).toBe(true)
     expect(result.content[0]).toEqual({ type: 'text', text: 'Error: something went wrong' })
@@ -872,7 +1012,7 @@ describe('tool execution', () => {
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const result = await ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('task-only'), name: 'mcp__srv__task-only', arguments: {},
+      callId: ToolCallId('task-only'), name: 'mcp__srv__task-only', arguments: {},
     })
 
     expect(result.isError).toBe(true)
@@ -888,121 +1028,13 @@ describe('tool execution', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    await ctx.tools.execute({ callId: CallId('c1'), name: 'mcp__srv__slow', arguments: {}, signal: controller.signal })
+    await ctx.tools.execute({ callId: ToolCallId('c1'), name: 'mcp__srv__slow', arguments: {}, signal: controller.signal })
 
     expect(client.callTool).toHaveBeenCalledWith(
       expect.anything(),
       undefined,
       expect.objectContaining({ signal: controller.signal }),
     )
-  })
-
-  it('passes a configured path argument when it stays inside the calling agent workspace', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
-    try {
-      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
-      const filePath = join('test-evidence', 'shot.png')
-      const outputDirPath = 'test-evidence'
-      const expectedPath = join(await realpath(root), filePath)
-      const expectedOutputDir = join(await realpath(root), outputDirPath)
-      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath', 'outputDirPath'] }, new Map())
-
-      const result = await ctx.tools.execute({
-        signal: testToolSignal,
-        callId: CallId('workspace-path-ok'),
-        name: 'mcp__srv__capture',
-        arguments: { filePath, outputDirPath },
-        agent: { session: { header: { cwd: root } } } as never,
-      })
-
-      expect(result.isError).toBe(false)
-      expect(client.callTool).toHaveBeenCalledWith(
-        { name: 'capture', arguments: { filePath: expectedPath, outputDirPath: expectedOutputDir } },
-        undefined,
-        expect.anything(),
-      )
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
-  it('requires configured path arguments to carry a usable calling workspace', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
-    try {
-      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
-      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
-      const execute = (callId: string, arguments_: Record<string, unknown>, agent?: unknown) => ctx.tools.execute({
-        signal: testToolSignal,
-        callId: CallId(callId),
-        name: 'mcp__srv__capture',
-        arguments: arguments_,
-        ...agent === undefined ? {} : { agent: agent as never },
-      })
-
-      expect((await execute('workspace-path-omitted', {}, { session: { header: { cwd: root } } })).isError).toBe(false)
-      expect((await execute('workspace-path-number', { filePath: 7 }, { session: { header: { cwd: root } } })).error?.message)
-        .toContain('must be a non-empty path string')
-      expect((await execute('workspace-path-empty', { filePath: '' }, { session: { header: { cwd: root } } })).error?.message)
-        .toContain('must be a non-empty path string')
-      expect((await execute('workspace-path-agentless', { filePath: 'shot.png' })).error?.message)
-        .toContain('requires a calling agent with a session workspace')
-      expect((await execute('workspace-path-empty-cwd', { filePath: 'shot.png' }, { session: { header: { cwd: '' } } })).error?.message)
-        .toContain('requires a calling agent with a session workspace')
-      expect(client.callTool).toHaveBeenCalledTimes(1)
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
-  it('rejects configured paths outside the calling agent workspace before MCP dispatch', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
-    const workspace = join(root, 'workspace')
-    const outside = join(root, 'outside')
-    await Promise.all([mkdir(workspace), mkdir(outside)])
-    try {
-      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
-      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
-
-      const result = await ctx.tools.execute({
-        signal: testToolSignal,
-        callId: CallId('workspace-path-denied'),
-        name: 'mcp__srv__capture',
-        arguments: { filePath: join(outside, 'shot.png') },
-        agent: { session: { header: { cwd: workspace } } } as never,
-      })
-
-      expect(result.isError).toBe(true)
-      expect(result.error?.message).toContain('must stay within the calling agent workspace')
-      expect(client.callTool).not.toHaveBeenCalled()
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
-  it('rejects a configured workspace path that escapes through an existing symlink', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-mcp-workspace-'))
-    const workspace = join(root, 'workspace')
-    const outside = join(root, 'outside')
-    await Promise.all([mkdir(workspace), mkdir(outside)])
-    await symlink(outside, join(workspace, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
-    try {
-      const client = createMockClient([{ name: 'capture', inputSchema: { type: 'object' } }])
-      await syncTools(client as never, ctx, { ...defaultOpts, workspacePathArguments: ['filePath'] }, new Map())
-
-      const result = await ctx.tools.execute({
-        signal: testToolSignal,
-        callId: CallId('workspace-path-symlink'),
-        name: 'mcp__srv__capture',
-        arguments: { filePath: join(workspace, 'escape', 'shot.png') },
-        agent: { session: { header: { cwd: workspace } } } as never,
-      })
-
-      expect(result.isError).toBe(true)
-      expect(result.error?.message).toContain('must stay within the calling agent workspace')
-      expect(client.callTool).not.toHaveBeenCalled()
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
   })
 
   it('handles legacy toolResult shape', async () => {
@@ -1012,7 +1044,7 @@ describe('tool execution', () => {
     client.callTool.mockResolvedValue({ toolResult: { key: 'value' } })
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__legacy', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__legacy', arguments: {} })
 
     expect(result.isError).toBe(false)
     expect(result.content[0]).toEqual({ type: 'text', text: '{"key":"value"}' })
@@ -1028,7 +1060,7 @@ describe('tool execution', () => {
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const result = await ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('legacy-structured'), name: 'mcp__srv__legacy-structured', arguments: {},
+      callId: ToolCallId('legacy-structured'), name: 'mcp__srv__legacy-structured', arguments: {},
     })
 
     if (result.isError) throw new Error('expected legacy structured result success')
@@ -1045,7 +1077,7 @@ describe('tool execution', () => {
     await syncTools(client as never, ctx, defaultOpts, new Map())
     const result = await ctx.tools.execute({
       signal: testToolSignal,
-      callId: CallId('legacy-error'), name: 'mcp__srv__legacy-error', arguments: {},
+      callId: ToolCallId('legacy-error'), name: 'mcp__srv__legacy-error', arguments: {},
     })
 
     expect(result.isError).toBe(true)
@@ -1067,7 +1099,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__audio_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__audio_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({
       type: 'text',
@@ -1082,7 +1114,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__res_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__res_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({
       type: 'text',
@@ -1097,7 +1129,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__link_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__link_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: 'Resource link: Design (https://example.test/design)' })
   })
@@ -1109,7 +1141,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('missing-link'), name: 'mcp__srv__link_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('missing-link'), name: 'mcp__srv__link_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({
       type: 'text', text: '[resource link unavailable: the MCP block is missing its name or URI]',
@@ -1123,7 +1155,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__unknown_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__unknown_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: '[unsupported MCP content type: video]' })
   })
@@ -1135,7 +1167,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__img2', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__img2', arguments: {} })
 
     expect(result.content[0]).toEqual({
       type: 'text',
@@ -1150,7 +1182,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__audio_no_mime', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__audio_no_mime', arguments: {} })
 
     expect(result.content[0]).toEqual({
       type: 'text',
@@ -1165,7 +1197,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__notext', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__notext', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: '(notext returned no model-visible content)' })
   })
@@ -1177,7 +1209,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__empty_tool', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__empty_tool', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: '(empty_tool returned no model-visible content)' })
   })
@@ -1190,7 +1222,7 @@ describe('tool execution edge cases', () => {
     client.callTool.mockResolvedValue({ toolResult: undefined, structuredContent: undefined })
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__legacy2', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__legacy2', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: '(no output)' })
   })
@@ -1202,7 +1234,7 @@ describe('tool execution edge cases', () => {
     client.callTool.mockResolvedValue({})
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('legacy-empty'), name: 'mcp__srv__legacy-empty', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('legacy-empty'), name: 'mcp__srv__legacy-empty', arguments: {} })
 
     expect(result.content[0]).toEqual({ type: 'text', text: '(no output)' })
   })
@@ -1214,7 +1246,7 @@ describe('tool execution edge cases', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    const result = await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__err_notext', arguments: {} })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__err_notext', arguments: {} })
 
     expect(result.isError).toBe(true)
     expect(result.content[0]).toEqual({
@@ -1356,7 +1388,7 @@ describe('tool execution — non-object args fallback', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__coerce', arguments: null })
+    await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce', arguments: null })
 
     expect(client.callTool).toHaveBeenCalledWith(
       { name: 'coerce', arguments: {} },
@@ -1372,7 +1404,7 @@ describe('tool execution — non-object args fallback', () => {
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    await ctx.tools.execute({ signal: testToolSignal, callId: CallId('c1'), name: 'mcp__srv__coerce2', arguments: 'bad' })
+    await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce2', arguments: 'bad' })
 
     expect(client.callTool).toHaveBeenCalledWith(
       { name: 'coerce2', arguments: {} },

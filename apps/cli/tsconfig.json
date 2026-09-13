@@ -33,9 +33,6 @@
       "path": "../../packages/bundle/web-app"
     },
     {
-      "path": "../../packages/host/apiproxy"
-    },
-    {
       "path": "../../packages/host/webserver"
     },
     {
@@ -51,6 +48,12 @@
       "path": "../../packages/core/tools"
     },
     {
+      "path": "../../packages/graph/graph"
+    },
+    {
+      "path": "../../packages/graph/graph-mode"
+    },
+    {
       "path": "../../packages/util/launch-environment"
     },
     {
@@ -64,6 +67,9 @@
     },
     {
       "path": "../../packages/session-query/session-query-sqlite"
+    },
+    {
+      "path": "../../packages/session-query/session-query"
     },
     {
       "path": "../../packages/shell/shell-env"

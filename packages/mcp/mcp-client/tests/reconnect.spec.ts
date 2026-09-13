@@ -8,9 +8,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
-import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 
 // ---- Mock MCP SDK ----
 
@@ -116,8 +115,8 @@ function listing(...names: string[]): { tools: { name: string; inputSchema: { ty
 }
 
 let callSeq = 0
-function nextCallId(): CallId {
-  return CallId(`reconnect-${++callSeq}`)
+function nextCallId(): ToolCallId {
+  return ToolCallId(`reconnect-${++callSeq}`)
 }
 
 // ---- Tests ----
@@ -169,120 +168,6 @@ describe('reconnect supervisor', () => {
     instances[0]!.onclose?.()
     await sleep(30)
     expect(instances).toHaveLength(2)
-  })
-
-  it('retires and reconnects a generation after an MCP request deadline', async () => {
-    const { warns, infos } = captureLogs(ctx)
-    await apply(ctx, stdioConfig({ initialDelayMs: 2, maxDelayMs: 20, maxAttempts: 5 }))
-    await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__remote')).toBeDefined() })
-    mockClose.mockImplementation(function (this: { onclose?: () => void }) {
-      this.onclose?.()
-      return Promise.reject(new Error('already closed'))
-    })
-
-    mockCallTool.mockRejectedValueOnce(new McpError(ErrorCode.RequestTimeout, 'Request timed out'))
-    const timedOut = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    })
-
-    expect(timedOut.isError).toBe(true)
-    expect(timedOut.error?.message).toContain('MCP_REQUEST_TIMEOUT')
-    expect(timedOut.error?.message).toContain('operation outcome is unknown')
-    await vi.waitFor(() => { expect(instances).toHaveLength(2) })
-    await vi.waitFor(() => { expect(infos.some(line => line.includes('reconnected and re-synced tools'))).toBe(true) })
-    expect(mockClose).toHaveBeenCalledTimes(1)
-    expect(warns.some(line => line.includes('tool "remote" timed out; retiring the connection generation'))).toBe(true)
-
-    const recovered = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    })
-    expect(recovered.isError).toBe(false)
-  })
-
-  it('stops timeout recovery when the retired generation never closes', async () => {
-    vi.useFakeTimers()
-    try {
-      const { errors } = captureLogs(ctx)
-      await apply(ctx, stdioConfig({ initialDelayMs: 2, maxDelayMs: 20, maxAttempts: 5 }))
-      mockClose.mockResolvedValue(undefined)
-      mockCallTool.mockRejectedValueOnce(new McpError(ErrorCode.RequestTimeout, 'Request timed out'))
-
-      const timedOut = await ctx.tools.execute({
-        signal: testToolSignal,
-        callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-      })
-      expect(timedOut.isError).toBe(true)
-      await vi.advanceTimersByTimeAsync(5_000)
-
-      expect(instances).toHaveLength(1)
-      expect(errors.some(line => line.includes('timed-out generation did not close within 5000ms'))).toBe(true)
-      await ctx.fiber.dispose()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('rejects calls promptly while a timed-out generation is closing', async () => {
-    await apply(ctx, stdioConfig({ initialDelayMs: 60_000, maxDelayMs: 60_000, maxAttempts: 5 }))
-    await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__remote')).toBeDefined() })
-    mockClose.mockResolvedValue(undefined)
-    mockCallTool.mockRejectedValueOnce(new McpError(ErrorCode.RequestTimeout, 'Request timed out'))
-
-    const timedOut = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    })
-    expect(timedOut.isError).toBe(true)
-
-    const unavailable = await ctx.tools.execute({
-      signal: testToolSignal,
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    })
-    expect(unavailable.isError).toBe(true)
-    expect(unavailable.error?.message).toContain('MCP_CONNECTION_UNAVAILABLE')
-    expect(mockCallTool).toHaveBeenCalledTimes(1)
-
-    instances[0]!.onclose?.()
-    await ctx.fiber.dispose()
-  })
-
-  it('retires one generation once when concurrent calls reach the same deadline', async () => {
-    await apply(ctx, stdioConfig({ initialDelayMs: 2, maxDelayMs: 20, maxAttempts: 5 }))
-    await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__remote')).toBeDefined() })
-    const release: PromiseWithResolvers<void> = Promise.withResolvers()
-    mockCallTool.mockImplementation(async () => {
-      await release.promise
-      throw new McpError(ErrorCode.RequestTimeout, 'Request timed out')
-    })
-
-    const calls = [1, 2, 3].map(() => ctx.tools.execute({
-      signal: testToolSignal,
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    }))
-    await vi.waitFor(() => { expect(mockCallTool).toHaveBeenCalledTimes(3) })
-    release.resolve()
-    const results = await Promise.all(calls)
-
-    expect(results.every(result => result.isError)).toBe(true)
-    expect(mockClose).toHaveBeenCalledTimes(1)
-    await vi.waitFor(() => { expect(instances).toHaveLength(2) })
-  })
-
-  it('does not retire a generation for caller cancellation', async () => {
-    await apply(ctx, stdioConfig({ initialDelayMs: 2, maxDelayMs: 20, maxAttempts: 5 }))
-    await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__remote')).toBeDefined() })
-    mockCallTool.mockRejectedValueOnce(new DOMException('This operation was aborted', 'AbortError'))
-
-    const canceled = await ctx.tools.execute({
-      signal: AbortSignal.abort(),
-      callId: nextCallId(), name: 'mcp__srv__remote', arguments: {},
-    })
-
-    expect(canceled.isError).toBe(true)
-    expect(mockClose).not.toHaveBeenCalled()
-    expect(instances).toHaveLength(1)
   })
 
   it('stops at the failure cap, unregisters the tools, and reports final failure', async () => {
@@ -377,7 +262,7 @@ describe('reconnect supervisor', () => {
     const { warns } = captureLogs(ctx)
     const gate: PromiseWithResolvers<void> = Promise.withResolvers()
     mockConnect.mockImplementation(() => gate.promise)
-    const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'), [])
+    const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'))
     await vi.waitFor(() => { expect(instances).toHaveLength(1) })
 
     const disposing = handle.dispose()
@@ -396,7 +281,7 @@ describe('reconnect supervisor', () => {
       const gate: PromiseWithResolvers<void> = Promise.withResolvers()
       mockConnect.mockImplementation(() => gate.promise)
       mockClose.mockResolvedValue(undefined)
-      const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'), [])
+      const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'))
       await vi.advanceTimersByTimeAsync(0)
 
       const disposing = handle.dispose()

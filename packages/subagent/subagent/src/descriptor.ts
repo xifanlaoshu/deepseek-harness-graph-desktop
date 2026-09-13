@@ -21,10 +21,10 @@
  * @module @deepseek-ai/dsh-subagent/descriptor
  */
 
-import { snapshotJsonValue } from '@deepseek-ai/dsh-session'
+import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
 import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
 import type { SubagentCapacity } from './capacity.ts'
 import { SubagentCapacityScopeId, validateSubagentCapacity } from './capacity.ts'
 
@@ -79,13 +79,13 @@ export interface ContinuableSubagentDescriptorData extends SubagentDescriptorBas
   readonly agentProvider?: string
   /** Resolved child `agentOptions.model`, when one was declared. */
   readonly agentModel?: string
-  /** Resolved child reasoning selector, when one was declared. */
-  readonly reasoningEffort?: ReasoningEffortId
+  /** Resolved child `agentOptions.reasoningEffort`, when one was declared. */
+  readonly agentReasoningEffort?: ReasoningEffortId
   /** Per-child persona that shadows the deployment persona on resume. */
   readonly persona?: string
   /** Child tool scoping reapplied on resume. */
   readonly toolFilter?: ToolRestriction
-  /** Active-subagent pool restored on every cold Activation. */
+  /** Active-subagent pool restored on every cold activation. */
   readonly capacity?: SubagentCapacity
 }
 
@@ -119,7 +119,7 @@ export interface ContinuableSubagentDescriptorInput extends SubagentDescriptorIn
   /** Requested child `agentOptions.model`. */
   readonly agentModel?: string
   /** Requested child `agentOptions.reasoningEffort`. */
-  readonly reasoningEffort?: ReasoningEffortId
+  readonly agentReasoningEffort?: ReasoningEffortId
   /** Requested per-child persona. */
   readonly persona?: string
   /** Requested child tool scoping. */
@@ -144,11 +144,14 @@ const CONTINUABLE_DESCRIPTOR_KEYS = new Set([
   ...DESCRIPTOR_BASE_KEYS,
   'agentProvider',
   'agentModel',
-  'reasoningEffort',
+  'agentReasoningEffort',
   'persona',
   'toolFilter',
   'capacity',
 ])
+const LEGACY_CONTINUABLE_DESCRIPTOR_KEYS = new Set(
+  [...CONTINUABLE_DESCRIPTOR_KEYS].filter(key => key !== 'capacity'),
+)
 const TOOL_FILTER_KEYS = new Set(['allow', 'deny'])
 const CAPACITY_KEYS = new Set(['scope', 'maxActive'])
 
@@ -216,7 +219,7 @@ function parseCapacity(value: unknown): SubagentCapacity {
   if (typeof maxActive !== 'number') throw new Error('persisted subagent descriptor capacity.maxActive must be a number')
   try {
     return validateSubagentCapacity({ scope: SubagentCapacityScopeId(scope), maxActive }) as SubagentCapacity
-  } catch (error) {
+  } catch (error: unknown) {
     throw new Error('persisted subagent descriptor capacity is invalid', { cause: error })
   }
 }
@@ -230,7 +233,7 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
   if (typeof version !== 'number') {
     throw new Error('persisted subagent descriptor version must be a number')
   }
-  if (version !== SUBAGENT_DESCRIPTOR_VERSION) return undefined
+  if (version !== 3 && version !== SUBAGENT_DESCRIPTOR_VERSION) return undefined
 
   const mode = value['mode']
   if (mode !== 'one-shot' && mode !== 'continuable') {
@@ -238,7 +241,9 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
   }
   assertKnownKeys(
     value,
-    mode === 'one-shot' ? ONE_SHOT_DESCRIPTOR_KEYS : CONTINUABLE_DESCRIPTOR_KEYS,
+    mode === 'one-shot'
+      ? ONE_SHOT_DESCRIPTOR_KEYS
+      : version === 3 ? LEGACY_CONTINUABLE_DESCRIPTOR_KEYS : CONTINUABLE_DESCRIPTOR_KEYS,
     'payload',
   )
   const provider = value['provider']
@@ -248,7 +253,7 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
   if (mode === 'one-shot') {
     const label = optionalString(value, 'label')
     return {
-      version: SUBAGENT_DESCRIPTOR_VERSION,
+      version,
       mode,
       provider,
       ...label !== undefined ? { label } : {},
@@ -260,20 +265,20 @@ function parseSubagentDescriptor(value: unknown): SubagentDescriptorData | undef
   }
   const agentProvider = optionalString(value, 'agentProvider')
   const agentModel = optionalString(value, 'agentModel')
-  const reasoningEffort = optionalString(value, 'reasoningEffort') as ReasoningEffortId | undefined
+  const agentReasoningEffort = optionalString(value, 'agentReasoningEffort') as ReasoningEffortId | undefined
   const persona = optionalString(value, 'persona')
   const toolFilter = Object.hasOwn(value, 'toolFilter')
     ? parseToolFilter(value['toolFilter'])
     : undefined
   const capacity = Object.hasOwn(value, 'capacity') ? parseCapacity(value['capacity']) : undefined
   return {
-    version: SUBAGENT_DESCRIPTOR_VERSION,
+    version,
     mode,
     provider,
     label,
     ...agentProvider !== undefined ? { agentProvider } : {},
     ...agentModel !== undefined ? { agentModel } : {},
-    ...reasoningEffort !== undefined ? { reasoningEffort } : {},
+    ...agentReasoningEffort !== undefined ? { agentReasoningEffort } : {},
     ...persona !== undefined ? { persona } : {},
     ...toolFilter !== undefined ? { toolFilter } : {},
     ...capacity !== undefined ? { capacity } : {},
@@ -316,7 +321,7 @@ export function snapshotSubagentDescriptor(input: SubagentDescriptorInput): Suba
       label: input.label,
       ...input.agentProvider !== undefined ? { agentProvider: input.agentProvider } : {},
       ...input.agentModel !== undefined ? { agentModel: input.agentModel } : {},
-      ...input.reasoningEffort !== undefined ? { reasoningEffort: input.reasoningEffort } : {},
+      ...input.agentReasoningEffort !== undefined ? { agentReasoningEffort: input.agentReasoningEffort } : {},
       ...input.persona !== undefined ? { persona: input.persona } : {},
       ...input.toolFilter !== undefined ? { toolFilter: input.toolFilter } : {},
       ...input.capacity !== undefined

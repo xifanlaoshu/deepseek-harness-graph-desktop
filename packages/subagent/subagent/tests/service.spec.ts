@@ -1,7 +1,6 @@
-import { resolve } from 'node:path'
-import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import { type Agent } from '@deepseek-ai/dsh-agent'
 
 import { HarnessError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { carrierKeyOf } from '@deepseek-ai/dsh-scope'
@@ -20,14 +19,15 @@ import SubagentRuntime, {
   type SubagentRunEndInfo,
   type SubagentStartRequest,
 } from '@deepseek-ai/dsh-subagent'
-import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 
 function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id), options: {} } as unknown as Agent
+  return { id: SessionId(id) } as unknown as Agent
 }
 
-const ALL_CAPS: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true, sandboxMode: true }
-const NO_CAPS: SubagentCapabilities = { outputSchema: false, depthLimit: false, toolFilter: false, persona: false, sandboxMode: false }
+const ALL_CAPS: SubagentCapabilities = { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
+const NO_CAPS: SubagentCapabilities = { agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false }
 
 function baseRequest(overrides: Partial<SubagentStartRequest> = {}): SubagentStartRequest {
   return {
@@ -66,11 +66,32 @@ class StubProvider implements SubagentProvider {
 
 async function service(): Promise<{ ctx: Context; subagents: SubagentRuntime }> {
   const ctx = new Context()
+  // The registry is a required injection of SubagentRuntime (its projection
+  // units register in the constructor).
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SubagentRuntime)
   return { ctx, subagents: ctx.subagents }
 }
 
 describe('SubagentRuntime', () => {
+  it('releases its catalog projection binding with the service fiber', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    const fiber = await ctx.plugin(SubagentRuntime)
+    const parent = Session.create(SessionId('catalog-parent'))
+    parent.append('subagent/catalog', {
+      version: 0,
+      childId: SessionId('catalog-child'),
+      childCreatedAt: 1,
+      mode: 'one-shot',
+    })
+    expect(ctx.sessionProjections.snapshot(parent).values.subagentCatalog).toHaveLength(1)
+
+    await fiber.dispose()
+
+    expect(ctx.sessionProjections.stateOf(parent, 'subagentCatalog')).toBeUndefined()
+  })
+
   it('registers, lists, looks up, starts, and removes providers', async () => {
     const { ctx, subagents } = await service()
     const added: string[] = []
@@ -90,6 +111,32 @@ describe('SubagentRuntime', () => {
     expect(added).toEqual(['alpha'])
     expect(removed).toEqual(['alpha'])
     expect(subagents.getProvider('alpha')).toBeUndefined()
+  })
+
+  it('rejects concurrent starts above one inherited capacity pool ceiling', async () => {
+    const { ctx, subagents } = await service()
+    ctx.provide('agents', { list: () => [] })
+    const gate: PromiseWithResolvers<void> = Promise.withResolvers()
+    const provider = new StubProvider('capacity', { ...ALL_CAPS, activeCapacity: true })
+    provider.start = vi.fn(async (request) => {
+      await gate.promise
+      return {
+        id: SessionId(`child:${request.parent.id}`),
+        localAgent: undefined,
+        result: Promise.resolve({ output: [], stopReason: 'completed' as const }),
+        async dispose() {},
+      }
+    })
+    subagents.registerProvider(provider)
+    const capacity = { scope: SubagentCapacityScopeId('graph:test'), maxActive: 1 }
+
+    const first = subagents.start('capacity', baseRequest({ agentOptions: { subagentCapacity: capacity } }))
+    await vi.waitFor(() => { expect(provider.start).toHaveBeenCalledOnce() })
+    await expect(subagents.start('capacity', baseRequest({ agentOptions: { subagentCapacity: capacity } })))
+      .rejects.toMatchObject({ code: 'CAPACITY_EXHAUSTED' })
+
+    gate.resolve()
+    await expect(first).resolves.toMatchObject({ id: expect.any(String) })
   })
 
   it('rolls registration back when provider-added throws', async () => {
@@ -129,20 +176,6 @@ describe('SubagentRuntime', () => {
     expect('resume' in provider).toBe(false)
   })
 
-  it('forwards an absolute activation workspace and rejects relative values before startup', async () => {
-    const { subagents } = await service()
-    const provider = new StubProvider('workspace')
-    subagents.registerProvider(provider)
-    const workspaceCwd = resolve('isolated-workspace')
-
-    await subagents.start('workspace', baseRequest({ workspaceCwd }))
-    expect(provider.lastRequest?.workspaceCwd).toBe(workspaceCwd)
-
-    await expect(subagents.start('workspace', baseRequest({ workspaceCwd: 'relative/workspace' })))
-      .rejects.toMatchObject({ code: 'INVALID_REQUEST' })
-    expect(provider.startCount).toBe(1)
-  })
-
   it('does not expose manager teardown and treats public drains as no-ops when no manager was bound', async () => {
     const { subagents } = await service()
     // Without `ctx.agents` no manager exists, so nothing was ever materialized.
@@ -169,20 +202,20 @@ describe('SubagentRuntime', () => {
       request: baseRequest(),
       signal: new AbortController().signal,
     })).rejects.toMatchObject({ code: 'CONTINUATION_UNAVAILABLE' })
-    await expect(subagents.followup(
+    await expect(subagents.sendMessage(
       fakeParent(),
       SessionId('child'),
       [{ type: 'text', text: 'hello' }],
-      { source: { kind: 'user' }, signal: new AbortController().signal },
+      { signal: new AbortController().signal },
     )).rejects.toMatchObject({ code: 'CONTINUATION_UNAVAILABLE' })
   })
 
   it.each([
+    ['agentOptions', { agentOptions: { model: 'child-model' } }],
     ['outputSchema', { outputSchema: { type: 'object', properties: {} } }],
     ['depthLimit', { maxDepth: 1 }],
     ['toolFilter', { toolFilter: { deny: ['bash'] } }],
     ['persona', { persona: 'reviewer' }],
-    ['sandboxMode', { sandboxModeCap: 'workspace-write' }],
   ] as const)('rejects unsupported %s before provider startup', async (_capability, override) => {
     const { subagents } = await service()
     const provider = new StubProvider('weak', NO_CAPS)
@@ -190,36 +223,6 @@ describe('SubagentRuntime', () => {
     await expect(subagents.start('weak', baseRequest(override)))
       .rejects.toMatchObject({ code: 'UNSUPPORTED_CAPABILITY' })
     expect(provider.startCount).toBe(0)
-  })
-
-  it('reserves one shared active-capacity slot across concurrent starts', async () => {
-    const ctx = new Context()
-    await ctx.plugin(AgentRegistry)
-    await ctx.plugin(SubagentRuntime)
-    const ready = Promise.withResolvers<SubagentRun>()
-    let starts = 0
-    ctx.subagents.registerProvider({
-      name: 'capacity-aware',
-      capabilities: { ...ALL_CAPS, activeCapacity: true },
-      inheritsParentContext: false,
-      start: () => {
-        starts += 1
-        return ready.promise
-      },
-    })
-    const capacity = { scope: SubagentCapacityScopeId('graph-run:test'), maxActive: 1 }
-    const first = ctx.subagents.start('capacity-aware', baseRequest({ agentOptions: { subagentCapacity: capacity } }))
-    await vi.waitFor(() => { expect(starts).toBe(1) })
-    await expect(ctx.subagents.start('capacity-aware', baseRequest({ agentOptions: { subagentCapacity: capacity } })))
-      .rejects.toMatchObject({ code: 'CAPACITY_EXHAUSTED' })
-    expect(starts).toBe(1)
-    ready.resolve({
-      id: SessionId('capacity-child'),
-      localAgent: fakeParent('capacity-child'),
-      result: Promise.resolve({ output: [], stopReason: 'completed' }),
-      async dispose() {},
-    })
-    await first
   })
 
   it('validates depth and schema semantics before provider startup', async () => {
@@ -292,6 +295,45 @@ describe('SubagentRuntime', () => {
     ctx.on('subagent/end', lifecycle)
     await expect(subagents.start('failed', baseRequest())).rejects.toThrow('setup rolled back')
     expect(lifecycle).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('handles a rejected local result after catalog failure (disposal fails: %s)', async (failsDisposal) => {
+    const { ctx, subagents } = await service()
+    onTestFinished(() => ctx.fiber.dispose())
+    const parentSession = Session.create(SessionId('catalog-parent'))
+    const childSession = Session.create(SessionId('catalog-child'))
+    const parent = { id: parentSession.id, session: parentSession } as Agent
+    const localAgent = { id: childSession.id, session: childSession } as Agent
+    const result = Promise.withResolvers<SubagentResult>()
+    const cleanupFailure = new Error('dispose also failed')
+    const warnings = vi.spyOn(ctx.logger, 'warn')
+    const dispose = vi.fn(async () => {
+      result.reject(new Error('run infrastructure failed'))
+      // Cross Node's unhandled-rejection checkpoint while disposal is pending.
+      await new Promise<void>(resolve => setImmediate(resolve))
+      if (failsDisposal) throw cleanupFailure
+    })
+    subagents.registerProvider({
+      name: 'catalog-failure',
+      capabilities: NO_CAPS,
+      inheritsParentContext: false,
+      start: () => Promise.resolve({
+        id: childSession.id,
+        localAgent,
+        result: result.promise,
+        dispose,
+      }),
+    })
+    const catalogFailure = new Error('catalog unavailable')
+    const append = vi.spyOn(parentSession, 'append').mockImplementation(() => {
+      throw catalogFailure
+    })
+
+    await expect(subagents.start('catalog-failure', baseRequest({ parent })))
+      .rejects.toBe(catalogFailure)
+    expect(append).toHaveBeenCalledOnce()
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(warnings).toHaveBeenCalledTimes(failsDisposal ? 1 : 0)
   })
 
   it('emits an enriched end event and maps result rejection to error telemetry', async () => {
@@ -395,9 +437,10 @@ describe('subagent descriptors', () => {
       label: 'complete child',
       agentProvider: 'deepseek',
       agentModel: 'chat',
-      reasoningEffort: ReasoningEffortId('high'),
+      agentReasoningEffort: ReasoningEffortId('high'),
       persona: 'reviewer',
       toolFilter: { allow: ['read'], deny: ['bash'] },
+      capacity: { scope: SubagentCapacityScopeId('graph:complete'), maxActive: 2 },
     }
     expect(snapshotSubagentDescriptor({
       mode: 'continuable',
@@ -405,11 +448,17 @@ describe('subagent descriptors', () => {
       label: complete.label,
       agentProvider: complete.agentProvider,
       agentModel: complete.agentModel,
-      reasoningEffort: complete.reasoningEffort,
+      agentReasoningEffort: complete.agentReasoningEffort,
       persona: complete.persona,
       toolFilter: complete.toolFilter,
+      capacity: complete.capacity,
     })).toEqual(complete)
     expect(foldSubagentDescriptor([event(complete)])).toEqual(complete)
+    const { capacity: _capacity, ...legacyComplete } = complete
+    expect(foldSubagentDescriptor([event({
+      ...legacyComplete,
+      version: 3,
+    })])).toEqual({ ...legacyComplete, version: 3 })
     expect(foldSubagentDescriptor([
       event({
         version: SUBAGENT_DESCRIPTOR_VERSION,
@@ -497,13 +546,13 @@ describe('subagent descriptors', () => {
       label: 'l',
       agentModel: [],
     }, 'agentModel must be a string'],
-    ['invalid reasoning effort', {
+    ['invalid agent reasoning effort', {
       version: SUBAGENT_DESCRIPTOR_VERSION,
       mode: 'continuable',
       provider: 'spawn',
       label: 'l',
-      reasoningEffort: [],
-    }, 'reasoningEffort must be a string'],
+      agentReasoningEffort: 7,
+    }, 'agentReasoningEffort must be a string'],
     ['invalid persona', {
       version: SUBAGENT_DESCRIPTOR_VERSION,
       mode: 'continuable',
@@ -546,6 +595,20 @@ describe('subagent descriptors', () => {
       label: 'l',
       toolFilter: { deny: [7] },
     }, 'toolFilter.deny must be an array of strings'],
+    ['non-object capacity', {
+      version: SUBAGENT_DESCRIPTOR_VERSION,
+      mode: 'continuable',
+      provider: 'spawn',
+      label: 'l',
+      capacity: [],
+    }, 'capacity must be an object'],
+    ['invalid capacity ceiling', {
+      version: SUBAGENT_DESCRIPTOR_VERSION,
+      mode: 'continuable',
+      provider: 'spawn',
+      label: 'l',
+      capacity: { scope: 'graph:test', maxActive: 0 },
+    }, 'capacity is invalid'],
   ])('rejects a malformed persisted descriptor: %s', (_case, data, detail) => {
     expect(() => foldSubagentDescriptor([event(data)])).toThrow(detail)
   })

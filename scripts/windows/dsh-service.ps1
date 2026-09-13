@@ -69,8 +69,16 @@ function Read-RuntimeState {
 
 function Test-DshHealth {
   try {
-    $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/" -TimeoutSec 3
-    return $response.StatusCode -eq 200
+    $response = Invoke-WebRequest `
+      -UseBasicParsing `
+      -SkipHttpErrorCheck `
+      -Uri "http://127.0.0.1:$Port/" `
+      -TimeoutSec 3
+    if ($response.StatusCode -eq 200) {
+      return $true
+    }
+    return $response.StatusCode -eq 401 `
+      -and $response.Content -eq "dsh web authentication required; reopen the URL printed by dsh web.`n"
   } catch {
     return $false
   }

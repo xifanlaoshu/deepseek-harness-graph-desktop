@@ -16,6 +16,10 @@ describe('Windows DSH background service scripts', () => {
     expect(readFileSync(host, 'utf8')).toContain('Start-Sleep -Seconds $RestartDelaySeconds')
     expect(readFileSync(manager, 'utf8')).toContain("'-MaxOldSpaceSizeMB'")
     expect(readFileSync(host, 'utf8')).toContain('"--max-old-space-size=$MaxOldSpaceSizeMB"')
+    expect(readFileSync(manager, 'utf8')).toContain('-SkipHttpErrorCheck')
+    expect(readFileSync(manager, 'utf8')).toContain(
+      'dsh web authentication required; reopen the URL printed by dsh web.',
+    )
   })
 
   describe.runIf(process.platform === 'win32')('status command', () => {

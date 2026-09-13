@@ -11,10 +11,10 @@
 
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { Branded } from '@deepseek-ai/dsh-brand'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
+import type { ContentBlock, MessageId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { ObjectJsonSchema, ToolRestriction } from '@deepseek-ai/dsh-tools'
+import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { SubagentDescriptorData } from './descriptor.ts'
 
 /** Identifies one accepted subagent run across its lifecycle event pair. */
@@ -27,6 +27,50 @@ export type SubagentRunId = Branded<'SubagentRunId'>
  */
 export function SubagentRunId(id: string): SubagentRunId {
   return id as SubagentRunId
+}
+
+/** What a caller asks for when starting a continuable background child. */
+export interface ContinuableStartSpec {
+  /** The `ctx.subagents` provider whose continuable-creation capability establishes the child. */
+  readonly provider: string
+  /** The initial delegation's short `description`, persisted as the child's creation label. */
+  readonly label: string
+  /**
+   * Optional caller-reserved child identity. Omission preserves the manager's
+   * UUID allocation; supplying one lets a durable parent record provisioning
+   * before child materialization without a second identity handshake.
+   */
+  readonly childId?: SessionId
+  /**
+   * The delegation request. The manager reserves the stable child id, resolves
+   * the durable descriptor, and composes the child itself.
+   */
+  readonly request: Omit<SubagentStartRequest, 'label' | 'signal' | 'outputSchema'>
+  /** Caller cancellation, owning the operation only until inbox acceptance. */
+  readonly signal: AbortSignal
+}
+
+/** Identities returned once a continuable child accepted its initial prompt. */
+export interface ContinuableStart {
+  /** The durable child session id, stable across activations. */
+  readonly childId: SessionId
+  /** The accepted initial prompt's inbox message id. */
+  readonly messageId: MessageId
+}
+
+/**
+ * Authority under which one interrupt request is admitted. `user` carries the
+ * durable direct-parent address a human client presented; `ancestor` carries
+ * the exact live Agent object whose recorded lineage must contain the caller.
+ */
+export type SubagentInterruptAuthority =
+  | { readonly kind: 'user'; readonly parentSessionId: SessionId }
+  | { readonly kind: 'ancestor'; readonly agent: Agent }
+
+/** Options for one model-authored message between adjacent Agents. */
+export interface SubagentSendMessageOptions {
+  /** Caller cancellation, owning the operation only until inbox acceptance. */
+  readonly signal: AbortSignal
 }
 
 /**
@@ -82,15 +126,19 @@ export interface SubagentRunEndInfo {
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`, `sandboxMode` to `sandboxModeCap`; the other names match.
+ * to `maxDepth`; the other names match.
  */
 export interface SubagentCapabilities {
+  readonly agentOptions: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  /** Provider can assign an explicit child workspace at publication. */
+  readonly workspace?: boolean
+  /** Provider can enforce a maximum child sandbox authority. */
   readonly sandboxMode?: boolean
-  /** Provider publishes an in-process child carrying inherited active-capacity options. */
+  /** Provider publishes an in-process child carrying inherited active capacity. */
   readonly activeCapacity?: boolean
 }
 
@@ -112,12 +160,7 @@ export interface SubagentStartRequest {
    * and only when no deployment `cwd` override is configured.
    */
   readonly parent: Agent
-  /**
-   * Optional absolute workspace for this activation. Omission inherits the
-   * parent's session workspace. Providers must use this value for both child
-   * session metadata and the execution process; they must not reinterpret it
-   * relative to their launch directory.
-   */
+  /** Optional absolute workspace for this activation; omission inherits the parent workspace. */
   readonly workspaceCwd?: string
   /**
    * Cancellation signal from the spawning context (the tool's `exec.signal`).
@@ -127,6 +170,13 @@ export interface SubagentStartRequest {
    * remaining turn work when it fires afterward.
    */
   readonly signal: AbortSignal
+  /**
+   * Optional host-Agent provider, model, reasoning-effort, and output-token
+   * overrides. Requires {@link SubagentCapabilities.agentOptions}; in-process
+   * providers merge them over the parent Agent's options when they create the
+   * child, while the DSH SDK provider merges them over its instance defaults
+   * before initializing the separate child runtime.
+   */
   readonly agentOptions?: AgentOptions
   /**
    * Object-rooted JSON Schema within `assertObjectJsonSchema`'s enforced subset. Start rejects
@@ -152,17 +202,12 @@ export interface SubagentStartRequest {
   /**
    * Optional per-child persona. Requires {@link SubagentCapabilities.persona};
    * rejected at start otherwise. In-process backends register it as a scoped
-   * `deployment:persona` section on the child, SHADOWING the deployment's
+   * `deployment:persona-prefix` section on the child, SHADOWING the deployment's
    * persona for this child alone — same template semantics as the deployment
    * persona (strict `{{…}}` interpolation against the registered variables).
    */
   readonly persona?: string
-  /**
-   * Optional upper bound on the child's sandbox authority. Requires
-   * {@link SubagentCapabilities.sandboxMode}; an in-process provider resolves
-   * the parent's effective mode and records the more restrictive value on the
-   * child before publication. The cap never widens a restrictive parent.
-   */
+  /** Optional upper bound on the child's sandbox authority. */
   readonly sandboxModeCap?: SandboxMode
 }
 
@@ -318,6 +363,13 @@ export interface SubagentProvider {
    * It says nothing about tool registration, injected services, or authority inheritance.
    */
   readonly inheritsParentContext: boolean
+  /**
+   * Optional static provider-owned provider/model route for one-shot Agent
+   * options. Consumers merge tool/model overrides over these values before
+   * preflight; providers whose route derives from the parent omit it. The value
+   * is detached immutable data and requires `agentOptions` support.
+   */
+  readonly agentRouteDefaults?: Readonly<{ provider: string; model: string }>
   /**
    * Establish a ONE-SHOT child and return its handle after publication.
    * The service has already validated that every requested start-time

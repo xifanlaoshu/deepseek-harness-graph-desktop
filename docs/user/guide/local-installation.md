@@ -249,7 +249,7 @@ pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 start
 pwsh -NoProfile -File .\scripts\windows\dsh-service.ps1 uninstall
 ```
 
-The default task is `DeepSeekHarnessWeb`; runtime state and rotated stdout/stderr logs are under `%LOCALAPPDATA%\DeepSeekHarness\Service`. `uninstall` preserves these diagnostic files. The task records the repository, DSH home, Node executable, and port supplied at installation, so stop the service before moving or updating the checkout and reinstall with `install -Force` after changing Node.js or those paths. The service runs only while that user is logged in; a non-interactive server deployment that does not require WSL or visible Chrome needs a separate SCM wrapper and service-owned DSH home.
+The default task is `DeepSeekHarnessWeb`; runtime state and rotated stdout/stderr logs are under `%LOCALAPPDATA%\DeepSeekHarness\Service`. `uninstall` preserves these diagnostic files. The health probe accepts either the authenticated root response or DSH's exact unauthenticated browser challenge, so `status` and `restart` do not require copying a launch token into the service manager. The task records the repository, DSH home, Node executable, and port supplied at installation, so stop the service before moving or updating the checkout and reinstall with `install -Force` after changing Node.js or those paths. The service runs only while that user is logged in; a non-interactive server deployment that does not require WSL or visible Chrome needs a separate SCM wrapper and service-owned DSH home.
 
 ## Linux
 

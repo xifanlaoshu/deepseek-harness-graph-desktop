@@ -2,10 +2,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import {
   createSnapshotStore,
-  SlotRegistry,
-  type SessionId,
-  type SettingsScopeSnapshot,
-} from '@deepseek-ai/dsh-client-runtime/client'
+} from '@deepseek-ai/dsh-client-store'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
@@ -90,19 +90,15 @@ describe('ui-graph browser apply', () => {
       .mockResolvedValueOnce({ ok: true, value: { commandId: 'c', result: { kind: 'success' } } })
     const off = vi.fn()
     const on = vi.fn(() => off)
-    ctx.provide('remote', { commands: { execute }, $on: on })
+    const modelCatalog = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { default: { provider: 'test', model: 'model' }, groups: [], failures: [], routableProviders: [] },
+      })
+      .mockResolvedValueOnce({ ok: false, error: { code: 'OFFLINE', message: 'offline' } })
+    ctx.provide('remote', { commands: { execute }, session: { modelCatalog }, $on: on })
     ctx.provide('remote.commands', { execute })
-    const globalModels = vi.fn()
-      .mockResolvedValueOnce({ ok: true, result: { ok: true, value: { groups: [], failures: [] } } })
-      .mockResolvedValueOnce({ ok: true, result: { ok: false, error: { code: 'OFFLINE', message: 'offline' } } })
-    const updateSettings = vi.fn()
-      .mockResolvedValueOnce({ ok: true, result: { ok: true, value: { revision: 8 } } })
-      .mockResolvedValueOnce({ ok: true, result: { ok: false, error: { code: 'CONFLICT', message: 'stale' } } })
-    const mutateSettings = vi.fn()
-      .mockResolvedValueOnce({ ok: true, result: { ok: true, value: { revision: 9 } } })
-    ctx.provide('connection', {
-      api: { llm: { models: globalModels }, settings: { update: updateSettings, mutate: mutateSettings } },
-    })
+    ctx.provide('remote.session', { modelCatalog })
     const templateStore = createSnapshotStore<SettingsScopeSnapshot<GraphTemplateSettings>>({
       status: 'ready',
       value: { roles: [], limits: config.limits, executionPolicy: config.executionPolicy },
@@ -112,7 +108,15 @@ describe('ui-graph browser apply', () => {
       writable: true,
       mode: 'host',
     })
-    const bind = vi.fn(() => templateStore)
+    const mutateTemplate = vi.fn(async (_operations: unknown, expectedRevision: number) => {
+      if (expectedRevision === 7) {
+        templateStore.update((state) => { state.revision = 8 })
+        return
+      }
+      templateStore.update((state) => { state.revision = 9 })
+    })
+    const graphTemplateScope = Object.assign(templateStore, { mutate: mutateTemplate })
+    const bind = vi.fn(() => graphTemplateScope)
     ctx.provide('settingsScope', { bind })
     const loadModels = vi.fn()
       .mockResolvedValueOnce(undefined)
@@ -132,17 +136,15 @@ describe('ui-graph browser apply', () => {
     const templateEntry = ctx.slots.entries('settings.plugins.tab').find(item => item.options.id === 'graph-templates')!
     expect(templateEntry.component).toBe(GraphTemplateSettingsTab)
     const templateInjected = (templateEntry.inject as unknown as () => GraphTemplateSettingsTabInjected)()
-    expect(templateInjected.hooks.settings).toBe(templateStore)
+    expect(templateInjected.hooks.settings).toBe(graphTemplateScope)
     templateInjected.loadModels()
     templateInjected.loadModels()
-    await vi.waitFor(() => { expect(globalModels).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(modelCatalog).toHaveBeenCalledTimes(2) })
     await expect(templateInjected.saveTemplate(templateStore.getSnapshot().value!, 7))
       .resolves.toEqual({ ok: true, revision: 8 })
-    await expect(templateInjected.saveTemplate(templateStore.getSnapshot().value!, 7))
-      .resolves.toEqual({ ok: false, error: 'stale (CONFLICT)' })
     await expect(templateInjected.resetTemplate(8)).resolves.toEqual({ ok: true, revision: 9 })
-    expect(mutateSettings).toHaveBeenCalledWith(expect.objectContaining({ ns: 'graph-mode', expectedRevision: 8 }))
-    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({ ns: 'graph-mode', expectedRevision: 7 }))
+    expect(mutateTemplate).toHaveBeenNthCalledWith(1, expect.any(Array), 7)
+    expect(mutateTemplate).toHaveBeenNthCalledWith(2, expect.any(Array), 8)
     const entry = ctx.slots.entries('conversation.session.header.actions').find(item => item.options.id === 'graph-mode')!
     expect(entry.component).toBe(GraphAction)
     const injected = (entry.inject as unknown as (id: SessionId) => GraphActionInjected)('s1' as SessionId)

@@ -5,6 +5,7 @@
   "references": [
     { "path": "../../../vendor/cosmokit" },
     { "path": "../../../vendor/cordis" },
+    { "path": "../graph" },
     { "path": "../graph-artifacts" },
     { "path": "../graph-resources" },
     { "path": "../graph-scheduler" },

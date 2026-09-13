@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-graph-artifacts",
   "description": "Provider-neutral content-addressed artifact transport for Graph workers",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.5-rc.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/graph/graph-artifacts" },
   "type": "module",
@@ -21,6 +21,7 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-graph": "workspace:^",
     "@deepseek-ai/dsh-graph-worker": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

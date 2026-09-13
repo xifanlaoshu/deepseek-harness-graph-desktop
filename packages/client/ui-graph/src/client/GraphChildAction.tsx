@@ -9,7 +9,7 @@ import type {
   GraphProjection,
   GraphRun,
 } from '@deepseek-ai/dsh-graph/client'
-import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { NS } from './locales.ts'
 import css from './GraphAction.module.css'
 

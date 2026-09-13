@@ -12,6 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentOptions, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
 import { resolveSubagentCapacity } from './capacity.ts'
 // Type-only: make `ctx.get('sandboxPolicy')` / `ctx.get('approval')` resolve
@@ -58,9 +59,38 @@ export function resolveChildDepth(parent: Agent, maxDepth: number | undefined): 
 }
 
 /**
- * Resolve the child's `AgentOptions`: the parent's provider/model/reasoning/maxTokens
- * route unless the request overrides it, stamped with the child's own
- * delegation depth.
+ * Resolve the parent values inherited by a child. The latest request header
+ * owns provider, model, and reasoning effort after request-time selection;
+ * creation options remain the fallback before the first request and retain
+ * the configured output-token limit.
+ * @param parent - delegating parent Agent.
+ * @returns detached Agent options for child-option merging.
+ */
+export function parentAgentOptionsForDelegation(parent: Agent): AgentOptions {
+  const requestConfig = parent.session.requestHeader()?.config
+  if (requestConfig === undefined) return { ...parent.options }
+  const {
+    provider: _createdProvider,
+    model: _createdModel,
+    reasoningEffort: _createdReasoningEffort,
+    ...createdOptions
+  } = parent.options
+  return {
+    ...createdOptions,
+    provider: requestConfig.provider,
+    model: requestConfig.model,
+    ...requestConfig.reasoningEffort === undefined
+      ? {}
+      : { reasoningEffort: requestConfig.reasoningEffort },
+  }
+}
+
+/**
+ * Resolve the child's `AgentOptions`: the parent's provider/model,
+ * reasoning-effort, and maxTokens values unless the request overrides them,
+ * stamped with the child's own delegation depth. Changing the route without
+ * naming an effort clears the parent's route-owned effort so the selected
+ * model resolves its own default.
  * @param parent - the delegating parent whose route the child inherits.
  * @param requested - per-child overrides, if any.
  * @param childDepth - the resolved delegation depth to stamp.
@@ -71,12 +101,13 @@ export function resolveChildAgentOptions(
   requested: AgentOptions | undefined,
   childDepth: number,
 ): AgentOptions {
-  const parentProvider = parent.options.provider
-  const parentModel = parent.options.model
-  const parentReasoningEffort = parent.options.reasoningEffort
-  const parentMaxTokens = parent.options.maxTokens
+  const parentOptions = parentAgentOptionsForDelegation(parent)
+  const parentProvider = parentOptions.provider
+  const parentModel = parentOptions.model
+  const parentReasoningEffort = parentOptions.reasoningEffort
+  const parentMaxTokens = parentOptions.maxTokens
   const capacity = resolveSubagentCapacity(parent, requested)
-  return {
+  const resolved: AgentOptions = {
     ...parentProvider !== undefined ? { provider: parentProvider } : {},
     ...parentModel !== undefined ? { model: parentModel } : {},
     ...parentReasoningEffort !== undefined ? { reasoningEffort: parentReasoningEffort } : {},
@@ -85,6 +116,9 @@ export function resolveChildAgentOptions(
     ...capacity === undefined ? {} : { subagentCapacity: capacity },
     subagentDepth: childDepth,
   }
+  const routeChanged = resolved.provider !== parentProvider || resolved.model !== parentModel
+  if (routeChanged && requested?.reasoningEffort === undefined) delete resolved.reasoningEffort
+  return resolved
 }
 
 /**
@@ -101,29 +135,28 @@ export function resolveChildAgentOptions(
  * child never had.
  * @param parent - the delegating parent agent.
  * @param childDepth - the resolved delegation depth to persist.
- * @param lineageSeedLength - how many leading events came from the parent's log.
- * @param workspaceCwd - explicit activation workspace, or parent inheritance.
+ * @param isSeeded - whether this child inherits a parent-log prefix, including an explicitly empty one.
+ * @param workspaceCwd - optional absolute child workspace replacing parent inheritance.
  * @returns the `meta` for `ctx.agents.create()`.
  */
 export function childSessionMeta(
   parent: Agent,
   childDepth: number,
-  lineageSeedLength: number,
+  isSeeded: boolean,
   workspaceCwd?: string,
 ): NonNullable<CreateAgentOptions['meta']> {
   const parentHeader = parent.session.header
   const agentPreset = parent.ctx.get('agentPresets')?.composedPreset(parent.ctx)
-  const cwd = workspaceCwd ?? parentHeader.cwd
   return {
-    ...cwd !== undefined ? { cwd } : {},
+    ...workspaceCwd !== undefined ? { cwd: workspaceCwd } : parentHeader.cwd !== undefined ? { cwd: parentHeader.cwd } : {},
     ...agentPreset === undefined ? {} : { agentPreset },
     parentSession: parentHeader.id,
+    isSeeded,
     // Navigation classification only; the descriptor remains the authority
     // for mode and continuation capability.
     origin: 'subagent',
     // Durable: the recursion budget must survive persistence and resume.
     delegationDepth: childDepth,
-    ...lineageSeedLength > 0 ? { seedLength: lineageSeedLength } : {},
   }
 }
 
@@ -174,10 +207,17 @@ export function applyChildComposition(
   composition: ChildComposition,
 ): void {
   childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx)
-  // Order 120: after the sandbox:policy (110) and approval:policy (115) sentences.
-  childCtx.systemPrompt.context({ name: 'subagent:delegation', order: 120, text: SUBAGENT_DELEGATION_CONTEXT })
+  childCtx.systemPrompt.context({
+    name: 'subagent:delegation',
+    order: childCtx.systemPrompt.getContextOrder('SUBAGENT_DELEGATION'),
+    text: SUBAGENT_DELEGATION_CONTEXT,
+  })
   if (composition.persona !== undefined) {
-    childCtx.systemPrompt.section({ name: 'deployment:persona', order: 0, text: composition.persona })
+    childCtx.systemPrompt.section({
+      name: 'deployment:persona-prefix',
+      order: childCtx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'),
+      text: composition.persona,
+    })
   }
   if (composition.toolFilter !== undefined) childCtx.tools.restrict(composition.toolFilter)
 }
@@ -194,24 +234,16 @@ export interface DelegatedPolicyOverrides {
   readonly approvalPolicy: 'never' | undefined
 }
 
-const SANDBOX_MODE_AUTHORITY: Readonly<Record<SandboxMode, number>> = {
-  'read-only': 0,
-  'workspace-write': 1,
-  'danger-full-access': 2,
-}
-
 /**
  * Capture the policy to seed into one delegation. Call synchronously before
  * the child start's first await: a later parent switch belongs to the
- * parent's future, not to this child. Without a cap, only the parent session's
- * explicit sandbox override is captured — never deployment defaults or
- * one-shot grants. With a cap, the effective parent mode is resolved and the
- * more restrictive value is captured. The approval policy is pinned to
- * `'never'` regardless of the parent's own policy.
+ * parent's future, not to this child. Only the parent session's explicit
+ * sandbox override is captured — never deployment defaults or one-shot
+ * grants — and the approval policy is pinned to `'never'` regardless of the
+ * parent's own policy.
  * @param parent - the delegating parent agent.
- * @param sandboxModeCap - optional maximum sandbox authority for this child.
+ * @param sandboxModeCap - optional maximum sandbox authority for the child.
  * @returns the sandbox override (or `undefined` without one) and the approval pin.
- * @throws {Error} when a cap is requested without the sandbox-policy service.
  */
 export function captureDelegatedPolicyOverrides(
   parent: Agent,
@@ -224,11 +256,14 @@ export function captureDelegatedPolicyOverrides(
   const parentMode = sandboxModeCap === undefined
     ? sandboxPolicy?.overrideOf(parent.session)
     : sandboxPolicy?.resolve({ session: parent.session }).mode
+  const authority: Record<SandboxMode, number> = {
+    'read-only': 0,
+    'workspace-write': 1,
+    'danger-full-access': 2,
+  }
   const sandboxMode = sandboxModeCap === undefined || parentMode === undefined
     ? parentMode
-    : SANDBOX_MODE_AUTHORITY[parentMode] <= SANDBOX_MODE_AUTHORITY[sandboxModeCap]
-      ? parentMode
-      : sandboxModeCap
+    : authority[parentMode] <= authority[sandboxModeCap] ? parentMode : sandboxModeCap
   return {
     sandboxMode,
     approvalPolicy: parent.ctx.get('approval') === undefined ? undefined : 'never',

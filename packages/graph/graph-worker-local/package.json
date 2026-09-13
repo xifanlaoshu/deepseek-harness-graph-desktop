@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-graph-worker-local",
   "description": "Local isolated Graph Worker Provider over the subagent capability",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.5-rc.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/graph/graph-worker-local" },
   "type": "module",

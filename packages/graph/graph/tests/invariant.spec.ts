@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { Session, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import * as GraphInvariant from '../src/invariant.ts'
 import {
@@ -82,7 +82,7 @@ describe('graph stream invariant', () => {
     const session = Session.create(SessionId('detached-graph'))
     expect(() => {
       ctx.emit('session/event', session, {
-        type: 'turn/start', seq: 0, time: 0, data: { turn: 1 },
+        type: 'turn/start', seq: SessionSeq(0), time: 0, data: { turn: 1 },
       })
     }).not.toThrow()
   })

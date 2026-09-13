@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-graph-mode",
   "description": "Slash-command controller and bounded background DAG scheduler for graph mode",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.5-rc.2",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",

@@ -8,7 +8,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { Session } from '@deepseek-ai/dsh-session'
+import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
 import type { CompactionResult } from './types.ts'
 
@@ -78,7 +78,6 @@ export interface CompactionRequestPolicy {
   readonly maxTokens: number
   readonly compactionRetries: number
   readonly maxOverflowRetries: number
-  /** Exact route for the single reconstructable summary call. */
   readonly summarizationTarget: CompactionSummaryTarget
 }
 
@@ -105,11 +104,9 @@ declare module '@deepseek-ai/cordis' {
 
   interface Events {
     /**
-     * Replace the resolved policy for one session before pressure measurement
-     * or summarization. Listeners must call `next()` before applying a scoped
-     * override so independently composed policies retain deterministic order.
-     * @param agent - agent context whose session owns the compaction.
-     * @param trigger - automatic trigger, or undefined for an explicit region or manual request.
+     * Resolve session-specific compaction routing and budgets.
+     * @param agent - agent whose session owns the compaction.
+     * @param trigger - automatic trigger, or undefined for explicit work.
      * @param next - downstream policy resolver.
      * @mode waterfall
      */
@@ -199,8 +196,8 @@ export abstract class CompactionEngine extends Service {
    * @returns the appended event seqs, summary, replaced range, and token accounting.
    */
   abstract compactRegion(
-    start: number,
-    end: number,
+    start: SessionSeq,
+    end: SessionSeq,
     agent: CompactionAgentContext,
     signal?: AbortSignal,
   ): Promise<CompactionResult>

@@ -68,7 +68,6 @@ class FakeSubprocess extends SubprocessRuntime {
       })
       : (response?.doneWait ?? Promise.resolve()).then(() => ({ exitCode: response?.exitCode ?? 0, signal: null }))
     return {
-      pid: 1,
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
@@ -142,7 +141,6 @@ class FakePersistentSubprocess extends SubprocessRuntime {
     stdin.on('finish', close)
     queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
     return {
-      pid: 1,
       stdin,
       stdout,
       stderr,
@@ -187,7 +185,7 @@ class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
       done.resolve({ exitCode: 0xffff_ffff, signal: null })
     })
     return {
-      pid: 1, stdin, stdout, stderr, collected: {}, done: done.promise,
+      stdin, stdout, stderr, collected: {}, done: done.promise,
       terminate: () => {}, waitForExit: () => Promise.resolve(true),
     }
   }
@@ -229,7 +227,7 @@ class PendingWritePersistentSubprocess extends SubprocessRuntime {
     stdin.on('finish', close)
     queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
     return {
-      pid: 1, stdin, stdout, stderr, collected: {}, done: settled.promise,
+      stdin, stdout, stderr, collected: {}, done: settled.promise,
       terminate: close,
       waitForExit: async (signal) => {
         if (closed) return true
