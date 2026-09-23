@@ -55,7 +55,7 @@ export function resolveSubagentCapacity(
   parent: Agent,
   requested: AgentOptions | undefined,
 ): SubagentCapacity | undefined {
-  const inherited = validateSubagentCapacity(parent.options?.subagentCapacity)
+  const inherited = validateSubagentCapacity(parent.options.subagentCapacity)
   const declared = validateSubagentCapacity(requested?.subagentCapacity)
   if (inherited !== undefined && declared !== undefined
     && (inherited.scope !== declared.scope || inherited.maxActive !== declared.maxActive)) {

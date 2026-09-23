@@ -23,7 +23,7 @@ import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 
 function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id) } as unknown as Agent
+  return { id: SessionId(id), options: {} } as unknown as Agent
 }
 
 const ALL_CAPS: SubagentCapabilities = { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
@@ -118,7 +118,9 @@ describe('SubagentRuntime', () => {
     ctx.provide('agents', { list: () => [] })
     const gate: PromiseWithResolvers<void> = Promise.withResolvers()
     const provider = new StubProvider('capacity', { ...ALL_CAPS, activeCapacity: true })
-    provider.start = vi.fn(async (request) => {
+    let starts = 0
+    provider.start = async (request: ResolvedSubagentStartRequest): Promise<SubagentRun> => {
+      starts += 1
       await gate.promise
       return {
         id: SessionId(`child:${request.parent.id}`),
@@ -126,17 +128,17 @@ describe('SubagentRuntime', () => {
         result: Promise.resolve({ output: [], stopReason: 'completed' as const }),
         async dispose() {},
       }
-    })
+    }
     subagents.registerProvider(provider)
     const capacity = { scope: SubagentCapacityScopeId('graph:test'), maxActive: 1 }
 
     const first = subagents.start('capacity', baseRequest({ agentOptions: { subagentCapacity: capacity } }))
-    await vi.waitFor(() => { expect(provider.start).toHaveBeenCalledOnce() })
+    await vi.waitFor(() => { expect(starts).toBe(1) })
     await expect(subagents.start('capacity', baseRequest({ agentOptions: { subagentCapacity: capacity } })))
       .rejects.toMatchObject({ code: 'CAPACITY_EXHAUSTED' })
 
     gate.resolve()
-    await expect(first).resolves.toMatchObject({ id: expect.any(String) })
+    expect((await first).id).toBe(SessionId('child:parent-1'))
   })
 
   it('rolls registration back when provider-added throws', async () => {
@@ -302,8 +304,8 @@ describe('SubagentRuntime', () => {
     onTestFinished(() => ctx.fiber.dispose())
     const parentSession = Session.create(SessionId('catalog-parent'))
     const childSession = Session.create(SessionId('catalog-child'))
-    const parent = { id: parentSession.id, session: parentSession } as Agent
-    const localAgent = { id: childSession.id, session: childSession } as Agent
+    const parent = { id: parentSession.id, session: parentSession, options: {} } as Agent
+    const localAgent = { id: childSession.id, session: childSession, options: {} } as Agent
     const result = Promise.withResolvers<SubagentResult>()
     const cleanupFailure = new Error('dispose also failed')
     const warnings = vi.spyOn(ctx.logger, 'warn')

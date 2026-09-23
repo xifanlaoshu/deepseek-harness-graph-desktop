@@ -8,6 +8,7 @@ import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
@@ -119,6 +120,12 @@ import type {} from '@deepseek-ai/dsh-shell'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-settings'
 
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'graph-mode': { kind: 'graph-mode' }
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     graphMode: GraphModeController
@@ -149,23 +156,15 @@ export interface Config {
   environmentCapabilities?: GraphEnvironmentCapability[]
   /** Whether an approved environment node may bypass filesystem confinement. */
   environmentDangerFullAccess?: boolean
+  /** Live defaults copied only when a session first activates Graph Mode. */
+  roles?: Volatile<GraphTemplateSettings['roles']>
+  /** Global scheduling limits copied when a session first activates Graph Mode. */
+  limits?: Volatile<GraphTemplateSettings['limits']>
+  /** Default worker execution policy copied when a session first activates Graph Mode. */
+  executionPolicy?: Volatile<GraphTemplateSettings['executionPolicy']>
+  /** Controller fallback and compaction policy copied when a session first activates Graph Mode. */
+  controllerResilience?: Volatile<GraphTemplateSettings['controllerResilience']>
 }
-
-/** Plugin configuration schema. */
-export const Config: z<Config> = z.object({
-  workerProvider: z.string().default('local'),
-  workspaceMode: z.union(['shared', 'isolated-copy', 'read-only-snapshot', 'git-worktree', 'sandbox-mount'] as const).default('shared'),
-  resourceProvider: z.string(),
-  coordinationHeartbeatMs: z.natural().min(100).max(300_000).default(15_000),
-  schedulerProvider: z.string(),
-  schedulerHeartbeatMs: z.natural().min(100).max(300_000).default(5_000),
-  externalOperationTimeoutMs: z.natural().min(1).max(MAX_GRAPH_TIMER_MS).default(60_000),
-  recoveryScanIntervalMs: z.natural().min(100).max(300_000).default(15_000),
-  environmentEnabled: z.boolean().default(true),
-  environmentCapabilities: z.array(z.union(['network', 'host-package-install', 'docker'] as const))
-    .default(['network', 'host-package-install', 'docker']),
-  environmentDangerFullAccess: z.boolean().default(true),
-})
 
 /** Deployment authority applied while admitting environment nodes. */
 export interface GraphEnvironmentHostPolicy {
@@ -182,9 +181,13 @@ const DISABLED_ENVIRONMENT_POLICY: GraphEnvironmentHostPolicy = {
 
 /** Global role and scheduler defaults copied into a session on first activation. */
 export interface GraphTemplateSettings {
+  /** Default roles and their model selections. */
   readonly roles: GraphModeConfig['roles']
+  /** Global and per-model scheduling limits. */
   readonly limits: GraphModeConfig['limits']
+  /** Default limits applied to Graph worker execution. */
   readonly executionPolicy: GraphModeConfig['executionPolicy']
+  /** Controller fallback models and recovery policy. */
   readonly controllerResilience: NonNullable<GraphModeConfig['controllerResilience']>
 }
 
@@ -206,7 +209,7 @@ const controllerFallbackModelConfig = z.object({
   compaction: z.boolean().required(),
 })
 /** Settings schema rendered by the general plugin settings surface. */
-export const GraphTemplateSettings = z.object({
+const graphTemplateFields = {
   roles: z.array(z.object({
     id: z.string().required(),
     label: z.string().required(),
@@ -259,7 +262,30 @@ export const GraphTemplateSettings = z.object({
       reasoningEffort: z.string(),
     }).required(),
   }).required(),
-}) as unknown as z<GraphTemplateSettings>
+} as const
+
+/** Validates the Graph role template copied into each newly activated session. */
+export const GraphTemplateSettings = z.object(graphTemplateFields) as unknown as z<GraphTemplateSettings>
+
+/** Plugin configuration schema; template fields remain live in the profile editor. */
+export const Config: z<Config> = z.object({
+  workerProvider: z.string().default('local'),
+  workspaceMode: z.union(['shared', 'isolated-copy', 'read-only-snapshot', 'git-worktree', 'sandbox-mount'] as const).default('shared'),
+  resourceProvider: z.string(),
+  coordinationHeartbeatMs: z.natural().min(100).max(300_000).default(15_000),
+  schedulerProvider: z.string(),
+  schedulerHeartbeatMs: z.natural().min(100).max(300_000).default(5_000),
+  externalOperationTimeoutMs: z.natural().min(1).max(MAX_GRAPH_TIMER_MS).default(60_000),
+  recoveryScanIntervalMs: z.natural().min(100).max(300_000).default(15_000),
+  environmentEnabled: z.boolean().default(true),
+  environmentCapabilities: z.array(z.union(['network', 'host-package-install', 'docker'] as const))
+    .default(['network', 'host-package-install', 'docker']),
+  environmentDangerFullAccess: z.boolean().default(true),
+  roles: graphTemplateFields.roles.default(defaultGraphModeConfig().roles as never).volatile(),
+  limits: graphTemplateFields.limits.default(defaultGraphModeConfig().limits as never).volatile(),
+  executionPolicy: graphTemplateFields.executionPolicy.default(defaultGraphModeConfig().executionPolicy as never).volatile(),
+  controllerResilience: graphTemplateFields.controllerResilience.default(defaultGraphControllerResiliencePolicy() as never).volatile(),
+}) as unknown as z<Config>
 
 type ControllerIntent = 'new' | 'revise' | 'inspect' | 'control' | 'clarify' | 'direct'
 const terminalNodePhase = (phase: GraphNodeRun['phase']): boolean => ['succeeded', 'failed', 'skipped', 'blocked', 'stale', 'canceled', 'exhausted'].includes(phase)
@@ -334,7 +360,7 @@ const durableToolAction = (name: string, args: Readonly<Record<string, unknown>>
 }
 
 const toolResultText = (event: Extract<SessionEvent, { type: 'tool/result' }>): string => (
-  event.data.message.content[0].content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+  event.data.message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
 )
 
 const verificationExitCode = (event: Extract<SessionEvent, { type: 'tool/result' }>): number => {
@@ -418,6 +444,7 @@ class WorkerProgressMonitor {
       this.acceptModelChunk(frame.chunk, frame.time)
     })
     const session = run.childSessionId === undefined ? undefined : ctx.sessions.get(SessionId(run.childSessionId))
+    // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
     for (const event of session?.snapshotEvents() ?? []) this.accept(event)
     this.firstActionTimer = setTimeout(() => { this.stall('first-durable-action-timeout') }, budget.firstDurableActionMs)
     this.resetNoProgressTimer()
@@ -492,7 +519,7 @@ class WorkerProgressMonitor {
       return
     }
     if (event.type !== 'tool/result' || event.data.error !== undefined) return
-    const call = this.calls.get(String(event.data.message.content[0].toolCallId))
+    const call = this.calls.get(String(event.data.message.toolCallId))
     if (call === undefined || !durableToolAction(call.name, call.args)) return
     const command = commandText(call.args)
     const exitCode = command === undefined ? undefined : verificationExitCode(event)
@@ -2079,27 +2106,16 @@ export class GraphModeController extends Service {
       executionPolicy: defaults.executionPolicy,
       controllerResilience: defaults.controllerResilience ?? defaultGraphControllerResiliencePolicy(),
     }
-    this.templateSource = () => templateDefaults
-    ctx.inject(['settings'], settingsCtx => settingsCtx.settings.installSection(
-      ctx,
-      GRAPH_TEMPLATE_SETTINGS_NAMESPACE,
-      GraphTemplateSettings,
-      templateDefaults,
-      {
-        setSource: (current) => { this.templateSource = current },
-        onChange: () => {},
-        validate: (template) => {
-          validateGraphModeConfig({
-            version: 2,
-            active: false,
-            roles: template.roles,
-            limits: template.limits,
-            executionPolicy: template.executionPolicy,
-            controllerResilience: template.controllerResilience,
-          })
-        },
-      },
-    ))
+    this.templateSource = () => {
+      const template = {
+        roles: (config.roles?.get() as unknown as GraphTemplateSettings['roles'] | undefined) ?? templateDefaults.roles,
+        limits: config.limits?.get() ?? templateDefaults.limits,
+        executionPolicy: config.executionPolicy?.get() ?? templateDefaults.executionPolicy,
+        controllerResilience: config.controllerResilience?.get() ?? templateDefaults.controllerResilience,
+      }
+      validateGraphModeConfig({ version: 2, active: false, ...template })
+      return template
+    }
 
     ctx.systemPrompt.section({
       name: 'graph:controller',
@@ -2249,6 +2265,7 @@ export class GraphModeController extends Service {
           }
         }
         const active = input !== 'off'
+        // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
         const hasSessionConfig = agent.session.snapshotEvents().some(event => event.type === 'graph/change' && event.data.kind === 'graph/config')
         const sessionConfig = hasSessionConfig
           ? projection.config
@@ -2476,6 +2493,7 @@ export class GraphModeController extends Service {
    */
   state(agent: Agent): GraphProjection {
     return this.ctx.get('sessionProjections')?.stateOf(agent.session, 'graph')
+      // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
       ?? foldGraph(agent.session.snapshotEvents())
   }
 
@@ -4083,7 +4101,7 @@ export class GraphModeController extends Service {
     if (controllerFollowup !== undefined) {
       agent.followup(createUserMessage({
         content: [{ type: 'text', text: controllerFollowup }],
-        source: { kind: 'plugin', plugin: 'graph-mode' },
+        source: { kind: 'graph-mode' },
       }))
     }
     return record
@@ -4634,9 +4652,9 @@ export class GraphModeController extends Service {
           detail: `environment operation ${operation.id} approved and pending`,
         })
         await this.flushBeforeExternal(agent, signal)
-        let result: Awaited<ReturnType<typeof shell.run>>
+        let result: Awaited<ReturnType<Awaited<ReturnType<typeof shell.execute>>['result']>>
         try {
-          result = await shell.run(shell.resolve({
+          result = await (await shell.execute(shell.resolve({
             command: operation.command,
             workdir: cwd,
             timeoutMs: node.executionBudget.maxWallTimeMs,
@@ -4647,7 +4665,7 @@ export class GraphModeController extends Service {
               workspaceRoot: cwd,
               sessionId: agent.session.id,
             },
-          }))
+          }))).result()
         } catch (error) {
           assertAuthority()
           agent.session.append('graph/settlement', {
@@ -5111,7 +5129,7 @@ export class GraphModeController extends Service {
             type: 'text',
             text: `[graph-planning-checkpoint]\ngraph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}\ncheckpoint=${checkpoint?.id ?? 'unknown'} kind=${checkpoint?.kind ?? 'unknown'}\n${checkpoint?.reason ?? 'Graph execution requires a controller or user decision.'}${planningContext === undefined ? '' : `\nplanningContext=${planningContext}`}\n${guidance}`,
           }],
-          source: { kind: 'plugin', plugin: 'graph-mode' },
+          source: { kind: 'graph-mode' },
         }))
       }
     } else if (current.phase !== 'canceled') {
@@ -5137,7 +5155,7 @@ export class GraphModeController extends Service {
           type: 'text',
           text: [completionHeader, `graph=${graph.graphId} revision=${graph.revision} run=${current.id} phase=${current.phase}`, ...campaignLines, ...errors, ...summaries].join('\n'),
         }],
-        source: { kind: 'plugin', plugin: 'graph-mode' },
+        source: { kind: 'graph-mode' },
       }))
     }
   }

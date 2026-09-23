@@ -35,7 +35,7 @@ export function apply(ctx: Context): void {
     }
   }
   for (const agent of ctx.agents.list()) activate(agent)
-  ctx.on('agent/created', ({ agent }) => activate(agent))
+  ctx.on('agent/created', ({ agent }) => { activate(agent) })
 
   ctx.effect(() => {
     const disposeInbox = ctx.root.on('agent/inbox/inserted', ({ agent, message }) => {

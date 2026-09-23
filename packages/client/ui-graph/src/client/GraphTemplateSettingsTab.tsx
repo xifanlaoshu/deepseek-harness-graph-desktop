@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { GraphModeConfig } from '@deepseek-ai/dsh-graph/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
@@ -25,7 +25,7 @@ export type GraphTemplateSaveResult =
 /** Registration-side services used by the global template tab. */
 export interface GraphTemplateSettingsTabInjected {
   readonly hooks: {
-    readonly settings: ObservableSnapshot<SettingsScopeSnapshot<GraphTemplateSettings>>
+    readonly settings: ObservableSnapshot<ConfigFormSnapshot<GraphTemplateSettings>>
     readonly models: ObservableSnapshot<ModelDirectoryState>
   }
   /** Refresh the session-independent model directory. */

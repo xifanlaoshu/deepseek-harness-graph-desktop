@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The graph group owns durable, editable DAG orchestration for multi-agent work.
+The graph group owns durable, editable DAG orchestration for multi-agent work. The [subsystem reference](../../docs/subsystems/graph.md) lists its Cordis services.
 
 | Package | Role | Cordis key |
 |---|---|---|

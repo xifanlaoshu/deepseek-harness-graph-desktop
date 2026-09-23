@@ -13,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-graph/client'
 import type { GraphModeConfig } from '@deepseek-ai/dsh-graph/client'
 import type { GraphProjection } from '@deepseek-ai/dsh-graph/client'
@@ -49,13 +50,13 @@ export interface GraphActionInjected {
 
 /** Required client services. */
 export const inject = [
-  'slots', 'sessions', 'remote', 'remote.commands', 'remote.session', 'locale', 'modelDirectories', 'settingsScope',
+  'slots', 'sessions', 'remote', 'remote.commands', 'remote.session', 'locale', 'modelDirectories', 'configForms', 'uiWorkspace',
 ]
 
 /** Register the session-header Graph Mode action. */
 export function apply(ctx: ClientContext): void {
   const sessions = ctx.get('sessions') as unknown as ISessions
-  const graphTemplates = ctx.settingsScope.bind<GraphTemplateSettings>({ namespace: 'graph-mode' })
+  const graphTemplates = ctx.configForms.get<GraphTemplateSettings>('graph-mode')
   const templateModels = createSnapshotStore<ModelDirectoryState>({
     current: null,
     routable: null,
@@ -113,7 +114,9 @@ export function apply(ctx: ClientContext): void {
             value: template.controllerResilience as unknown as JsonValue,
           },
       ]
-      await graphTemplates.mutate(operations, expectedRevision)
+      if (!await graphTemplates.mutate(operations, expectedRevision)) {
+        return { ok: false, error: 'Graph settings update was rejected; reload the latest settings and retry.' }
+      }
       const revision = graphTemplates.getSnapshot().revision
       if (revision === undefined || revision === expectedRevision) {
         return { ok: false, error: 'Graph settings update was rejected; reload the latest settings and retry.' }
@@ -125,12 +128,14 @@ export function apply(ctx: ClientContext): void {
   }
   const resetTemplate = async (expectedRevision: number): Promise<GraphTemplateSaveResult> => {
     try {
-      await graphTemplates.mutate([
+      if (!await graphTemplates.mutate([
         { op: 'unset', path: ['roles'] },
         { op: 'unset', path: ['limits'] },
         { op: 'unset', path: ['executionPolicy'] },
         { op: 'unset', path: ['controllerResilience'] },
-      ], expectedRevision)
+      ], expectedRevision)) {
+        return { ok: false, error: 'Graph settings reset was rejected; reload the latest settings and retry.' }
+      }
       const revision = graphTemplates.getSnapshot().revision
       if (revision === undefined || revision === expectedRevision) {
         return { ok: false, error: 'Graph settings reset was rejected; reload the latest settings and retry.' }
@@ -186,7 +191,7 @@ export function apply(ctx: ClientContext): void {
           if (result.value.result.kind === 'error') return result.value.result.text
           return null
         },
-        openSession: (id) => { sessions.open(id as SessionId) },
+        openSession: (id) => { ctx.uiWorkspace.openSession(id as SessionId) },
       }
     },
   }, GraphAction))
@@ -211,7 +216,7 @@ export function apply(ctx: ClientContext): void {
           if (result.value.result.kind === 'error') return result.value.result.text
           return null
         },
-        openParent: () => { if (parentId !== undefined) sessions.open(parentId) },
+        openParent: () => { if (parentId !== undefined) ctx.uiWorkspace.openSession(parentId) },
       }
     },
   }, GraphChildAction))

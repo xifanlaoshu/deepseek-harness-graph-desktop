@@ -11,6 +11,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
 import type { CompactionResult } from './types.ts'
+import type { CompactionCheckpointSource } from './checkpoint.ts'
 
 export type { CompactionResult } from './types.ts'
 export { CompactionId } from './brand.ts'
@@ -20,6 +21,12 @@ export { toolPairingBalancedAfter, toolPairingBalancedBefore } from './tool-pair
 // root's Context merge; the root stays the host-side entry point for both.
 export { compactCheckpointSource, isCompactCheckpointSource } from './checkpoint.ts'
 export type { CompactionCheckpointSource } from './checkpoint.ts'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'compact-checkpoint': CompactionCheckpointSource
+  }
+}
 
 /** Why automatic policy is asking a backend to consider compaction. */
 export type CompactionTrigger = 'pressure' | 'context-overflow'
@@ -73,6 +80,7 @@ export interface CompactionSummaryTarget {
 export interface CompactionRequestPolicy {
   readonly target: { readonly provider: string; readonly model: string }
   readonly thresholdRatio: number
+  readonly headroomTokens: number
   readonly retainRatio?: number
   readonly retainTokens?: number
   readonly maxTokens: number
@@ -101,7 +109,6 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     compaction: CompactionEngine
   }
-
   interface Events {
     /**
      * Resolve session-specific compaction routing and budgets.
@@ -115,6 +122,20 @@ declare module '@deepseek-ai/cordis' {
       trigger: CompactionTrigger | undefined,
       next: () => Promise<CompactionRequestPolicy>,
     ): Promise<CompactionRequestPolicy>
+    /**
+     * Recover a failed summary request by synchronously recording a durable
+     * change to its selected input. Return true only after making progress;
+     * the provider re-derives and re-prices the selection before retrying.
+     * Call next() when the failure cannot be recovered. Decisions survive a
+     * later summary failure or cancellation.
+     * @param payload.session - session containing the selected input.
+     * @param payload.sourceEventSeqs - selected message events in request order.
+     * @param payload.error - failure thrown by the summarizer.
+     * @param payload.signal - optional compaction cancellation signal.
+     * @param next - delegate to the next recovery listener.
+     * @mode waterfall
+     */
+    'compaction/summary-error'(payload: { session: Session; sourceEventSeqs: readonly SessionSeq[]; error: unknown; signal?: AbortSignal }, next: () => boolean): boolean
   }
 }
 

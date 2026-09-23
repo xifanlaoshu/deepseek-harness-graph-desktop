@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-mode/README.md
-README.md: e9b4ab023a81e8cb2b3289b724380c5750669aa1
-README.zh.md: 51530c0be9940f2e4f14969c938324fb4ef4d775
+README.md: f2a3b2ac3dc36f0e6857ac375f9c644bdfad0be6
+README.zh.md: b3d0ae76e0527ebca3d0cfa097edec6ee6243733

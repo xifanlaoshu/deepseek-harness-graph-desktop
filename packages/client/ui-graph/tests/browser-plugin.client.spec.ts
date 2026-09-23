@@ -5,7 +5,7 @@ import {
 } from '@deepseek-ai/dsh-client-store'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
@@ -80,7 +80,8 @@ describe('ui-graph browser apply', () => {
       jobsBySession: {},
     })
     const binding = vi.fn(() => ({ session: { projections: { faceOf: () => parentGraph } } }))
-    ctx.provide('sessions', { open, list: sessionList, binding })
+    ctx.provide('sessions', { list: sessionList, binding })
+    ctx.provide('uiWorkspace', { openSession: open })
     const execute = vi.fn()
       .mockResolvedValueOnce({ ok: true, value: { commandId: 'c', result: { kind: 'success' } } })
       .mockResolvedValueOnce({ ok: true, value: { commandId: 'c', result: { kind: 'error', text: 'invalid graph config' } } })
@@ -99,7 +100,7 @@ describe('ui-graph browser apply', () => {
     ctx.provide('remote', { commands: { execute }, session: { modelCatalog }, $on: on })
     ctx.provide('remote.commands', { execute })
     ctx.provide('remote.session', { modelCatalog })
-    const templateStore = createSnapshotStore<SettingsScopeSnapshot<GraphTemplateSettings>>({
+    const templateStore = createSnapshotStore<ConfigFormSnapshot<GraphTemplateSettings>>({
       status: 'ready',
       value: { roles: [], limits: config.limits, executionPolicy: config.executionPolicy },
       base: undefined,
@@ -111,13 +112,14 @@ describe('ui-graph browser apply', () => {
     const mutateTemplate = vi.fn(async (_operations: unknown, expectedRevision: number) => {
       if (expectedRevision === 7) {
         templateStore.update((state) => { state.revision = 8 })
-        return
+        return true
       }
       templateStore.update((state) => { state.revision = 9 })
+      return true
     })
     const graphTemplateScope = Object.assign(templateStore, { mutate: mutateTemplate })
-    const bind = vi.fn(() => graphTemplateScope)
-    ctx.provide('settingsScope', { bind })
+    const get = vi.fn(() => graphTemplateScope)
+    ctx.provide('configForms', { get })
     const loadModels = vi.fn()
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('catalog offline'))

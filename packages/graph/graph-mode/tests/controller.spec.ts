@@ -86,14 +86,14 @@ import LlmRuntime, {
 } from '@deepseek-ai/dsh-llm'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { ShellExecutor } from '@deepseek-ai/dsh-shell'
-import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
-import { SettingsProvider } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
+import { createVolatile, updateVolatile } from '@deepseek-ai/cosmokit'
 import GraphModeController, {
   GRAPH_TEMPLATE_SETTINGS_NAMESPACE,
   resolveGraphControllerPlanDraft,
   resolveGraphRevisionDraft,
   type GraphRevisionDraft,
+  type GraphTemplateSettings,
 } from '../src/index.ts'
 
 const CAPABILITIES: SubagentCapabilities = {
@@ -130,15 +130,26 @@ class TestShell extends ShellExecutor {
       command: request.command,
       workdir: request.workdir ?? process.cwd(),
       timeoutMs: request.timeoutMs ?? 60_000,
+      onExpiry: request.onExpiry ?? 'kill',
       stdoutMaxBytes: request.stdoutMaxBytes ?? 64_000,
       ...request.signal === undefined ? {} : { signal: request.signal },
       sandboxPolicy: request.sandboxPolicy,
     }
   }
 
-  run(spec: ShellExecSpec): Promise<ShellRunResult> {
+  execute(spec: ShellExecSpec): Promise<ShellExecution> {
     const result = this.outcomes.shift() ?? successfulShellResult()
-    return Promise.resolve({ ...result, timeoutMs: spec.timeoutMs })
+    const read = { readFrom: (offset: number) => ({ text: '', nextOffset: offset, lossy: false }) }
+    return Promise.resolve({
+      status: 'completed',
+      exitCode: result.exitCode,
+      signal: result.signal,
+      done: Promise.resolve(),
+      observed: { stdout: read, stderr: read },
+      readOutput: () => ({ delta: '', lossy: false }),
+      kill: () => false,
+      result: () => Promise.resolve({ ...result, timeoutMs: spec.timeoutMs }),
+    })
   }
 
   start(_spec: ShellExecSpec): ShellProcess {
@@ -595,16 +606,6 @@ class TestCoordination extends GraphCoordination {
   }
 }
 
-class MemorySettings extends SettingsProvider {
-  constructor(ctx: Context, private doc: Record<string, unknown> = {}) { super(ctx) }
-  get writable(): boolean { return true }
-  protected load(): Promise<Record<string, unknown>> { return Promise.resolve(structuredClone(this.doc)) }
-  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.doc = { ...this.doc, [ns]: structuredClone(section) }
-    return Promise.resolve()
-  }
-}
-
 const task = (id: string, objective: string): GraphNode => ({
   id: GraphNodeId(id),
   title: id.toUpperCase(),
@@ -841,6 +842,7 @@ async function harness(options: {
   followup: ReturnType<typeof vi.fn>
   coordination: TestCoordination | undefined
   shell: TestShell
+  setTemplateRoles(roles: GraphTemplateSettings['roles']): void
 }> {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
@@ -867,7 +869,8 @@ async function harness(options: {
     await ctx.plugin(GraphSchedulerRuntime)
     ctx.graphScheduler.register(options.scheduler)
   }
-  if (options.settings !== undefined) await ctx.plugin(MemorySettings, options.settings).await()
+  const template = options.settings?.[GRAPH_TEMPLATE_SETTINGS_NAMESPACE] as GraphTemplateSettings | undefined
+  const templateRoles = createVolatile(template?.roles ?? defaultGraphModeConfig().roles)
   const provider = options.provider ?? new GraphWorkerProvider()
   provider.bind(ctx)
   ctx.subagents.registerProvider(provider)
@@ -880,6 +883,12 @@ async function harness(options: {
     await ctx.plugin(MemoryGraphCoordination)
   }
   await ctx.plugin(GraphModeController, {
+    ...template === undefined ? {} : {
+      roles: templateRoles,
+      limits: createVolatile(template.limits),
+      executionPolicy: createVolatile(template.executionPolicy),
+      controllerResilience: createVolatile(template.controllerResilience),
+    },
     ...options.resources === undefined ? {} : { resourceProvider: options.resources.name },
     ...options.coordinationHeartbeatMs === undefined ? {} : { coordinationHeartbeatMs: options.coordinationHeartbeatMs },
     ...options.scheduler === undefined ? {} : { schedulerProvider: options.scheduler.name },
@@ -909,7 +918,10 @@ async function harness(options: {
     inject: ['tools', 'systemPrompt'],
   }))
   Object.assign(agent, { ctx: scope.ctx })
-  return { ctx, provider, agent, steer, followup, coordination, shell: ctx.shell as TestShell }
+  return {
+    ctx, provider, agent, steer, followup, coordination, shell: ctx.shell as TestShell,
+    setTemplateRoles: (roles) => { updateVolatile(templateRoles, createVolatile(roles)) },
+  }
 }
 
 describe('GraphModeController', () => {
@@ -1293,7 +1305,7 @@ describe('GraphModeController', () => {
   it('activates per session through /graph and steers trailing text', async () => {
     const { ctx, agent, steer } = await harness()
     const signal = new AbortController().signal
-    ctx.emit('agent/created', { agent })
+    ctx.emit('agent/created', { agent, source: 'startup' })
     expect(ctx.tools.schemas(agent).map(tool => tool.name)).not.toContain('graph_submit')
     const result = await ctx.commands.execute(agent, '/graph implement the feature', [], signal)
     expect(result?.result).toMatchObject({ kind: 'success' })
@@ -1334,8 +1346,8 @@ describe('GraphModeController', () => {
     agent.session.append('graph/change', {
       kind: 'graph/config', version: 2, config: { ...defaultGraphModeConfig(), active: true },
     })
-    ctx.emit('agent/created', { agent })
-    ctx.emit('agent/created', { agent })
+    ctx.emit('agent/created', { agent, source: 'startup' })
+    ctx.emit('agent/created', { agent, source: 'startup' })
     expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain('graph_submit')
     ctx.emit('agent/disposed', { agent })
     expect(ctx.tools.schemas(agent).map(tool => tool.name)).not.toContain('graph_submit')
@@ -1368,7 +1380,7 @@ describe('GraphModeController', () => {
     const secondRoles = firstRoles.map(role => role.id === 'engineer'
       ? { ...role, prompt: 'Use the changed global template.', model: { provider: 'local', model: 'second-model' } }
       : role)
-    await active.ctx.settings.replace(GRAPH_TEMPLATE_SETTINGS_NAMESPACE, { ...template, roles: secondRoles })
+    active.setTemplateRoles(secondRoles)
     await active.ctx.commands.execute(active.agent, '/graph off', [], new AbortController().signal)
     await active.ctx.commands.execute(active.agent, '/graph', [], new AbortController().signal)
     expect(active.ctx.graphMode.state(active.agent).config.roles.find(role => role.id === 'engineer')?.model.model).toBe('first-model')
@@ -1461,6 +1473,7 @@ describe('GraphModeController', () => {
       () => Promise.resolve({
         target: { provider: 'primary', model: 'small' },
         thresholdRatio: 0.8,
+        headroomTokens: 0,
         retainRatio: 0.16,
         maxTokens: 8192,
         compactionRetries: 1,
@@ -3185,7 +3198,7 @@ describe('GraphModeController', () => {
     const checkpoint = Object.values(ctx.graphMode.state(agent).checkpoints).find(item => item.kind === 'planning')
     if (checkpoint === undefined) throw new Error('planning checkpoint must be recorded')
     expect(checkpoint).toMatchObject({ nodeId: 'architecture', status: 'pending' })
-    expect(followup).toHaveBeenCalledWith(expect.objectContaining({ source: { kind: 'plugin', plugin: 'graph-mode' } }))
+    expect(followup).toHaveBeenCalledWith(expect.objectContaining({ source: { kind: 'graph-mode' } }))
     const planningFollowup = followup.mock.lastCall?.[0] as { content: Array<{ type: string; text?: string }> }
     expect(planningFollowup.content[0]?.text).toContain('"modelProfile":{"provider":"test","model":"coder","contextWindow":262144,"maxOutputTokens":32000')
     expect(planningFollowup.content[0]?.text).toContain('"executionBudget":{"maxOutputTokens":16384')
@@ -4208,7 +4221,7 @@ describe('GraphModeController', () => {
     expect(checkpoint).toMatchObject({ kind: 'awaiting_user', status: 'pending', nodeId: 'a' })
     const modificationFollowup = active.followup.mock.lastCall?.[0] as unknown
     expect(modificationFollowup).toMatchObject({
-      source: { kind: 'plugin', plugin: 'graph-mode' },
+      source: { kind: 'graph-mode' },
     })
     expect(JSON.stringify(modificationFollowup)).toContain('[graph-modification-request]')
     if (checkpoint === undefined) throw new Error('task modification checkpoint must exist')

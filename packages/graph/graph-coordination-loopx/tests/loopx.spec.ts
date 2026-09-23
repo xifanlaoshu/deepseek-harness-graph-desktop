@@ -16,6 +16,7 @@ import { PersistentLoopxBroker } from '../src/broker.ts'
 import { runGraphCoordinationContract } from '../../graph-coordination/tests/contract.ts'
 
 class FakeSubprocess extends SubprocessRuntime {
+  async terminalEnvironment() { return { platform: 'posix' as const } }
   readonly argv: readonly string[][] = []
   readonly specs: SubprocessSpawnSpec[] = []
   readonly responses: Array<{
@@ -68,6 +69,7 @@ class FakeSubprocess extends SubprocessRuntime {
       })
       : (response?.doneWait ?? Promise.resolve()).then(() => ({ exitCode: response?.exitCode ?? 0, signal: null }))
     return {
+      control: undefined,
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
@@ -88,6 +90,8 @@ class FakeSubprocess extends SubprocessRuntime {
       output: new PassThrough(),
       done: Promise.resolve({ exitCode: 0, signal: null }),
       write: async () => {},
+      resize: async () => {},
+      inspectActivity: async () => ({ state: 'unknown' as const, revision: 0 }),
       inspectForeground: async () => ({ processGroupId: 1, inputWaiting: true }),
       signalForeground: async () => 1,
       terminate: async () => {},
@@ -96,6 +100,7 @@ class FakeSubprocess extends SubprocessRuntime {
 }
 
 class FakePersistentSubprocess extends SubprocessRuntime {
+  async terminalEnvironment() { return { platform: 'posix' as const } }
   readonly specs: SubprocessSpawnSpec[] = []
   readonly requests: Array<Record<string, unknown>> = []
 
@@ -141,6 +146,7 @@ class FakePersistentSubprocess extends SubprocessRuntime {
     stdin.on('finish', close)
     queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
     return {
+      control: undefined,
       stdin,
       stdout,
       stderr,
@@ -172,6 +178,7 @@ class FakePersistentSubprocess extends SubprocessRuntime {
 }
 
 class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
+  async terminalEnvironment() { return { platform: 'posix' as const } }
   async resolveExecutable(command: string): Promise<string> { return command }
 
   spawn(): SubprocessHandle {
@@ -185,6 +192,7 @@ class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
       done.resolve({ exitCode: 0xffff_ffff, signal: null })
     })
     return {
+      control: undefined,
       stdin, stdout, stderr, collected: {}, done: done.promise,
       terminate: () => {}, waitForExit: () => Promise.resolve(true),
     }
@@ -196,6 +204,7 @@ class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
 }
 
 class PendingWritePersistentSubprocess extends SubprocessRuntime {
+  async terminalEnvironment() { return { platform: 'posix' as const } }
   readonly writeStarted = Promise.withResolvers<boolean>()
   private readonly writeCallbacks: Array<(error?: Error | null) => void> = []
   private stdin: Writable | undefined
@@ -227,6 +236,7 @@ class PendingWritePersistentSubprocess extends SubprocessRuntime {
     stdin.on('finish', close)
     queueMicrotask(() => { stdout.write('{"type":"ready","protocol":1}\n') })
     return {
+      control: undefined,
       stdin, stdout, stderr, collected: {}, done: settled.promise,
       terminate: close,
       waitForExit: async (signal) => {

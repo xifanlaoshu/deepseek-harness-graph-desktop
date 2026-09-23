@@ -29,6 +29,7 @@ const install: InvariantInstaller = Object.assign((ctx: Context, fail: Invariant
   const staged = new WeakMap<SessionEvent, { session: Session; state: GraphProjection }>()
   const seed = (session: Session): GraphProjection => {
     let state = emptyGraphProjection()
+    // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
     for (const event of session.snapshotEvents()) state = applyChecked(state, event, fail)
     states.set(session, state)
     return state

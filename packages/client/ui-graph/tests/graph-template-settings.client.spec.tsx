@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -86,7 +86,7 @@ const models: ModelDirectoryState = {
 const t: GraphTemplateSettingsTabProps['t'] = makeTranslate(zh, commonZh)
 
 function setup(
-  initial: SettingsScopeSnapshot<GraphTemplateSettings>,
+  initial: ConfigFormSnapshot<GraphTemplateSettings>,
   saveTemplate = vi.fn<(
     template: GraphTemplateSettings,
     expectedRevision: number,
@@ -111,7 +111,7 @@ function setup(
   return { settingsStore, loadModels, saveTemplate, resetTemplate }
 }
 
-const ready = (value: GraphTemplateSettings = template, revision = 1): SettingsScopeSnapshot<GraphTemplateSettings> => ({
+const ready = (value: GraphTemplateSettings = template, revision = 1): ConfigFormSnapshot<GraphTemplateSettings> => ({
   status: 'ready',
   value,
   base: value,

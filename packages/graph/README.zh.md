@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-graph 组负责多代理工作的持久化、可编辑 DAG 编排。
+graph 组负责多代理工作的持久化、可编辑 DAG 编排。[子系统参考](../../docs/subsystems/graph.zh.md)列出其 Cordis 服务。
 
 | 包 | 角色 | Cordis 键 |
 |---|---|---|

@@ -4,7 +4,7 @@ English | [中文](workflow.zh.md)
 
 The workflow seam lets an agent run a model-written orchestration SCRIPT that starts subagents. Like [subagent](subagent.md) it is **one optional capability**, not part of the agent loop, so its types and operations live here rather than in [core.md](core.md). Like bash, it permits ONE engine implementation per context to provide `ctx.workflowEngine`; there is no named-provider registry (a second engine replaces the first through plugin configuration rather than running beside it).
 
-Service Definition: [dsh-workflow](../../packages/workflow/workflow) (`ctx.workflowEngine` + the vocabulary below). The Service Provider is [dsh-workflow-worker-thread](../../packages/workflow/workflow-worker-thread) (a `node:worker_threads` engine — one worker per run, the script's vm context inside it); the model-facing Consumer is [dsh-tool-workflow](../../packages/workflow/tool-workflow). The proposal and rationale: [the dynamic-workflows Agent Note](../../.agents/notes/implemented/feature/2026-07-05-dynamic-workflows.md).
+Service Definition: [dsh-workflow](../../packages/workflow/workflow) (`ctx.workflowEngine` and the vocabulary below). [dsh-workflow-ptc](../../packages/workflow/workflow-ptc) executes the VM and helpers through the shared Node PTC process runtime under the calling Session's file policy. The consumers are [dsh-tool-workflow](../../packages/workflow/tool-workflow) and the opt-in [dsh-tool-ralph](../../packages/workflow/tool-ralph). [Workflow sandbox reuse](../../.agents/notes/implemented/architecture/2026-09-13-workflow-ptc-sandbox-reuse.md) owns execution choices; the [dynamic-workflows decision](../../.agents/notes/implemented/feature/2026-07-05-dynamic-workflows.md) owns script semantics.
 
 Sources: browser-safe vocabulary in [`packages/workflow/workflow/src/types.ts`](../../packages/workflow/workflow/src/types.ts), Host request and live-run handles in [`runtime-types.ts`](../../packages/workflow/workflow/src/runtime-types.ts).
 
@@ -82,8 +82,8 @@ interface WorkflowResult {
   /**
    * How many `agent()` calls the run accepted over its whole lifetime. On a
    * graceful settlement this is the script-side count (calls still queued for
-   * a concurrency slot included); on a termination path (grace force-settle,
-   * worker death) it degrades to the host-observed count — calls queued
+   * a concurrency slot included); on a termination path (cancellation or
+   * process failure) it degrades to the host-observed count — calls queued
    * inside a terminated script are unknowable then.
    */
   agentsStarted: number
@@ -92,7 +92,7 @@ interface WorkflowResult {
 
 ## A live run: `WorkflowRun`
 
-The handle the consumer holds while a script executes. The consumer awaits `result`, may `cancel` mid-flight, and MUST `dispose` on every path. `result` does NOT reject — a script failure resolves with `stopReason: 'error'` — and once the run is cancelled it SETTLES within the engine's bounded grace even if the script itself never settles (the engine force-settles `cancelled`; the worker-thread engine then terminates the script's worker), so a consumer awaiting `result` is never wedged past a cancellation. `dispose()` = cancel + that bounded settle + child quiescence; it never hangs on a stuck script.
+The consumer awaits `result`, may `cancel` during execution, and must `dispose` on every path. `result` never rejects: script failure resolves with `stopReason: 'error'`, and cancellation with `'cancelled'`. The PTC engine has no overall elapsed deadline; it immediately aborts the managed process when cancelled. Disposal awaits process and child cleanup under their provider contracts, without an independent workflow cleanup deadline.
 
 ```ts type-equiv
 /**
@@ -106,7 +106,7 @@ interface WorkflowRun {
   readonly result: Promise<WorkflowResult>
   /** Cancel the run and its children. */
   cancel(reason?: string): void
-  /** Cancel if needed and await bounded settlement and cleanup. */
+  /** Cancel if needed and await script and child cleanup. */
   dispose(): Promise<void>
 }
 ```
@@ -135,321 +135,11 @@ The top-level `dsh-tool-workflow` consumer projects display facts into its calli
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
-<a id="ctxgraphartifacts--graphartifactruntime"></a>
-
-### `ctx.graphArtifacts` — `GraphArtifactRuntime`
-
-Registry, validation, and dispatch for Graph artifact Providers.
-
-```ts cordis-catalog
-/**
- * Register one unique artifact Provider.
- * @param provider authenticated storage or transport implementation.
- * @returns disposer for only this registration.
- */
-register(provider: GraphArtifactProvider): () => void
-
-/**
- * Inspect the registered artifact routes without exposing mutable Provider objects.
- * @returns detached Provider deployment facts.
- */
-list(): readonly { readonly name: string; readonly persistent: boolean; readonly remote: boolean }[]
-
-/**
- * Capture and validate files produced by one fenced Worker attempt.
- * @param providerName registered transport route.
- * @param request exact attribution, source, selection, and bounds.
- * @returns immutable manifest owned by the selected Provider.
- */
-async capture(providerName: string, request: GraphArtifactCaptureRequest): Promise<GraphArtifactManifest>
-
-/**
- * Materialize a validated immutable manifest into one explicit workspace.
- * @param providerName registered transport route.
- * @param request manifest, target, and overwrite policy.
- * @returns paths and byte count written from the complete manifest.
- */
-async materialize(providerName: string, request: GraphArtifactMaterializeRequest): Promise<GraphArtifactMaterializeResult>
-
-/**
- * Reconcile one abandoned provider reference without guessing ownership.
- * @param providerName registered transport route.
- * @param request exact manifest reference and deletion authority.
- * @returns auditable Provider disposition.
- */
-async reconcile(providerName: string, request: GraphArtifactReconcileRequest): Promise<GraphArtifactReconcileResult>
-```
-
-Source: [`packages/graph/graph-artifacts/src/index.ts`](../../packages/graph/graph-artifacts/src/index.ts)
-
-<a id="ctxgraphcoordination--graphcoordination-abstract-seam"></a>
-
-### `ctx.graphCoordination` — `GraphCoordination` (abstract seam)
-
-Provider-neutral external coordination seam.
-
-```ts cordis-catalog
-/**
- * Validate external coordination identity for one immutable revision.
- * @param graph immutable revision being admitted.
- * @param roles configured roles available to its nodes.
- * @param cwd session working directory used by the provider.
- * @param signal caller cancellation.
- */
-abstract prepare(graph: GraphRevision, roles: readonly GraphRole[], cwd: string, signal: AbortSignal): Promise<void>
-
-/**
- * Claim a ready node and return a compact fresh observation.
- * @param request graph, run, node, role, and working-directory identity.
- * @param signal caller cancellation.
- * @returns provider claim and bounded observation for the worker.
- */
-abstract claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim>
-
-/**
- * Renew one exact live lease and return its fresh cursor.
- * @param request fenced claim and monotonic progress sequence.
- * @param signal caller cancellation.
- * @returns renewed lease, fencing, progress, and cancellation state.
- */
-abstract heartbeat(request: GraphCoordinationHeartbeat, signal: AbortSignal): Promise<GraphCoordinationHeartbeatResult>
-
-/**
- * Read a consistent public-safe snapshot without taking ownership.
- * @param request stable work identity and optional event cursor.
- * @param signal caller cancellation.
- * @returns current claim state and ordered event suffix.
- */
-abstract observe(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation>
-
-/**
- * Wait for or poll ordered public-safe changes after a durable cursor.
- * @param request stable work identity and optional event cursor.
- * @param signal caller cancellation or wait deadline.
- * @returns current claim state and ordered event suffix.
- */
-abstract watch(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation>
-
-/**
- * Append one idempotent bounded progress record.
- * @param request fenced claim, sequence, and public-safe evidence.
- * @param signal caller cancellation.
- * @returns durable cursor assigned to the progress record.
- */
-abstract publishProgress(request: GraphCoordinationProgress, signal: AbortSignal): Promise<{ readonly cursor: string }>
-
-/**
- * Write terminal progress and public-safe evidence.
- * @param request claim identity, terminal outcome, and public-safe evidence.
- * @param signal settlement cancellation; Consumers must not reuse a canceled worker signal.
- */
-abstract settle(request: GraphCoordinationSettlement, signal: AbortSignal): Promise<void>
-
-/**
- * Request cooperative cancellation without accepting a terminal result.
- * @param request fenced live claim and public-safe reason.
- * @param signal caller cancellation.
- */
-abstract cancel(request: GraphCoordinationCancellation, signal: AbortSignal): Promise<void>
-
-/**
- * Compare exact Graph references with provider-owned durable evidence.
- * @param request stable work identity and optional claim, lease, fencing, and outcome expectations.
- * @param signal caller cancellation.
- * @returns confirmed, absent, conflicting, or unknown provider evidence.
- */
-abstract reconcile(request: GraphCoordinationReconcileRequest, signal: AbortSignal): Promise<GraphCoordinationReconcileResult>
-```
-
-Source: [`packages/graph/graph-coordination/src/index.ts`](../../packages/graph/graph-coordination/src/index.ts)
-
-<a id="ctxgraphmode--graphmodecontroller"></a>
-
-### `ctx.graphMode` — `GraphModeController`
-
-`ctx.graphMode`: owns graph configuration, controller submission, and background runs.
-
-```ts cordis-catalog
-/**
- * Return replayed state for one live agent.
- * @param agent session owner whose graph events are folded.
- * @returns current graph-mode projection.
- */
-state(agent: Agent): GraphProjection
-
-/**
- * Reconcile and resume durable nonterminal work after an Agent is restored.
- * @param agent restored session owner whose nonterminal runs are recovered.
- * @param requestedRunId optional exact run selected for manual reconciliation.
- */
-async recover(agent: Agent, requestedRunId?: GraphRunId): Promise<void>
-
-/**
- * Validate and durably replace one session's graph-mode settings.
- * @param agent session owner receiving the configuration event.
- * @param config complete replacement configuration.
- */
-setConfig(agent: Agent, config: GraphModeConfig): void
-
-/**
- * Execute one idempotent human or controller operation over a durable run.
- * @param agent session owner receiving the addressed operation.
- * @param request stable operation id, action, target, and reason.
- * @param authority host-authenticated principal and ingress.
- * @returns durable accepted control record, or its existing duplicate.
- */
-async control( agent: Agent, request: GraphControlRequest, authority: GraphControlAuthority = { actor: { kind: 'system', id: 'graph-mode' }, source: 'host-api' }, ): Promise<import('@deepseek-ai/dsh-graph').GraphControlRecord>
-
-/**
- * Accept one controller decision and start background work when needed.
- * @param agent controller agent and durable session owner.
- * @param submission classified input plus an optional complete graph revision.
- * @param signal cancellation for validation and external preparation.
- * @returns accepted classification and identities for any started graph run.
- */
-async submit( agent: Agent, submission: GraphSubmission, signal: AbortSignal = new AbortController().signal, ): Promise<{ accepted: true; intent: ControllerIntent; graphId?: string; runId?: string }>
-```
-
-Types: [Agent](core.md)
-
-Source: [`packages/graph/graph-mode/src/index.ts`](../../packages/graph/graph-mode/src/index.ts)
-
-<a id="ctxgraphresources--graphresourceruntime"></a>
-
-### `ctx.graphResources` — `GraphResourceRuntime`
-
-Named registry that validates every observation, reservation, and outcome.
-
-```ts cordis-catalog
-/**
- * Register one unique resource Provider until disposal.
- * @param provider named observation and reservation authority.
- * @returns disposer that removes only this registration.
- */
-register(provider: GraphResourceProvider): () => void
-
-/**
- * Observe one exact route without reserving it.
- * @param name registered resource Provider name.
- * @param route exact provider and model route.
- * @param signal caller cancellation.
- * @returns validated expiring route observation.
- */
-async observe(name: string, route: GraphResourceRoute, signal: AbortSignal): Promise<GraphResourceSnapshot>
-
-/**
- * Ask one Provider for capacity beneath the request's hard configured ceilings.
- * @param name registered resource Provider name.
- * @param request fenced work identity, route, weight, ceilings, and deadline.
- * @param signal caller cancellation.
- * @returns granted reservation, typed wait, or terminal rejection.
- */
-async reserve(name: string, request: GraphResourceReservationRequest, signal: AbortSignal): Promise<GraphResourceDecision>
-
-/**
- * Report one fenced release or resource signal idempotently to its Provider.
- * @param outcome exact reservation identity and terminal resource classification.
- * @param signal caller cancellation independent from the worker signal.
- */
-async report(outcome: GraphResourceOutcome, signal: AbortSignal): Promise<void>
-
-/**
- * Reconcile and release one exact prior reservation after scheduler recovery.
- * @param request fenced reservation identity and public-safe evidence.
- * @param signal caller cancellation independent from the abandoned Worker.
- * @returns provider-confirmed release, absence, or conflict.
- */
-async reconcile(request: GraphResourceReconcileRequest, signal: AbortSignal): Promise<GraphResourceReconcileResult>
-```
-
-Source: [`packages/graph/graph-resources/src/index.ts`](../../packages/graph/graph-resources/src/index.ts)
-
-<a id="ctxgraphscheduler--graphschedulerruntime"></a>
-
-### `ctx.graphScheduler` — `GraphSchedulerRuntime`
-
-`ctx.graphScheduler`: validates and routes fenced ownership operations.
-
-```ts cordis-catalog
-/**
- * Register one named ownership Provider for its Cordis lifetime.
- * @param provider named Provider to expose.
- * @returns disposer that removes this exact registration.
- */
-register(provider: GraphSchedulerProvider): () => void
-
-/**
- * Atomically acquire or renew ownership of one run.
- * @param providerId registered Provider name.
- * @param request exact run and Host identity.
- * @param signal cancellation for this Provider operation.
- * @returns granted lease or bounded busy decision.
- */
-async acquire(providerId: string, request: GraphSchedulerAcquireRequest, signal: AbortSignal): Promise<GraphSchedulerDecision>
-
-/**
- * Renew one exact lease; stale identities fail instead of silently reacquiring.
- * @param request exact current lease identity.
- * @param signal cancellation for this Provider operation.
- * @returns renewed lease with unchanged fencing identity.
- */
-async heartbeat(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<GraphSchedulerLease>
-
-/**
- * Release one exact lease idempotently; a fenced identity is rejected.
- * @param request exact current lease identity.
- * @param signal cancellation for this Provider operation.
- */
-async release(request: GraphSchedulerLeaseRequest, signal: AbortSignal): Promise<void>
-```
-
-Source: [`packages/graph/graph-scheduler/src/index.ts`](../../packages/graph/graph-scheduler/src/index.ts)
-
-<a id="ctxgraphworkers--graphworkerruntime"></a>
-
-### `ctx.graphWorkers` — `GraphWorkerRuntime`
-
-Provider registry and capability-validating assignment Consumer API.
-
-```ts cordis-catalog
-/**
- * Register one unique provider until the returned disposer runs.
- * @param provider named Worker implementation and advertised capabilities.
- * @returns disposer that removes only this registration.
- */
-register(provider: GraphWorkerProvider): () => void
-
-/**
- * Return detached descriptors for deployment inspection and scheduler selection.
- * @returns registered provider names and copied capability declarations.
- */
-list(): readonly { readonly name: string; readonly capabilities: GraphWorkerCapabilities }[]
-
-/**
- * Validate requirements and assign work to one exact provider.
- * @param name registered Worker Provider name.
- * @param assignment frozen fenced node attempt.
- * @returns published worker, workspace, result, and cancellation handle.
- */
-async start(name: string, assignment: GraphWorkerAssignment): Promise<GraphWorkerRun>
-
-/**
- * Reconcile one provider-owned Worker and workspace after scheduler recovery.
- * @param name registered Worker Provider name.
- * @param request exact prior work and allocation references plus deletion authority.
- * @param signal caller cancellation independent from the abandoned Worker signal.
- * @returns validated provider disposition and bounded evidence.
- */
-async reconcile(name: string, request: GraphWorkerReconcileRequest, signal: AbortSignal): Promise<GraphWorkerReconcileResult>
-```
-
-Source: [`packages/graph/graph-worker/src/index.ts`](../../packages/graph/graph-worker/src/index.ts)
-
 <a id="ctxworkflowengine--workflowengine-abstract-seam"></a>
 
 ### `ctx.workflowEngine` — `WorkflowEngine` (abstract seam)
 
-Workflow Service Definition contract. Invalid requests throw before publication; a live run is holder-owned, its result never rejects, cancellation and disposal are bounded, and disposal waits for child cleanup within that bound. Lifecycle listener failures are contained, and `workflow/end` fires exactly once as the result settles.
+Workflow Service Definition contract. Invalid requests throw before publication; a live run is holder-owned, its result never rejects, and disposal waits for script and child cleanup. Lifecycle listener failures are contained, and `workflow/end` fires exactly once as the result settles.
 
 ```ts cordis-catalog
 /**
@@ -471,14 +161,14 @@ Source: [`packages/workflow/workflow/src/index.ts`](../../packages/workflow/work
 
 #### `workflow/agent-end` — emit
 
-One `agent()` call settled (clean result, child failure, or run cancellation). Paired with Events['workflow/agent-start'] by `agent.seq`, exactly once per started call on every stop path — on an engine termination path (a worker killed past its grace) the end is engine-synthesized with outcome `'cancelled'`.
+One `agent()` call settled (clean result, child failure, or run cancellation). Paired with Events['workflow/agent-start'] by `agent.seq`, exactly once per started call on every stop path — on an engine termination path the end is engine-synthesized with outcome `'cancelled'`.
 
 ```ts cordis-catalog
 /**
  * One `agent()` call settled (clean result, child failure, or run
  * cancellation). Paired with {@link Events['workflow/agent-start']} by
  * `agent.seq`, exactly once per started call on every stop path — on an
- * engine termination path (a worker killed past its grace) the end is
+ * engine termination path the end is
  * engine-synthesized with outcome `'cancelled'`.
  * @param info - the run's identity snapshot.
  * @param agent - the call identity plus its outcome.

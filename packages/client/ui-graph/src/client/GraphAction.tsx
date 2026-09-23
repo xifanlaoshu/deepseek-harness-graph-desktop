@@ -2,13 +2,13 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import cytoscape from 'cytoscape'
 import type { Core, ElementDefinition, EventObjectNode } from 'cytoscape'
 import {
-  IconChevronRightOutline14,
-  IconCloseOutline16,
-  IconEditOutline16,
-  IconFullscreenOutline16,
-  IconPauseOutline16,
-  IconSettingsOutline16,
-  IconStopFill16,
+  IconChevronRightOutlineRegular as IconChevronRightOutline14,
+  IconCloseOutlineRegular as IconCloseOutline16,
+  IconEditOutlineRegular as IconEditOutline16,
+  IconFullscreenOutlineRegular as IconFullscreenOutline16,
+  IconPauseOutlineRegular as IconPauseOutline16,
+  IconSettingsOutlineRegular as IconSettingsOutline16,
+  IconStopFillRegular as IconStopFill16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
