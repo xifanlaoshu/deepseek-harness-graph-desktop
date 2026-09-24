@@ -579,7 +579,6 @@ Worker、Artifact、Resource 与 Scheduler Service Definition 允许在不修改
 - [Graph Artifacts README](../packages/graph/graph-artifacts/README.zh.md)管理 Manifest、内容寻址、捕获、物化和对账。
 - [Graph Resources README](../packages/graph/graph-resources/README.zh.md)管理会过期的模型遥测、预留、等待原因和资源结果。
 - [Session Persistence README](../packages/session/session-persistence/README.zh.md)管理异步 Append 协调、Flush 屏障、生命周期与失败报告。
-- [SQLite Persistence README](../packages/session/session-persistence-sqlite/README.zh.md)管理默认会话数据库、有界历史读取、旧 JSONL 导入与崩溃尾部恢复。
 - [Settings README](../packages/settings/settings/README.zh.md)管理带 Revision 防护的全局模板存储。
 - [Web Bundle Patch](../packages/bundle/web-app/cordis.patch.yml)组合具体 Scheduler、Resource、Artifact、Worker、Graph Mode 与可选 LoopX Provider 条目。
 - [Graph UI README](../packages/client/ui-graph/README.zh.md)管理 Design/Execution 呈现、设置、证据导航与精确寻址控制。

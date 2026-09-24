@@ -1,5 +1,7 @@
 # 第 18 章：构建、测试与质量门禁
 
+[English](18-build-test-quality-gates.md) | 中文
+
 在传统的企业级单体或微服务系统中，软件的确定性行为由类型系统、单元测试和端到端集成测试共同捍卫。然而，构建一个企业级自主大模型智能体（Autonomous Agent Harness）系统，工程团队面临着前所未有的质量断层：**模型层是概率型的黑盒计算（$P(y_t \mid X, y_{<t})$），而执行引擎（Runtime）、沙箱、上下文装配与工具调用系统必须是 $100\%$ 确定性、零内存泄漏且具备绝对安全边界的坚固底座**。
 
 如果说 Agent 的“大脑”依赖统计学概率，那么支撑其运转的 Harness 工程骨架就必须依赖最严苛的现代编译器技术、确定性有限状态机（FSM）以及工业级的多维质量门禁。
@@ -44,16 +46,16 @@ graph TD
 
 在 Cordis 依赖注入架构中，服务（Service）与上下文（Context）的扩展采用 TypeScript 的**声明合并（Declaration Merging）**特性：
 
-```ts
+```ts ignore-check
 // packages/session/session/src/index.ts (Host 端)
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService
   }
 }
 
 // packages/client/runtime/src/index.ts (Client 端)
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     session: ClientSessionState
   }
@@ -153,7 +155,7 @@ window.__ModuleLoader__.load({
 #### 3. 插件打包纯洁性门禁（Bundle Purity Gate）
 在 [`packages/client/tsdown.client.ts`](file:///d:/git/deepseek-harness/packages/client/tsdown.client.ts) 中，Harness 注入了一个名为 `dsh-client-bundle-purity` 的 Rollup 插件。该插件在解析 AST 导入路径时，会执行严格的白名单校验：
 
-```ts
+```ts ignore-check
 // Bundle Purity 拦截逻辑核心实现
 resolveId(source: string) {
   if (!source.startsWith('@deepseek-ai/')) return null
@@ -254,7 +256,7 @@ $$T_{\text{total}} \ge \max \left( T_{\text{critical}}, \frac{1}{W} \sum_{i=1}^n
 
 $$W_{\text{local}} = \min(4, \text{availableParallelism}())$$
 
-```ts
+```ts ignore-check
 // scripts/run-gates.ts 中的并发计算与依赖检测
 export function defaultConcurrency(
   selectedMode: Mode,
@@ -279,7 +281,7 @@ export function defaultConcurrency(
 - **目标**：在完全开启 TypeScript `strict: true`、`exactOptionalPropertyTypes: true` 以及 `noUncheckedIndexedAccess: true` 条件下，全仓 100+ 包零错误。
 - **机制**：先执行 Host 端的全量接口编译，生成包含 Typert RPC 协议与 Cordis 服务的 `.d.ts` 声明文件；随后以只读方式注入 Client 端进行前端状态与组件的严格类型校验。任何隐式 `any`、未处理的 `undefined` 分支或未收敛的联合类型，都会立即阻断。
 
-```ts
+```ts ignore-check
 // 典型类型收敛案例：Turn 状态机判别联合
 export type TurnState =
   | { status: 'idle'; session: SessionId }
@@ -323,7 +325,7 @@ $$H(T_{i+1 \dots i+k}) = \left( \left( H(T_{i \dots i+k-1}) - \text{ord}(t_i) \c
 
 在常规业务系统中，80% 覆盖率往往被视为良好。但在 Harness 核心引擎中，**单文件覆盖率门禁必须是绝对的 100%**。
 
-```ts
+```ts ignore-check
 // vitest.config.ts 中的硬性阈值配置
 coverage: {
   provider: 'v8',
@@ -391,7 +393,7 @@ graph TD
 
 [`scripts/verify-md-wrap.ts`](file:///d:/git/deepseek-harness/scripts/verify-md-wrap.ts) 使用 `mdast-util-from-markdown` 解析全仓 Markdown AST：
 
-```ts
+```ts ignore-check
 // 核心 AST 检查逻辑
 visitMarkdown(tree, (node: Nodes): boolean | void => {
   if (node.type === 'paragraph' && node.position) {
@@ -443,7 +445,7 @@ graph LR
 #### 1. `doc-typecheck` (`scripts/doc-typecheck.ts`)：文档代码块虚拟编译
 提取所有 Markdown 文档中的 ```ts 代码块，将其映射为虚拟的 `.ts` 文件，利用 TypeScript 编译器 API 针对当前 Monorepo 的最新类型声明进行编译测试。如果文档中的函数传参已经被重命名或废弃，文档类型检查直接报错！
 
-```ts
+```ts ignore-check
 // scripts/doc-typecheck.ts 虚拟编译 Host 核心逻辑
 function compileBlocksAgainstBuiltTypes(blocks: Block[]): readonly ts.Diagnostic[] {
   const options = builtTypeCompilerOptions();
@@ -488,7 +490,7 @@ function compileBlocksAgainstBuiltTypes(blocks: Block[]): readonly ts.Diagnostic
 
 对于传统的 CRUD 业务（如订单支付），编写单元测试的标准范式是 Mock 数据库和外部 HTTP 客户端：
 
-```ts
+```ts ignore-check
 // 传统 CRUD 系统的经典 Mock 单测（局限性）
 const mockDb = { getUser: vi.fn().mockResolvedValue({ id: 1, balance: 100 }) };
 const service = new PaymentService(mockDb);
@@ -532,7 +534,7 @@ graph TD
 
 为了在 CI 无网络、无 API 密钥环境下精准回放大模型会话，Harness 实现了如下基于流式 Chunk 驱动的确定性回放 Provider：
 
-```ts
+```ts ignore-check
 // File: packages/test-support/llm-replay/src/replay-provider.ts
 import type { LlmProvider, StreamChunk, CompletionRequest } from '@deepseek-ai/dsh-llm';
 

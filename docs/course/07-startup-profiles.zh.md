@@ -1,5 +1,7 @@
 # 第 07 章：启动、Profile 与配置叠加
 
+[English](07-startup-profiles.md) | 中文
+
 在现代软件工程中，任何复杂的企业级框架（如 Spring Boot、Kubernetes Kubelet 或 VS Code）都需要一套兼顾**冷启动性能、多租户配置隔离、动态扩展与热更新**的引导架构。而在构建以大语言模型（LLM）为驱动核心的 Agent Harness 系统时，该挑战尤为严峻：系统不仅需要像操作系统微内核一样在数十毫秒内完成服务图依赖注入（DI），还必须支持来自官方预设（Bundles）、个人偏好（Profiles）、全局环境（Home/Env）以及命令行即时参数（CLI Overlays）的任意层叠组合，同时防止类型破坏、内存对象污染与终端状态损坏。
 
 本章将深入 DeepSeek Harness 的引导内核，以系统编程的视角剖析 CLI 启动入口 `apps/cli/src/bin.ts` 的参数解析分发、双锚点 ESM 模块链接、四层配置叠加半格代数、Schemastery 加载期强校验引擎，以及通过 `dump-config` 逆向诊断完整运行时依赖树的底层机制。
@@ -499,7 +501,7 @@ const composeLive = (): PatchOptions[] => structuredClone([
 
 在微内核依赖注入容器中，若某个插件在启动时因为配置字段拼写错误或类型不匹配而陷入非预期状态，可能会导致整个 Agent 状态机在运行数十轮对话后才在某个边缘分支崩溃。
 
-DeepSeek Harness 引入了 `schemastery`（以 `z` 或 `Schema` 形式使用）作为系统的**模式编译器与运行时契约守护者**。
+DeepSeek Harness 引入了 `@deepseek-ai/schemastery`（以 `z` 或 `Schema` 形式使用）作为系统的**模式编译器与运行时契约守护者**。
 
 ```
 +---------------------------------------------------------------------------------------------------------+

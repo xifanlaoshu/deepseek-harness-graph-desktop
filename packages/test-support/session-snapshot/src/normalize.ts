@@ -113,14 +113,17 @@ export interface SessionSnapshotComparisonOptions extends Omit<NormalizeOptions,
   nativeWriterOutput?: true
 }
 
-/** Return every known spelling of the generated cwd, most specific first. */
+/** Return native and JSON-escaped cwd spellings so nested Windows JSON text also tokenizes. */
 function cwdSpellings(ctx: NormalizeContext): string[] {
   const spellings = [...new Set([ctx.cwd, ...ctx.cwdAliases ?? []])]
     .filter(spelling => spelling.length > 0)
+  const jsonEscaped = spellings
+    .filter(spelling => spelling.includes('\\'))
+    .map(spelling => spelling.replaceAll('\\', '\\\\'))
   const macAliases = spellings
     .filter(spelling => spelling.startsWith('/') && !spelling.startsWith('/private/'))
     .map(spelling => `/private${spelling}`)
-  return [...new Set([...spellings, ...macAliases])]
+  return [...new Set([...spellings, ...jsonEscaped, ...macAliases])]
     .sort((left, right) => right.length - left.length)
 }
 
@@ -289,6 +292,40 @@ export function tokenizeSessionFixtureCwd(rawLog: string): string {
   return lines.map((line) => {
     if (line.trim().length === 0) return line
     return JSON.stringify(tokenizeFixtureValue(JSON.parse(line), ctx, basename))
+  }).join('\n')
+}
+
+/** Insert a generated workspace path into JSONL, including serialized JSON inside event strings.
+ * @param rawLog - canonical fixture rows containing the `{{cwd}}` token.
+ * @param cwd - absolute workspace path for this replay.
+ * @returns valid JSONL with every token materialized at its JSON nesting level.
+ */
+export function materializeSessionFixtureCwd(rawLog: string, cwd: string): string {
+  const materialize = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      if (!value.includes(CWD)) return value
+      if (/^[\s]*[\[{\"]/.test(value)) {
+        let nested: unknown
+        try {
+          nested = JSON.parse(value)
+        } catch (_error) {
+          // Ordinary text can begin like JSON; only a complete nested value is decoded.
+          return value.replaceAll(CWD, cwd)
+        }
+        return JSON.stringify(materialize(nested))
+      }
+      return value.replaceAll(CWD, cwd)
+    }
+    if (Array.isArray(value)) return value.map(materialize)
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, materialize(item)]))
+    }
+    return value
+  }
+  return rawLog.split('\n').map((line) => {
+    if (line.trim().length === 0) return line
+    const row: unknown = JSON.parse(line)
+    return JSON.stringify(materialize(row))
   }).join('\n')
 }
 

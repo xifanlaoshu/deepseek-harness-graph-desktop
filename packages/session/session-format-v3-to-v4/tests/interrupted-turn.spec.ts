@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { SessionFormatEventCollector, type SessionFormatEvent, type SessionFormatJsonObject } from '@deepseek-ai/dsh-session-format'
 import { createSessionFormatCatalogWithChildren, sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
-import { Session, SessionId, SessionLogOffset, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
+import { SESSION_FORMAT_VERSION, Session, SessionId, SessionLogOffset, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
 import { imageOffloadProjection } from '@deepseek-ai/dsh-compaction-image-offload/projection'
 import { createSessionFormatV3ToV4 } from '../src/index.ts'
 import { remapV3References } from '../src/references.ts'
 
 const header = { type: 'session', version: 3, id: 'restart', createdAt: 1, isSeeded: false, delegationDepth: 0 }
-const nativeHeader: SessionHeader = { version: 4, id: SessionId(header.id), createdAt: 1, isSeeded: false, delegationDepth: 0 }
+const nativeHeader: SessionHeader = {
+  version: SESSION_FORMAT_VERSION, id: SessionId(header.id), createdAt: 1, isSeeded: false, delegationDepth: 0,
+}
 const user = (id: string) => ({ id, role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: id }] })
 const row = (type: string, data: SessionFormatJsonObject) => ({ type, data })
 const splice = () => row('agent/inbox/spliced', { target: 'next-turn', inserted: [user('next')] })
@@ -25,7 +27,7 @@ function restore(rows: readonly SessionFormatEvent[], physical = header) {
 }
 
 describe('V3 interrupted-turn migration', () => {
-  it('closes an interrupted turn at the next-turn restart and reopens the resulting V4 unchanged', () => {
+  it('closes an interrupted turn at the next-turn restart and reopens the resulting current generation unchanged', () => {
     const source = events([...prefix(), start(2), end(2)])
     const original = structuredClone(source)
     const artifact = restore(source)
@@ -34,7 +36,7 @@ describe('V3 interrupted-turn migration', () => {
       { type: 'turn/end', seq: 4, time: 14, data: { turn: 1, reason: { kind: 'interrupted' } } },
       ...source.slice(4).map(event => ({ ...event, seq: event.seq + 1 })),
     ])
-    const native = sessionFormatCatalog.createRestore({ ...header, version: 4 }, { recovery: 'strict', validation: 'current' })
+    const native = sessionFormatCatalog.createRestore({ ...header, version: SESSION_FORMAT_VERSION }, { recovery: 'strict', validation: 'current' })
     for (const event of artifact.events) native.decodeRow(event)
     expect(native.finish()).toEqual(artifact)
     expect(source).toEqual(original)

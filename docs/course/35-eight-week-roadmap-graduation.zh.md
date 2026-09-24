@@ -1,5 +1,7 @@
 # 第 35 章：八周学习、毕业验证与模拟面试
 
+[English](35-eight-week-roadmap-graduation.md) | 中文
+
 恭喜你完成了《DeepSeek Harness 深度技术教程》前 34 个章节的系统学习。从第 01 章建立“概率型纯函数与状态机”的心智模型，到第 02 章推导自回归与 KV Cache 显存数学方程；从深入 Cordis 微内核 IoC 容器、Turn/Step 事务、事件溯源持久化账本，到攻克协作式取消、Fencing Token、操作系统级沙箱与 Graph Mode 多 Agent 任务网；你已经完整建立了一套现代 AI 智能体系统的底层工程架构认知。
 
 对于拥有传统系统编程背景（C/C++、Java、Go、Rust、Python、TypeScript）的工程师而言，学习的终点绝不是记住几个 API，而是将这些系统级原则融会贯通，转化为**可交付、可验证、具备极高韧性（Resilience）与确定性（Determinism）的工业级工程能力**。

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/course/21-harness-mental-model.md
+21-harness-mental-model.md: 627b7c8b363c0caf760ae97c2fdaa188dd38ef0a
+21-harness-mental-model.zh.md: f966c8afe75946dc042b332af5e4ef4e98dbd68a

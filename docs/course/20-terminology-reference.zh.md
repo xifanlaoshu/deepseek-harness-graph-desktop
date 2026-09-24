@@ -1,5 +1,7 @@
 # 第 20 章：术语速查 (Terminology Reference)
 
+[English](20-terminology-reference.md) | 中文
+
 对于具备传统编程背景（C/C++、Java、Go、Rust、Python、TypeScript）的工程师而言，初涉 AI 与 Agent 领域时最大的认知障碍并非缺乏算法理解，而是被大量空洞的流行词（Buzzwords）和概念套娃所迷惑。本章旨在打破这种信息迷雾，为全书核心概念提供一份极度严密、直击底层系统本质的术语速查手册。
 
 每个术语均按照统一的工业级工程标准拆解为四个维度：

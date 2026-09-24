@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionFormatEvent } from '@deepseek-ai/dsh-session-format'
-import { createSessionFormatCatalogWithChildren, historicalSessionFormatCatalog, sessionFormatCatalog } from '../src/index.ts'
+import { createSessionFormatCatalogWithChildren, historicalSessionFormatCatalog, historicalV4SessionFormatCatalog, sessionFormatCatalog } from '../src/index.ts'
 import { currentSessionMessageProjections } from '../src/message-projections.ts'
 import { MESSAGE_PROJECTION_EVENT_TYPES } from '@deepseek-ai/dsh-session/src/known-event-types.ts'
 import { validateInstalledCurrentSessionArtifact } from '../src/current.ts'
@@ -16,6 +16,18 @@ function deepFreeze<T>(value: T): T {
 }
 
 describe('first-party Session format catalog', () => {
+  it('restores a V4 header into V5 without altering the input', () => {
+    const physical = { type: 'session', version: 4, id: 'v4-source', createdAt: 1, isSeeded: false, delegationDepth: 0 }
+    const before = structuredClone(physical)
+    const restore = sessionFormatCatalog.createRestore(physical, { recovery: 'strict', validation: 'current' })
+    expect(restore.finish().header.version).toBe(5)
+    expect(physical).toEqual(before)
+  })
+  it('reads a V4 prerequisite as V4 without consulting the current writer', () => {
+    const physical = { type: 'session', version: 4, id: 'v4-child', createdAt: 1, isSeeded: false, delegationDepth: 0 }
+    const restore = historicalV4SessionFormatCatalog.createRestore(physical, { recovery: 'strict', validation: 'current' })
+    expect(restore.finish().header.version).toBe(4)
+  })
   it('supplies every required current message interpreter and validates its durable references', () => {
     expect(currentSessionMessageProjections.map(projection => projection.type).sort())
       .toEqual([...MESSAGE_PROJECTION_EVENT_TYPES].sort())
@@ -270,7 +282,7 @@ describe('first-party Session format catalog', () => {
     stream.decodeRow({ type: 'feedback/record', seq: 0, time: 2, data: { text: 'retained' } })
 
     expect(stream.finish()).toMatchObject({
-      header: { version: 4, id: 'streaming' },
+      header: { version: SESSION_FORMAT_VERSION, id: 'streaming' },
       inheritedEventCount: 0,
       events: [{ type: 'feedback/record', seq: 0 }],
     })

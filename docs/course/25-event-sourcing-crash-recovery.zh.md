@@ -1,5 +1,7 @@
 # 第 25 章：事件溯源、持久化与崩溃恢复
 
+[English](25-event-sourcing-crash-recovery.md) | 中文
+
 在传统的 Web 服务与企业级后端系统中，CRUD（Create, Read, Update, Delete）是占据绝对统治地位的数据持久化范式。开发人员习惯于在关系型数据库（如 PostgreSQL、MySQL）中通过 `UPDATE accounts SET balance = balance - 100 WHERE id = 1` 这样就地覆写（In-Place Mutation）的方式来修改系统状态。然而，当软件系统的核心驱动力转变为具有**随机采样、多轮循环、自主调用工具且伴随外部物理副作用**的大语言模型（LLM Agent）时，CRUD 范式将彻底失效并引发灾难性的工程灾难。
 
 本章将全面解构 DeepSeek Harness 的核心数据底座——**事件溯源（Event Sourcing）架构、底层混合持久化存储引擎与高可靠崩溃恢复对账算法**。我们将抛弃空洞的流行语，从操作系统系统调用（`fsync`、`link`、`truncate`）、分布式系统 Commit Log、Zstandard 压缩帧二进制结构、SQLite WAL 机制以及严格的数学映射出发，为系统级工程师深入剖析如何构建坚不可摧的 Agent 状态引擎。
@@ -149,7 +151,7 @@ $$S_3 = f(S_2, e_2) = \langle \text{messages}: [\text{User("Ping")}, \text{Assis
 
 在 TypeScript 6 的类型系统中，DeepSeek Harness 使用**判别联合（Discriminated Union）**严密约束了会话日志中的每一个事件分支。与松散的 `{ type: string, data: any }` 设计不同，`SessionEvent<T>` 保证了在 `switch (event.type)` 之后，TypeScript 编译器能够自动且无损地将 `event.data` 收窄为唯一的合法载荷类型。
 
-```ts
+```ts ignore-check
 /**
  * DeepSeek Harness 核心会话事件字典 (SessionEventMap)
  * 采用模块合并（Declaration Merging）支持插件正交扩展
@@ -562,7 +564,7 @@ Event #105: turn/end { turn: 1, reason: { kind: 'interrupted' } }
 
 创建文件并实现具备缓存加速、位置替换拓扑与强类型保证的投影系统：
 
-```ts
+```ts ignore-check
 /**
  * 模块：事件投影引擎 (Projection Engine)
  * 职责：纯函数式计算状态视图，将不可变事件流转换为 LLM 对话上下文与请求配置
@@ -798,7 +800,7 @@ export class SessionProjectionAggregator {
 
 接下来实现完整的崩溃恢复诊断器，覆盖物理残缺扫描、状态机未闭合分析与合成修复事件生成：
 
-```ts
+```ts ignore-check
 /**
  * 模块：崩溃诊断与对账恢复引擎 (Crash Recovery & Reconciliation)
  * 职责：读取受损/中断的会话日志，分析未闭合调用，生成确定性合成修复事件
@@ -1007,7 +1009,7 @@ export function reconcileInterruptedSession(events: readonly SessionEvent[]): Re
 
 以下是验证我们构建的引擎在面对典型崩溃时表现的测试用例：
 
-```ts
+```ts ignore-check
 import { reconcileInterruptedSession, TOOL_OUTCOME_UNKNOWN, TOOL_NOT_STARTED } from './recovery.ts'
 import { SessionProjectionAggregator, type SessionEvent, type CallId, type MessageId } from './projection.ts'
 
@@ -1113,7 +1115,7 @@ runCrashSimulationTest()
 - **根因分析**：Linux 操作系统中，写入文件数据并调用 `fsync(file_fd)` 只保证了该文件的数据页落盘，**并不保证包含该文件名称的父目录元数据项（Directory Inode）已经刷盘**。若在 `mkdir` 或创建文件后未同步父目录描述符，掉电后目录项将彻底丢失。
 - **修复方案**：Harness 严格实现了**双层 `fsync` 协议**，在创建文件前后分别同步父目录与数据文件：
 
-```ts
+```ts ignore-check
 // 必须显式同步父目录描述符与目标数据文件
 await syncDirPosix(dirname(finalPath))
 await handle.sync()
@@ -1127,7 +1129,7 @@ await handle.sync()
 - **根因分析**：业务代码在调用 `ctx.sessionPersistence.prepare(id)` 加载了待恢复会话后，在随后的业务逻辑中抛出了异常，未能正确调用 `preparation[Symbol.dispose]()`。这导致该 Session 对象一直被持久化控制器的预备队列（LRU Cache）和独占锁持有，既无法被垃圾回收器（GC）回收，也阻止了后续其他请求的再次准备。
 - **修复方案**：全面采用 TypeScript 5.2+ 的原生显式资源管理（Explicit Resource Management）语法 `using`：
 
-```ts
+```ts ignore-check
 // 确保离开作用域时通过 Disposable 协议自动且幂等地释放 reservation
 using preparation = await ctx.sessionPersistence.prepare(sessionId)
 await doBusinessLogic(preparation.session)

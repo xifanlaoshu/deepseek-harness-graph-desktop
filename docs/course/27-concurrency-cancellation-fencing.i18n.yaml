@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/course/27-concurrency-cancellation-fencing.md
+27-concurrency-cancellation-fencing.md: e7672323b3216309d3ec5c7eb1f57e7245723a9a
+27-concurrency-cancellation-fencing.zh.md: 4d1e1037461eb428384c1614434d95795312dd6e

@@ -15,10 +15,12 @@ import { SessionFormatEventCollector, type SessionFormatArtifactDecoder, type Se
 import { releasedV0SessionFormatCodec, releasedV1SessionFormatCodec } from '@deepseek-ai/dsh-session-format-v0-to-v1'
 import { releasedV2SessionFormatCodec } from '@deepseek-ai/dsh-session-format-v1-to-v2'
 import { releasedV3SessionFormatCodec } from '@deepseek-ai/dsh-session-format-v2-to-v3'
+import { releasedV4SessionFormatCodec } from '@deepseek-ai/dsh-session-format-v3-to-v4'
 
 const historicalCodecs: readonly SessionFormatCodec[] = [
   releasedV0SessionFormatCodec, releasedV1SessionFormatCodec, releasedV2SessionFormatCodec,
   releasedV3SessionFormatCodec,
+  releasedV4SessionFormatCodec,
 ]
 
 /** Physical persistence artifacts validated by the WebWorker runtime fixture spec. */

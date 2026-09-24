@@ -1,5 +1,7 @@
 # 第 31 章：实战：开发一个模型可见上下文插件
 
+[English](31-hands-on-context-plugin.md) | 中文
+
 在前序章节中，我们系统性地解构了大语言模型的概率本质、Cordis 微内核控制反转容器、事件溯源持久化账本以及 Agent Loop 状态机的生命周期流转。理论体系的构建最终必须服务于工业级系统的落地。本章将带领大家进行一次端到端的全栈实战：**从零设计、实现并验证一个高可靠、模型可见的动态项目标签（Project Label）上下文插件**。
 
 在现代企业级代码智能体（Coding Agent）与多任务编排系统中，智能体经常需要在不同的项目子模块、环境分支或业务领域之间切换。如何让大模型在每一次推理时精准感知当前所处的“项目标签”，同时支持用户在命令行热更新、配置项设定默认值、在系统崩溃重启后实现 100% 状态强一致，并且不破坏大模型推理引擎的 KV Cache 缓存效率？我们将通过本章的严密推导、源码实现与四层测试金字塔，给出工业级的标准答案。
@@ -600,7 +602,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent';
 import { createSystemMessage } from '@deepseek-ai/dsh-llm';
 import type { Session } from '@deepseek-ai/dsh-session';
-import { Schema } from 'schemastery';
+import { Schema } from '@deepseek-ai/schemastery';
 import { normalizeProjectLabel } from './normalize.ts';
 import { projectLatestProjectLabel, renderProjectLabelContext } from './projection.ts';
 import {

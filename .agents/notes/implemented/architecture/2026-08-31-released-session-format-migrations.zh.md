@@ -60,6 +60,7 @@ JSONL record
   → v1-to-v2 stage
   → v2-to-v3 stage
   → v3-to-v4 stage
+  → v4-to-v5 stage
   → current event collector
 ```
 
@@ -70,6 +71,8 @@ Chain 中不存在 `flatMap`、spread expansion、中间 event array 或 schedul
 [V3 到 V4 规范](../../../../packages/session/session-format-v3-to-v4/README.zh.md#v3-to-v4-specification)规定父目录补全：它推进 header 版本，保留已接纳的事件与继承切点，并根据子 Session 证据追加缺失的自身目录记录。它复用 V2→V3 中冻结的 V3 codec。按 generation 校验 delivery 可防止历史确认仅因 header 变化而获得当前水位含义；更早的 migration edge 保留各自的来源准入策略。
 
 固定的 V3 来源词汇纳入本仓库本地部署写入的必需 Graph 事件。若遗漏这些名称，即使当前 writer 认识这些事件，也会在 V4 校验之前拒绝有效的历史 Graph Session。迁入边仅接纳已经记录的名称并原样保留其不透明载荷；它不会以当前事件词汇作为其他历史扩展的兜底。
+
+[V4 到 V5 迁移边](../../../../packages/session/session-format-v4-to-v5/README.zh.md)仅改变头部版本，保留已接纳的事件正文及继承坐标。它为 Graph 消息归属提供新的写入代际，不重新解释已提交的 V4 数据。V4 子会话前置事实使用固定的 V4 事件词汇与恢复器，而不使用已安装的 V5 目录。V4 投递标记保留记录时的代际；原生 V5 标记须通过 V5 归属校验。
 
 [V2 到 V3 投递保护](../../../../packages/session/session-format-v2-to-v3/README.zh.md#delivery-guards)防止源代中被忽略的标记仅因头部变化就成为有效上传水位。Python 发布冒烟测试独立于跨代 golden 比较，按源代码中的 `SESSION_FORMAT_VERSION` 检查生成日志，因此文件名与 header 自洽不能掩盖过期 writer。
 
@@ -135,7 +138,7 @@ POSIX publication 使用 hard-link creation 加目录 sync；Windows 使用 no-o
 
 ### 父目录前置事实
 
-本段的运行时子会话错误处理部分由[逐会话目录准备](../bug-fix/2026-09-19-session-local-subagent-migration.zh.md)取代：打开父会话仍通过读取直属子会话补齐目录，但不可读子会话不再阻断健康父历史。V3→V4 使用保留的直属子 Session header 和自身 descriptor 补齐父 Session 的子代理发现记录。存储将紧凑的 descriptor 证据提供给 catalog 组装处，由其绑定到 V3→V4 stage 工厂；Stage 等待父 Session 的最终继承截点确定后，才校验目录 payload 并导出可获得的自身发现事实。嵌套的 seed 标记丢弃继承目录候选，不解释其 payload。已有目录记录允许 descriptor 不可用，包括在首次 step 之前失败的子 Session。Descriptor v1 表示 continuable 模式；v2/v3 显式记录模式。可获得且明确的发现字段必须与父目录一致；新增完整记录要求一个受支持的 descriptor。Descriptor 缺失、版本不受支持或存在多个时，保留日志与未知模式成员关系，不编造发现字段，理由见[不完整子目录证据](../bug-fix/2026-09-19-v3-incomplete-child-catalog-evidence.zh.md)。JSONL 在准备、复用和发布时重新检查关联成员与来源修订。不可读或不支持的 header 不参与发现；读取已识别子会话失败时，其 header 身份保留为未知模式成员关系。来源变化使准备缓存失效；只读打开自动重试一次，写打开则拒绝发布。诊断保留出错子日志的路径，并区分不支持的迁移证据与畸形子数据。收集器将子解码和 descriptor 失败报告为带子路径的警告；取消与来源一致性检查仍中止准备。仅支持 V0–V3 的目录避免递归迁移子 Session。当前 V4 读取跳过该扫描，但会执行与严格恢复相同的自身目录字段、唯一性及当前投递归属检查。见[格式规范](../../../../packages/session/session-format-v3-to-v4/README.zh.md)。
+本段的运行时子会话错误处理部分由[逐会话目录准备](../bug-fix/2026-09-19-session-local-subagent-migration.zh.md)取代：打开父会话仍通过读取直属子会话补齐目录，但不可读子会话不再阻断健康父历史。V3→V4 使用保留的直属子 Session header 和自身 descriptor 补齐父 Session 的子代理发现记录。存储将紧凑的 descriptor 证据提供给 catalog 组装处，由其绑定到 V3→V4 stage 工厂；Stage 等待父 Session 的最终继承截点确定后，才校验目录 payload 并导出可获得的自身发现事实。嵌套的 seed 标记丢弃继承目录候选，不解释其 payload。已有目录记录允许 descriptor 不可用，包括在首次 step 之前失败的子 Session。Descriptor v1 表示 continuable 模式；v2/v3 显式记录模式。可获得且明确的发现字段必须与父目录一致；新增完整记录要求一个受支持的 descriptor。Descriptor 缺失、版本不受支持或存在多个时，保留日志与未知模式成员关系，不编造发现字段，理由见[不完整子目录证据](../bug-fix/2026-09-19-v3-incomplete-child-catalog-evidence.zh.md)。JSONL 在准备、复用和发布时重新检查关联成员与来源修订。不可读或不支持的 header 不参与发现；读取已识别子会话失败时，其 header 身份保留为未知模式成员关系。来源变化使准备缓存失效；只读打开自动重试一次，写打开则拒绝发布。诊断保留出错子日志的路径，并区分不支持的迁移证据与畸形子数据。收集器将子解码和 descriptor 失败报告为带子路径的警告；取消与来源一致性检查仍中止准备。仅支持 V0–V3 的目录避免递归迁移子 Session。当前 V5 读取跳过该扫描，但会执行与严格恢复相同的自身目录字段、唯一性及当前投递归属检查。见[格式规范](../../../../packages/session/session-format-v3-to-v4/README.zh.md)。
 
 原始父子迁移测试保留 24 个历史创建时间冲突作为拒绝证据。独立的内存对照只对齐子创建时间，证明恢复保留事件，包括已发布但没有 descriptor 的子 Session。Headless/ACP 与 SDK 快照适配器在规范化之前校验实时父子时钟，并在刷新时保持两者相等；已提交的前代文件保持不变。
 

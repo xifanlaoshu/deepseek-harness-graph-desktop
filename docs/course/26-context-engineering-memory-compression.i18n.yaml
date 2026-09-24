@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/course/26-context-engineering-memory-compression.md
+26-context-engineering-memory-compression.md: c980600c707ba013699de5bb0d95d5f11edccfe5
+26-context-engineering-memory-compression.zh.md: ef17f173ad630eaea87c18293c6ac2f663d5aaff

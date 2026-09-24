@@ -32,7 +32,7 @@
 latestFinalizedVersion: 4
 ```
 
-V4 的已接受兼容性基线保存在[检查点](persistence-changes/finalized/v4.json)中。向后兼容的 schema 变更可以通过新的确认记录保留 V4。破坏性变更要求更高的写入器版本及自身的头版本转换，不能复用已接受的 3→4 转换。已接受的机器记录与变更后 schema 保持不可变。[检查点规则](persistence-changes/README.zh.md#compatibility-rules)规定比较方法。
+V4 的已接受兼容性基线保存在[检查点](persistence-changes/finalized/v4.json)中。当前写入器为 Graph 拥有的消息来源推进到 V5，并保留 V4→V5 迁移；定稿记录与发布记录不因此推进。向后兼容的 V4 新增仍是历史 V4 数据。已接受的机器记录与变更后 schema 保持不可变。[检查点规则](persistence-changes/README.zh.md#compatibility-rules)规定比较方法。
 
 定稿不冻结 V4 之后的每项新增，也不表示已发布。下方发布记录保留独立验证的已发布版本。普通注释、别名、源码位置，以及保留已接受含义的实现修复，不改变该基线。
 

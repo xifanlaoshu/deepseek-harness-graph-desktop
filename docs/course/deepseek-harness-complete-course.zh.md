@@ -1,5 +1,7 @@
 # DeepSeek Harness 智能体系统架构与工程实现：从零基础到资深专家完全教程
 
+[English](deepseek-harness-complete-course.md) | 中文
+
 > **版本**：v1.0.0 完整全景版<br/>**适用对象**：具备传统编程经验（C/C++/Java/Go/Rust/Python/TypeScript）但对 AI/Agent 相对陌生的软件工程师、系统架构师。<br/>**目标**：彻底打通从无状态概率大模型到微内核 Harness、分布式多 Agent 协作的全部软硬件与架构认知。
 
 ---
@@ -7,53 +9,55 @@
 ## 目录索引 (Table of Contents)
 
 ### 第一阶段：零基础 AI 建模与数学直觉 (Chapters 01–02)
-- [第 01 章：学习目标与阅读方法](#第-01-章学习目标与阅读方法)
-- [第 02 章：零基础预备：从 LLM 到 Agent 系统](#第-02-章零基础预备从-llm-到-agent-系统)
+- [第 01 章：学习目标与阅读方法](#chapter-01)
+- [第 02 章：零基础预备：从 LLM 到 Agent 系统](#chapter-02)
 
 ### 第二阶段：Harness 核心架构与运行时 (Chapters 03–20)
-- [第 03 章：项目是什么](#第-03-章项目是什么)
-- [第 04 章：实际技术栈](#第-04-章实际技术栈)
-- [第 05 章：Monorepo 与包边界](#第-05-章monorepo-与包边界)
-- [第 06 章：Cordis：项目的运行骨架](#第-06-章cordis项目的运行骨架)
-- [第 07 章：启动、Profile 与配置叠加](#第-07-章启动profile-与配置叠加)
-- [第 08 章：agent、轮次、步骤与 Inbox](#第-08-章agent轮次步骤与-inbox)
-- [第 09 章：提示词、模型与流式响应](#第-09-章提示词模型与流式响应)
-- [第 10 章：工具体系与副作用控制](#第-10-章工具体系与副作用控制)
-- [第 11 章：会话日志：系统的事实记录](#第-11-章会话日志系统的事实记录)
-- [第 12 章：Web Host、RPC 与插件化 UI](#第-12-章web-hostrpc-与插件化-ui)
-- [第 13 章：从单代理到并行工作](#第-13-章从单代理到并行工作)
-- [第 14 章：Graph Mode 的调度机制](#第-14-章graph-mode-的调度机制)
-- [第 15 章：LoopX 的设计、实现与耦合](#第-15-章loopx-的设计实现与耦合)
-- [第 16 章：一次请求的端到端近景](#第-16-章一次请求的端到端近景)
-- [第 17 章：如何扩展项目](#第-17-章如何扩展项目)
-- [第 18 章：构建、测试与质量门禁](#第-18-章构建测试与质量门禁)
-- [第 19 章：源码阅读路线与练习](#第-19-章源码阅读路线与练习)
-- [第 20 章：术语速查](#第-20-章术语速查)
+- [第 03 章：项目是什么](#chapter-03)
+- [第 04 章：实际技术栈](#chapter-04)
+- [第 05 章：Monorepo 与包边界](#chapter-05)
+- [第 06 章：Cordis：项目的运行骨架](#chapter-06)
+- [第 07 章：启动、Profile 与配置叠加](#chapter-07)
+- [第 08 章：agent、轮次、步骤与 Inbox](#chapter-08)
+- [第 09 章：提示词、模型与流式响应](#chapter-09)
+- [第 10 章：工具体系与副作用控制](#chapter-10)
+- [第 11 章：会话日志：系统的事实记录](#chapter-11)
+- [第 12 章：Web Host、RPC 与插件化 UI](#chapter-12)
+- [第 13 章：从单代理到并行工作](#chapter-13)
+- [第 14 章：Graph Mode 的调度机制](#chapter-14)
+- [第 15 章：LoopX 的设计、实现与耦合](#chapter-15)
+- [第 16 章：一次请求的端到端近景](#chapter-16)
+- [第 17 章：如何扩展项目](#chapter-17)
+- [第 18 章：构建、测试与质量门禁](#chapter-18)
+- [第 19 章：源码阅读路线与练习](#chapter-19)
+- [第 20 章：术语速查](#chapter-20)
 
 ### 第三阶段：Agent 工程深化与生产实战 (Chapters 21–30)
-- [第 21 章：Harness 基础篇心智模型](#第-21-章harness-基础篇心智模型)
-- [第 22 章：从零实现最小 agent loop](#第-22-章从零实现最小-agent-loop)
-- [第 23 章：模型请求、token 与 KV Cache](#第-23-章模型请求token-与-kv-cache)
-- [第 24 章：工具开发：从 schema 到副作用](#第-24-章工具开发从-schema-到副作用)
-- [第 25 章：事件溯源、持久化与崩溃恢复](#第-25-章事件溯源持久化与崩溃恢复)
-- [第 26 章：上下文工程、记忆与压缩](#第-26-章上下文工程记忆与压缩)
-- [第 27 章：并发、取消、超时与 fencing](#第-27-章并发取消超时与-fencing)
-- [第 28 章：Agent 安全模型](#第-28-章agent-安全模型)
-- [第 29 章：多 agent 编排与任务图设计](#第-29-章多-agent-编排与任务图设计)
-- [第 30 章：评测、测试与可观测性](#第-30-章评测测试与可观测性)
+- [第 21 章：Harness 基础篇心智模型](#chapter-21)
+- [第 22 章：从零实现最小 agent loop](#chapter-22)
+- [第 23 章：模型请求、token 与 KV Cache](#chapter-23)
+- [第 24 章：工具开发：从 schema 到副作用](#chapter-24)
+- [第 25 章：事件溯源、持久化与崩溃恢复](#chapter-25)
+- [第 26 章：上下文工程、记忆与压缩](#chapter-26)
+- [第 27 章：并发、取消、超时与 fencing](#chapter-27)
+- [第 28 章：Agent 安全模型](#chapter-28)
+- [第 29 章：多 agent 编排与任务图设计](#chapter-29)
+- [第 30 章：评测、测试与可观测性](#chapter-30)
 
 ### 第四阶段：项目实战与故障诊断 (Chapters 31–34)
-- [第 31 章：实战：开发一个模型可见上下文插件](#第-31-章实战开发一个模型可见上下文插件)
-- [第 32 章：三个故障案例的诊断方法](#第-32-章三个故障案例的诊断方法)
-- [第 33 章：Agent 系统设计面试框架](#第-33-章agent-系统设计面试框架)
-- [第 34 章：高频面试问题与参考答案](#第-34-章高频面试问题与参考答案)
+- [第 31 章：实战：开发一个模型可见上下文插件](#chapter-31)
+- [第 32 章：三个故障案例的诊断方法](#chapter-32)
+- [第 33 章：Agent 系统设计面试框架](#chapter-33)
+- [第 34 章：高频面试问题与参考答案](#chapter-34)
 
 ### 第五阶段：综合毕业验证 (Chapter 35)
-- [第 35 章：八周学习、毕业验证与模拟面试](#第-35-章八周学习毕业验证与模拟面试)
+- [第 35 章：八周学习、毕业验证与模拟面试](#chapter-35)
 
 
 
 ---
+
+<a id="chapter-01"></a>
 
 # 第 01 章：学习目标与阅读方法
 
@@ -918,6 +922,8 @@ export class AgentOrchestrator {
 
 ---
 
+<a id="chapter-02"></a>
+
 # 第 02 章：零基础预备：从 LLM 到 Agent 系统
 
 本章是全书的技术基石。针对具备传统编程经验（Java / C++ / Go / Rust / Python / TypeScript）但对现代 AI 相对陌生的软件工程师，本章将大语言模型（LLM）的黑盒彻底拆解为确定性的**数学公式、概率分布、矩阵运算、显存数据结构与操作系统级系统调用**。
@@ -965,7 +971,7 @@ $$P(y_t = v_k \mid X, y_{<t}) = \text{Softmax}\left(\frac{\mathbf{z}_t}{\tau}\ri
 ### 2.1.3 工业级伪代码：自回归生成主循环
 从软件工程师角度，自回归推理可以精确描述为一个无状态纯函数的串行 `while` 循环：
 
-```ts
+```ts ignore-check
 interface Tokenizer {
   encode(text: string): number[]
   decode(tokens: number[]): string
@@ -1041,7 +1047,7 @@ flowchart LR
 3. **贪心合并**：将出现频率最高的词元对合并为一个新的复合词元，并加入词表；
 4. **迭代终止**：重复上述过程直到词表大小达到预设阈值（例如 DeepSeek-V3 词表大小约为 129,280）。
 
-```ts
+```ts ignore-check
 // 模拟 BPE 极简合并过程
 class BPETokenizerSimulator {
   private vocab: Map<string, number> = new Map([
@@ -1130,7 +1136,7 @@ flowchart TD
   Renorm --> RandomSample["依据新概率分布随机抽样得到 Token ID"]
 ```
 
-```ts
+```ts ignore-check
 // 生产级采样算法 TypeScript 实现
 export function sampleFromLogits(
   logits: Float32Array,
@@ -1433,6 +1439,8 @@ flowchart TD
 
 
 ---
+
+<a id="chapter-03"></a>
 
 # 第 03 章：项目是什么：插件化架构哲学与运行拓扑
 
@@ -2432,6 +2440,8 @@ export async function executeShellCommand(cmd: string, signal: AbortSignal): Pro
 
 
 ---
+
+<a id="chapter-04"></a>
 
 # 第 04 章：实际技术栈
 
@@ -3523,6 +3533,8 @@ worker.postMessage(
 
 ---
 
+<a id="chapter-05"></a>
+
 # 第 05 章：Monorepo 与包边界
 
 在大型 AI Agent 系统与生产级 Harness（智能体运行框架）的演进过程中，架构设计面临的核心矛盾在于：**模型认知交互的极端易变性**与**底层系统基础设施的极端稳定性**之间的剧烈冲突。如果将大语言模型（LLM）的 Prompt 组装、Tool Schema 暴露、操作系统进程树治理、文件系统沙箱、状态事件溯源（Event Sourcing）以及 Web 交互界面全部揉杂在一个单体工程中，任何细微的业务提示词调整或工具协议变动，都可能引发系统底层的连带故障。
@@ -4441,6 +4453,8 @@ Harness 摒弃了在代码中写死 `ctx.plugin(A); ctx.plugin(B);` 的硬编码
 
 ---
 
+<a id="chapter-06"></a>
+
 # 第 06 章：Cordis：项目的运行骨架
 
 欢迎进入《DeepSeek Harness 深度技术教程》第二阶段的核心枢纽章节。在深入探讨 Agent 状态机循环、提示词装配、任务图编排与分布式协同之前，我们必须首先拆解支撑整个 DeepSeek Harness 系统运转的微内核底座——**Cordis 运行时**。
@@ -4707,7 +4721,7 @@ _refresh() {
 在 DeepSeek Harness 中，继承 `Service` 的类会自动完成依赖注入的注册：
 
 ```typescript
-import { Context, Service } from 'cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 
 export class SessionStore extends Service {
   // 静态属性声明该 Service 挂载至 ctx 上的名称
@@ -4999,11 +5013,11 @@ sequenceDiagram
 ### 6.2 完备的 TypeScript 源码实现
 
 ```typescript
-import { Context, Service, type Disposable } from 'cordis'
+import { Context, Service, type Disposable } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 
 // 1. 声明合并 (Declaration Merging)，将自定义 Service 与事件注入到 Context 类型图中
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     llmGateway: RateLimitedLLMGatewayService
   }
@@ -5201,7 +5215,7 @@ export function RateLimitedLLMGatewayPlugin(ctx: Context, rawConfig: GatewayConf
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest'
-import { Context } from 'cordis'
+import { Context } from '@deepseek-ai/cordis'
 import { RateLimitedLLMGatewayPlugin, GatewayConfigSchema } from './plugin.ts'
 
 describe('RateLimitedLLMGatewayPlugin 工业级集成测试', () => {
@@ -5309,6 +5323,8 @@ describe('RateLimitedLLMGatewayPlugin 工业级集成测试', () => {
 
 
 ---
+
+<a id="chapter-07"></a>
 
 # 第 07 章：启动、Profile 与配置叠加
 
@@ -5811,7 +5827,7 @@ const composeLive = (): PatchOptions[] => structuredClone([
 
 在微内核依赖注入容器中，若某个插件在启动时因为配置字段拼写错误或类型不匹配而陷入非预期状态，可能会导致整个 Agent 状态机在运行数十轮对话后才在某个边缘分支崩溃。
 
-DeepSeek Harness 引入了 `schemastery`（以 `z` 或 `Schema` 形式使用）作为系统的**模式编译器与运行时契约守护者**。
+DeepSeek Harness 引入了 `@deepseek-ai/schemastery`（以 `z` 或 `Schema` 形式使用）作为系统的**模式编译器与运行时契约守护者**。
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -6422,6 +6438,8 @@ export async function composeAndBootProfile(options: BootOptions): Promise<Entry
 
 
 ---
+
+<a id="chapter-08"></a>
 
 # 第 08 章：agent、轮次、步骤与 Inbox
 
@@ -7420,6 +7438,8 @@ export class ProductionReactLoopAgent implements Agent {
 
 ---
 
+<a id="chapter-09"></a>
+
 # 第 09 章：提示词、模型与流式响应
 
 在传统的分布式后端系统或微服务架构中，RPC 调用通常遵循确定性的请求-响应（Request-Response）模式：客户端发起一个强类型的 Protobuf 或 JSON-RPC 报文，服务端执行一段确定的业务逻辑，然后同步或异步返回结果。然而，当系统引入大语言模型（LLM）作为概率型核心推理引擎时，整个通信与状态机模型发生了根本性的范式转移。
@@ -8353,6 +8373,8 @@ export async function executeAgentStepWithWal(
 
 
 ---
+
+<a id="chapter-10"></a>
 
 # 第 10 章：工具体系与副作用控制
 
@@ -9499,6 +9521,8 @@ function spawnWithCancellation(cmd: string, args: string[], signal: AbortSignal)
 
 
 ---
+
+<a id="chapter-11"></a>
 
 # 第 11 章：会话日志：系统的事实记录
 
@@ -10647,6 +10671,8 @@ export function interruptedTurnClosers(events: readonly SessionEvent[]): Session
 
 ---
 
+<a id="chapter-12"></a>
+
 # 第 12 章：Web Host、RPC 与插件化 UI
 
 在构建面向生产环境的企业级 AI Agent 系统时，架构师面临的最核心挑战之一是：**如何将底层具备高危系统权限（文件系统、终端沙箱、内核隔离、MCP 进程、持久化事实账本）的 Agent 核心引擎，安全、确定、高效地暴露给前端交互界面，并在浏览器端实现高响应性、零撕裂的插件化 UI 体验**。
@@ -10809,7 +10835,7 @@ graph TD
 
 以下是浏览器端初始化 Client Cordis 容器并装载核心插件的工业级实现：
 
-```ts
+```ts ignore-check
 // packages/client/runtime/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
@@ -11009,7 +11035,7 @@ $$T_{\text{typert}} = T_{\text{json\_parse}}(S_{\text{raw}}) + \sum_{i=1}^K T_{\
 
 以下是 Host 端 Typert RPC 调度网关的工业级实现，具备完整的参数校验、Lookup 解析、生命周期绑定与异常防御：
 
-```ts
+```ts ignore-check
 // packages/api/gateway/src/typert-gateway.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
@@ -11179,7 +11205,7 @@ export class TypertGatewayService extends Service {
                +-----------------------+-----------------------+
 ```
 
-```ts
+```ts ignore-check
 // packages/host/apiproxy/src/api/rpc.ts
 import type { Branded } from '@deepseek-ai/dsh-brand'
 
@@ -11328,7 +11354,7 @@ export async function bridge(
 - 上行请求天然获得 HTTP 状态码、代理认证、超时控制与独立的连接隔离，避免单条 WebSocket 拥塞影响关键 RPC 调用。
 - 下行流保持纯粹的推送语义，Host 崩溃或网络断开时，客户端 Connection 状态机只需独立重连 WebSocket，不影响幂等 RPC 的重试策略。
 
-```ts
+```ts ignore-check
 // packages/client/connection/src/client/rpc.ts
 import { RpcId, type ClientRequest, type ServerResponse } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -11458,7 +11484,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 
 因此，Harness 实现了自研的全值 JSON 持久化，并提供完善的 Storage 失败熔断保护（在隐私模式或 Quota 超限时不抛异常，优雅降级）：
 
-```ts
+```ts ignore-check
 // packages/client/runtime/src/client/contract/store.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -11674,7 +11700,7 @@ export class WorkspacePathGuard {
 
 **修复方案**： 在 `ClientConnectionRpc` 中强行加入严格的双重断言与超时清理，任何 `rpcId` 不匹配的报文直接判定为底层传输协议违例并切断连接重建：
 
-```ts
+```ts ignore-check
 // packages/client/connection/src/client/rpc.ts
 const full = serverResponseSchema.parse(await response.json())
 if (full.rpcId !== rpcId) {
@@ -11731,6 +11757,8 @@ if (full.rpcId !== rpcId) {
 
 
 ---
+
+<a id="chapter-13"></a>
 
 # 第 13 章：从单代理到并行工作
 
@@ -12755,6 +12783,8 @@ export class SubagentOrchestrator extends EventEmitter {
 
 
 ---
+
+<a id="chapter-14"></a>
 
 # 第 14 章：Graph Mode 的调度机制
 
@@ -13840,6 +13870,8 @@ export class GraphScheduler extends EventEmitter {
 
 
 ---
+
+<a id="chapter-15"></a>
 
 # 第 15 章：LoopX 的设计、实现与耦合
 
@@ -15000,6 +15032,8 @@ Harness 确保所有来自 LoopX 的动态元数据（`Observation`、`Todo ID`�
 
 ---
 
+<a id="chapter-16"></a>
+
 # 第 16 章：一次请求的端到端近景
 
 在分布式系统与现代软件工程中，理解一个复杂系统的终极途径就是追踪一个具体请求的完整生命周期。无论架构图绘制得多么精妙、概念抽象得多么宏大，系统运行时的本质始终是一连串确定性的**内存状态转移、网络 I/O 调度、数据结构投影与系统调用**。
@@ -15922,6 +15956,8 @@ function applyEventWithReorder(state: EventReconcilerState, incomingEvent: Sessi
 
 ---
 
+<a id="chapter-17"></a>
+
 # 第 17 章：如何扩展项目
 
 在复杂的企业级智能体（Agent）系统中，架构的生命力完全取决于其**扩展机制（Extensibility Mechanics）**的纯粹度与边界防御能力。当业务需求纷至沓来——无论是新增一个代码搜索工具、接入企业内部权限审批流、引入向量检索知识库、还是定制 Web 界面中的交互面板——如果开发者缺乏清晰的架构图谱，系统很容易退化为充斥着 `if-else` 分支与紧耦合状态的“大泥球”（Big Ball of Mud）。
@@ -16045,7 +16081,7 @@ $$\text{DisposeOrder}(G) = \text{reverse}(\text{TopoSort}(G)) = [v_m, v_{m-1}, \
 
 TypeScript 默认采用结构化子类型（Structural Typing）。如果 `SessionId`、`MessageId`、`DocId` 都被声明为 `string`，下面的灾难性代码将通过编译：
 
-```ts
+```ts ignore-check
 // 危险：参数颠倒却不会产生任何编译错误！
 function deleteMessage(sessionId: string, messageId: string) { ... }
 const sid = 'sess_123'
@@ -16087,7 +16123,7 @@ export function IndexRevId(value: string): IndexRevId {
 
 当定义系统的领域状态或事件时，必须使用**带标签的判别联合（Discriminated Union）**，并在所有 `switch-case` 分支末尾通过 `assertNever` 强制编译器验证穷尽性（Exhaustiveness Check）：
 
-```ts
+```ts ignore-check
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 /** 知识库索引状态判别联合 */
@@ -16188,7 +16224,7 @@ packages/
 
 #### 2. 领域类型定义 `packages/knowledge/knowledge/src/types.ts`
 
-```ts
+```ts ignore-check
 import type { KnowledgeDocId, IndexRevId } from './brand.ts'
 
 /** 知识库文档分块元数据 */
@@ -16232,7 +16268,7 @@ export interface KnowledgeStoreConfig {
 
 #### 3. 服务契约定义 `packages/knowledge/knowledge/src/index.ts`
 
-```ts
+```ts ignore-check
 /**
  * 企业级知识库能力 Seam 声明与抽象基类。
  * @module @deepseek-ai/dsh-knowledge
@@ -16373,7 +16409,7 @@ export function computeCosineSimilarity(a: readonly number[], b: readonly number
 
 #### 2. 本地提供方实现 `packages/knowledge/knowledge-local/src/index.ts`
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import {
@@ -16575,7 +16611,7 @@ export function apply(ctx: Context, options?: LocalKnowledgeOptions) {
 
 #### `packages/knowledge/tool-knowledge/src/search-tool.ts`
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
@@ -16709,7 +16745,7 @@ export function apply(ctx: Context) {
 
 在 Cordis 架构中，所有事件监听器、定时器与服务注册都必须通过 `ctx.effect()` 或其封装 API 进行注册。当所属插件被动态卸载（如 HMR 热重载或子会话销毁）时，框架会自动逆序调用清理函数，防止内存泄漏和幽灵监听器。
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 
 export const name = 'knowledge-auto-injector'
@@ -16781,7 +16817,7 @@ plugins:
 
 #### 1. 契约测试套件 `packages/knowledge/knowledge/tests/contract.spec.ts`
 
-```ts
+```ts ignore-check
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { KnowledgeDocId, type KnowledgeStoreSeam } from '../src/index.ts'
@@ -16868,7 +16904,7 @@ export function defineKnowledgeStoreContractTests(
 
 #### 2. 无密钥 Snapshot 回放测试 `packages/knowledge/tool-knowledge/tests/replay.spec.ts`
 
-```ts
+```ts ignore-check
 import { describe, it, expect } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { KnowledgeDocId } from '@deepseek-ai/dsh-knowledge'
@@ -17000,6 +17036,8 @@ describe('Knowledge Tool Snapshot Replay', () => {
 
 ---
 
+<a id="chapter-18"></a>
+
 # 第 18 章：构建、测试与质量门禁
 
 在传统的企业级单体或微服务系统中，软件的确定性行为由类型系统、单元测试和端到端集成测试共同捍卫。然而，构建一个企业级自主大模型智能体（Autonomous Agent Harness）系统，工程团队面临着前所未有的质量断层：**模型层是概率型的黑盒计算（$P(y_t \mid X, y_{<t})$），而执行引擎（Runtime）、沙箱、上下文装配与工具调用系统必须是 $100\%$ 确定性、零内存泄漏且具备绝对安全边界的坚固底座**。
@@ -17046,16 +17084,16 @@ graph TD
 
 在 Cordis 依赖注入架构中，服务（Service）与上下文（Context）的扩展采用 TypeScript 的**声明合并（Declaration Merging）**特性：
 
-```ts
+```ts ignore-check
 // packages/session/session/src/index.ts (Host 端)
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService
   }
 }
 
 // packages/client/runtime/src/index.ts (Client 端)
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     session: ClientSessionState
   }
@@ -17155,7 +17193,7 @@ window.__ModuleLoader__.load({
 #### 3. 插件打包纯洁性门禁（Bundle Purity Gate）
 在 [`packages/client/tsdown.client.ts`](file:///d:/git/deepseek-harness/packages/client/tsdown.client.ts) 中，Harness 注入了一个名为 `dsh-client-bundle-purity` 的 Rollup 插件。该插件在解析 AST 导入路径时，会执行严格的白名单校验：
 
-```ts
+```ts ignore-check
 // Bundle Purity 拦截逻辑核心实现
 resolveId(source: string) {
   if (!source.startsWith('@deepseek-ai/')) return null
@@ -17256,7 +17294,7 @@ $$T_{\text{total}} \ge \max \left( T_{\text{critical}}, \frac{1}{W} \sum_{i=1}^n
 
 $$W_{\text{local}} = \min(4, \text{availableParallelism}())$$
 
-```ts
+```ts ignore-check
 // scripts/run-gates.ts 中的并发计算与依赖检测
 export function defaultConcurrency(
   selectedMode: Mode,
@@ -17281,7 +17319,7 @@ export function defaultConcurrency(
 - **目标**：在完全开启 TypeScript `strict: true`、`exactOptionalPropertyTypes: true` 以及 `noUncheckedIndexedAccess: true` 条件下，全仓 100+ 包零错误。
 - **机制**：先执行 Host 端的全量接口编译，生成包含 Typert RPC 协议与 Cordis 服务的 `.d.ts` 声明文件；随后以只读方式注入 Client 端进行前端状态与组件的严格类型校验。任何隐式 `any`、未处理的 `undefined` 分支或未收敛的联合类型，都会立即阻断。
 
-```ts
+```ts ignore-check
 // 典型类型收敛案例：Turn 状态机判别联合
 export type TurnState =
   | { status: 'idle'; session: SessionId }
@@ -17325,7 +17363,7 @@ $$H(T_{i+1 \dots i+k}) = \left( \left( H(T_{i \dots i+k-1}) - \text{ord}(t_i) \c
 
 在常规业务系统中，80% 覆盖率往往被视为良好。但在 Harness 核心引擎中，**单文件覆盖率门禁必须是绝对的 100%**。
 
-```ts
+```ts ignore-check
 // vitest.config.ts 中的硬性阈值配置
 coverage: {
   provider: 'v8',
@@ -17393,7 +17431,7 @@ graph TD
 
 [`scripts/verify-md-wrap.ts`](file:///d:/git/deepseek-harness/scripts/verify-md-wrap.ts) 使用 `mdast-util-from-markdown` 解析全仓 Markdown AST：
 
-```ts
+```ts ignore-check
 // 核心 AST 检查逻辑
 visitMarkdown(tree, (node: Nodes): boolean | void => {
   if (node.type === 'paragraph' && node.position) {
@@ -17445,7 +17483,7 @@ graph LR
 #### 1. `doc-typecheck` (`scripts/doc-typecheck.ts`)：文档代码块虚拟编译
 提取所有 Markdown 文档中的 ```ts 代码块，将其映射为虚拟的 `.ts` 文件，利用 TypeScript 编译器 API 针对当前 Monorepo 的最新类型声明进行编译测试。如果文档中的函数传参已经被重命名或废弃，文档类型检查直接报错！
 
-```ts
+```ts ignore-check
 // scripts/doc-typecheck.ts 虚拟编译 Host 核心逻辑
 function compileBlocksAgainstBuiltTypes(blocks: Block[]): readonly ts.Diagnostic[] {
   const options = builtTypeCompilerOptions();
@@ -17490,7 +17528,7 @@ function compileBlocksAgainstBuiltTypes(blocks: Block[]): readonly ts.Diagnostic
 
 对于传统的 CRUD 业务（如订单支付），编写单元测试的标准范式是 Mock 数据库和外部 HTTP 客户端：
 
-```ts
+```ts ignore-check
 // 传统 CRUD 系统的经典 Mock 单测（局限性）
 const mockDb = { getUser: vi.fn().mockResolvedValue({ id: 1, balance: 100 }) };
 const service = new PaymentService(mockDb);
@@ -17534,7 +17572,7 @@ graph TD
 
 为了在 CI 无网络、无 API 密钥环境下精准回放大模型会话，Harness 实现了如下基于流式 Chunk 驱动的确定性回放 Provider：
 
-```ts
+```ts ignore-check
 // File: packages/test-support/llm-replay/src/replay-provider.ts
 import type { LlmProvider, StreamChunk, CompletionRequest } from '@deepseek-ai/dsh-llm';
 
@@ -17830,6 +17868,8 @@ export class GateOrchestrator {
 
 
 ---
+
+<a id="chapter-19"></a>
 
 # 第 19 章：源码阅读路线与练习
 
@@ -18371,6 +18411,8 @@ graph TD
 
 
 ---
+
+<a id="chapter-20"></a>
 
 # 第 20 章：术语速查 (Terminology Reference)
 
@@ -19449,6 +19491,8 @@ export class DurableFencingGuard extends EventEmitter {
 
 
 ---
+
+<a id="chapter-21"></a>
 
 # 第 21 章：Harness 基础篇心智模型
 
@@ -20831,6 +20875,8 @@ export class SessionLogSanitizer {
 
 ---
 
+<a id="chapter-22"></a>
+
 # 第 22 章：从零实现最小 Agent Loop
 
 欢迎进入《DeepSeek Harness 深度技术教程》第三阶段“Agent 工程深化与生产实战”的核心篇章。在掌握了大语言模型概率本质、分词机制、KV Cache 显存模型以及 Harness 微内核插件架构之后，我们将正式聚焦于智能体系统的动力引擎——**Agent Loop（智能体循环）**。
@@ -22133,9 +22179,9 @@ export function guardToolOutputSize(
 
 ---
 
-# 第 23 章：模型请求、token 与 KV Cache
+<a id="chapter-23"></a>
 
-[English](23-requests-tokens-kvcache.md) | 中文
+# 第 23 章：模型请求、token 与 KV Cache
 
 在构建工业级智能体（Agent）系统时，许多拥有传统系统工程背景（C++/Java/Go/Rust/Python/TypeScript）的工程师初涉大模型领域时，往往容易产生一种危险的轻视心理，将大语言模型（LLM）调用简单地视为一个接收字符串并返回字符串的远程无状态 REST/RPC API。
 
@@ -22803,7 +22849,7 @@ $$M_{\text{total\_vram}} = M_{\text{weights}} + M_{\text{kv\_cache}}(B, L) + M_{
 在显存受限时，量化（Quantization）是将高精度浮点张量映射到底层低比特整数/浮点表示的核心技术：
 - **FP16 / BF16（无损基线）**：IEEE 754 标准 16-bit 浮点数，保留完整的动态范围与精度，计算稳定，但显存开销大。
 - **FP8（E4M3 / E5M2）**：现代 Hopper/Ada 架构原生支持的 8-bit 浮点。DeepSeek-V3 采用 FP8 进行混合精度训练与推理，在几乎**零精度损失**的前提下，将权重显存减半，矩阵乘法吞吐翻倍。
-- **INT8（SmoothQuant / W8A8）**：对激活值进行平滑缩放，将权重和激活均量化为 8 字节整数，推理吞吐极高，精度损失通常 $< 0.5\%$。
+- **INT8（SmoothQuant / W8A8）**：对激活值进行平滑缩放，将权重和激活均量化为 8 位整数，推理吞吐极高，精度损失通常 $< 0.5\%$。
 - **INT4（AWQ / GPTQ / GGUF）**：AWQ 通过观察激活值分布，保护 1% 的显著权重（Salient Weights）不被严重破坏，其余量化为 4-bit，在代码生成与逻辑推理任务中表现优异。
 
 ---
@@ -23303,6 +23349,8 @@ export class AgentEvalRunner {
 
 
 ---
+
+<a id="chapter-24"></a>
 
 # 第 24 章：工具开发：从 schema 到副作用
 
@@ -24381,6 +24429,8 @@ export function spillLargeContent(content: string, maxBytes = 32 * 1024): Conten
 
 ---
 
+<a id="chapter-25"></a>
+
 # 第 25 章：事件溯源、持久化与崩溃恢复
 
 在传统的 Web 服务与企业级后端系统中，CRUD（Create, Read, Update, Delete）是占据绝对统治地位的数据持久化范式。开发人员习惯于在关系型数据库（如 PostgreSQL、MySQL）中通过 `UPDATE accounts SET balance = balance - 100 WHERE id = 1` 这样就地覆写（In-Place Mutation）的方式来修改系统状态。然而，当软件系统的核心驱动力转变为具有**随机采样、多轮循环、自主调用工具且伴随外部物理副作用**的大语言模型（LLM Agent）时，CRUD 范式将彻底失效并引发灾难性的工程灾难。
@@ -24532,7 +24582,7 @@ $$S_3 = f(S_2, e_2) = \langle \text{messages}: [\text{User("Ping")}, \text{Assis
 
 在 TypeScript 6 的类型系统中，DeepSeek Harness 使用**判别联合（Discriminated Union）**严密约束了会话日志中的每一个事件分支。与松散的 `{ type: string, data: any }` 设计不同，`SessionEvent<T>` 保证了在 `switch (event.type)` 之后，TypeScript 编译器能够自动且无损地将 `event.data` 收窄为唯一的合法载荷类型。
 
-```ts
+```ts ignore-check
 /**
  * DeepSeek Harness 核心会话事件字典 (SessionEventMap)
  * 采用模块合并（Declaration Merging）支持插件正交扩展
@@ -24945,7 +24995,7 @@ Event #105: turn/end { turn: 1, reason: { kind: 'interrupted' } }
 
 创建文件并实现具备缓存加速、位置替换拓扑与强类型保证的投影系统：
 
-```ts
+```ts ignore-check
 /**
  * 模块：事件投影引擎 (Projection Engine)
  * 职责：纯函数式计算状态视图，将不可变事件流转换为 LLM 对话上下文与请求配置
@@ -25181,7 +25231,7 @@ export class SessionProjectionAggregator {
 
 接下来实现完整的崩溃恢复诊断器，覆盖物理残缺扫描、状态机未闭合分析与合成修复事件生成：
 
-```ts
+```ts ignore-check
 /**
  * 模块：崩溃诊断与对账恢复引擎 (Crash Recovery & Reconciliation)
  * 职责：读取受损/中断的会话日志，分析未闭合调用，生成确定性合成修复事件
@@ -25390,7 +25440,7 @@ export function reconcileInterruptedSession(events: readonly SessionEvent[]): Re
 
 以下是验证我们构建的引擎在面对典型崩溃时表现的测试用例：
 
-```ts
+```ts ignore-check
 import { reconcileInterruptedSession, TOOL_OUTCOME_UNKNOWN, TOOL_NOT_STARTED } from './recovery.ts'
 import { SessionProjectionAggregator, type SessionEvent, type CallId, type MessageId } from './projection.ts'
 
@@ -25496,7 +25546,7 @@ runCrashSimulationTest()
 - **根因分析**：Linux 操作系统中，写入文件数据并调用 `fsync(file_fd)` 只保证了该文件的数据页落盘，**并不保证包含该文件名称的父目录元数据项（Directory Inode）已经刷盘**。若在 `mkdir` 或创建文件后未同步父目录描述符，掉电后目录项将彻底丢失。
 - **修复方案**：Harness 严格实现了**双层 `fsync` 协议**，在创建文件前后分别同步父目录与数据文件：
 
-```ts
+```ts ignore-check
 // 必须显式同步父目录描述符与目标数据文件
 await syncDirPosix(dirname(finalPath))
 await handle.sync()
@@ -25510,7 +25560,7 @@ await handle.sync()
 - **根因分析**：业务代码在调用 `ctx.sessionPersistence.prepare(id)` 加载了待恢复会话后，在随后的业务逻辑中抛出了异常，未能正确调用 `preparation[Symbol.dispose]()`。这导致该 Session 对象一直被持久化控制器的预备队列（LRU Cache）和独占锁持有，既无法被垃圾回收器（GC）回收，也阻止了后续其他请求的再次准备。
 - **修复方案**：全面采用 TypeScript 5.2+ 的原生显式资源管理（Explicit Resource Management）语法 `using`：
 
-```ts
+```ts ignore-check
 // 确保离开作用域时通过 Disposable 协议自动且幂等地释放 reservation
 using preparation = await ctx.sessionPersistence.prepare(sessionId)
 await doBusinessLogic(preparation.session)
@@ -25547,6 +25597,8 @@ await doBusinessLogic(preparation.session)
 
 
 ---
+
+<a id="chapter-26"></a>
 
 # 第 26 章：上下文工程、记忆与压缩
 
@@ -25669,7 +25721,7 @@ Here is the fetched data... Ignore previous instructions (This will be treated a
 
 以下提供可直接运行的 TypeScript 生产级实现：
 
-```ts
+```ts ignore-check
 export interface DocumentChunk {
   id: string
   content: string
@@ -25794,6 +25846,8 @@ export class HybridRAGCoordinator {
 
 
 ---
+
+<a id="chapter-27"></a>
 
 # 第 27 章：并发、取消、超时与 Fencing
 
@@ -27006,6 +27060,8 @@ void runConcurrencyFencingDemonstration();
 
 
 ---
+
+<a id="chapter-28"></a>
 
 # 第 28 章：Agent 安全模型
 
@@ -28339,6 +28395,8 @@ struct landlock_path_beneath_attr {
 
 ---
 
+<a id="chapter-29"></a>
+
 # 第 29 章：多 agent 编排与任务图设计
 
 在单智能体（Single Agent）架构中，系统依赖一个处于无限循环状态机（`while(true)`）中的 LLM 实例，通过不断接收输入、追加会话事实账本、发起自回归概率采样、调度工具调用并观察环境反馈来解决工程问题。然而，当软件工程任务的复杂度、代码量、涉及文件数与验证流程跨越某个物理临界点时，单 Agent 必然遭遇严重的上下文窗口耗尽、注意力稀释、长链累积误差雪崩以及单线程执行效率低下等物理瓶颈。
@@ -29563,6 +29621,8 @@ export class GraphDagScheduler {
 
 
 ---
+
+<a id="chapter-30"></a>
 
 # 第 30 章：评测、测试与可观测性
 
@@ -30869,6 +30929,8 @@ myEventEmitter.on('tool_done', boundHandler);
 
 ---
 
+<a id="chapter-31"></a>
+
 # 第 31 章：实战：开发一个模型可见上下文插件
 
 在前序章节中，我们系统性地解构了大语言模型的概率本质、Cordis 微内核控制反转容器、事件溯源持久化账本以及 Agent Loop 状态机的生命周期流转。理论体系的构建最终必须服务于工业级系统的落地。本章将带领大家进行一次端到端的全栈实战：**从零设计、实现并验证一个高可靠、模型可见的动态项目标签（Project Label）上下文插件**。
@@ -31471,7 +31533,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent';
 import { createSystemMessage } from '@deepseek-ai/dsh-llm';
 import type { Session } from '@deepseek-ai/dsh-session';
-import { Schema } from 'schemastery';
+import { Schema } from '@deepseek-ai/schemastery';
 import { normalizeProjectLabel } from './normalize.ts';
 import { projectLatestProjectLabel, renderProjectLabelContext } from './projection.ts';
 import {
@@ -32126,6 +32188,8 @@ ctx.effect(() => {
 
 
 ---
+
+<a id="chapter-32"></a>
 
 # 第 32 章：三个故障案例的诊断方法
 
@@ -33399,6 +33463,8 @@ graph TD
 
 
 ---
+
+<a id="chapter-33"></a>
 
 # 第 33 章：Agent 系统设计面试框架
 
@@ -34880,9 +34946,11 @@ export class DistributedDagWorkerNode {
 
 ---
 
+<a id="chapter-34"></a>
+
 # 第 34 章：高频面试问题与参考答案
 
-本章汇总了针对资深 AI Agent 系统架构师、大模型全栈工程师面试中最高频出现的 25+ 核心技术问题。每一道题目均按照**【简明结论】**、**【底层原理深度解析】**、**【代码 / 架构佐证】**与**【面试加分亮点】**四个结构化维度组织，帮助工程师在技术深度与系统设计视野上达到行业顶级标准。
+本章汇总了针对资深 AI Agent 系统架构师、大模型全栈工程师面试中最高频出现的 13 道核心技术问题。每一道题目均按照**【简明结论】**、**【底层原理深度解析】**、**【代码 / 架构佐证】**与**【面试加分亮点】**四个结构化维度组织，帮助工程师在技术深度与系统设计视野上达到行业顶级标准。
 
 ---
 
@@ -34968,6 +35036,8 @@ export class DistributedDagWorkerNode {
 
 
 ---
+
+<a id="chapter-35"></a>
 
 # 第 35 章：八周学习、毕业验证与模拟面试
 

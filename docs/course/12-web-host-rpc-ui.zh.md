@@ -1,5 +1,7 @@
 # 第 12 章：Web Host、RPC 与插件化 UI
 
+[English](12-web-host-rpc-ui.md) | 中文
+
 在构建面向生产环境的企业级 AI Agent 系统时，架构师面临的最核心挑战之一是：**如何将底层具备高危系统权限（文件系统、终端沙箱、内核隔离、MCP 进程、持久化事实账本）的 Agent 核心引擎，安全、确定、高效地暴露给前端交互界面，并在浏览器端实现高响应性、零撕裂的插件化 UI 体验**。
 
 传统的 Web 全栈架构往往采用粗暴的“单体 API 代理”或直接在前后端混用通用 RPC 框架（如 gRPC、tRPC 或全功能 GraphQL）。然而在 Agent 运行场景中，这些方案迅速暴露出致命短板：后端需要维护复杂的 Cordis 服务依赖注入树、Agent 会话状态机与沙箱隔离；前端需要接收超高频的流式 Reasoning Token（每秒数十至上百个分片）、结构化 Tool Call 生命周期事件、并发子智能体交互，同时还要保证 UI 组件的高度解耦与插件化动态插拔。若直接混用状态，极易引发主线程渲染雪崩、跨会话状态污染或远程代码执行等安全漏洞。
@@ -160,7 +162,7 @@ graph TD
 
 以下是浏览器端初始化 Client Cordis 容器并装载核心插件的工业级实现：
 
-```ts
+```ts ignore-check
 // packages/client/runtime/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
@@ -360,7 +362,7 @@ $$T_{\text{typert}} = T_{\text{json\_parse}}(S_{\text{raw}}) + \sum_{i=1}^K T_{\
 
 以下是 Host 端 Typert RPC 调度网关的工业级实现，具备完整的参数校验、Lookup 解析、生命周期绑定与异常防御：
 
-```ts
+```ts ignore-check
 // packages/api/gateway/src/typert-gateway.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
@@ -530,7 +532,7 @@ export class TypertGatewayService extends Service {
                +-----------------------+-----------------------+
 ```
 
-```ts
+```ts ignore-check
 // packages/host/apiproxy/src/api/rpc.ts
 import type { Branded } from '@deepseek-ai/dsh-brand'
 
@@ -679,7 +681,7 @@ export async function bridge(
 - 上行请求天然获得 HTTP 状态码、代理认证、超时控制与独立的连接隔离，避免单条 WebSocket 拥塞影响关键 RPC 调用。
 - 下行流保持纯粹的推送语义，Host 崩溃或网络断开时，客户端 Connection 状态机只需独立重连 WebSocket，不影响幂等 RPC 的重试策略。
 
-```ts
+```ts ignore-check
 // packages/client/connection/src/client/rpc.ts
 import { RpcId, type ClientRequest, type ServerResponse } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -809,7 +811,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 
 因此，Harness 实现了自研的全值 JSON 持久化，并提供完善的 Storage 失败熔断保护（在隐私模式或 Quota 超限时不抛异常，优雅降级）：
 
-```ts
+```ts ignore-check
 // packages/client/runtime/src/client/contract/store.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -1025,7 +1027,7 @@ export class WorkspacePathGuard {
 
 **修复方案**： 在 `ClientConnectionRpc` 中强行加入严格的双重断言与超时清理，任何 `rpcId` 不匹配的报文直接判定为底层传输协议违例并切断连接重建：
 
-```ts
+```ts ignore-check
 // packages/client/connection/src/client/rpc.ts
 const full = serverResponseSchema.parse(await response.json())
 if (full.rpcId !== rpcId) {

@@ -4,6 +4,7 @@ import { prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm
 import {
   type NormalizeContext,
   extractSnapshotSpillPaths,
+  materializeSessionFixtureCwd,
   normalizeSessionLog,
   normalizeSessionFormatMetadata,
   normalizeSessionSnapshot,
@@ -956,6 +957,64 @@ describe('normalizeSessionSnapshot', () => {
 })
 
 describe('tokenizeSessionFixtureCwd', () => {
+  it('materializes Windows paths in ordinary and nested JSON fixture strings', () => {
+    const cwd = String.raw`C:\Users\runner\AppData\Local\Temp\sdk-snapshot`
+    const raw = [
+      JSON.stringify({ type: 'session', id: 's', createdAt: 1, cwd: '{{cwd}}' }),
+      JSON.stringify({ type: 'tool/call', seq: 1, time: 2, data: {
+        arguments: JSON.stringify({ path: '{{cwd}}/proof.txt' }),
+        description: 'Write {{cwd}}/proof.txt',
+      } }),
+      '',
+    ].join('\n')
+
+    const hydrated = materializeSessionFixtureCwd(raw, cwd)
+    const [header, event] = hydrated.trimEnd().split('\n').map(line => JSON.parse(line) as {
+      cwd?: string
+      data?: { arguments: string; description: string }
+    })
+    expect(header?.cwd).toBe(cwd)
+    expect(JSON.parse(event?.data?.arguments ?? '')).toEqual({ path: `${cwd}/proof.txt` })
+    expect(event?.data?.description).toBe(`Write ${cwd}/proof.txt`)
+    expect(JSON.parse(tokenizeSessionFixtureCwd(hydrated).split('\n')[1] as string)).toMatchObject({
+      data: { arguments: '{"path":"{{cwd}}/proof.txt"}', description: 'Write {{cwd}}/proof.txt' },
+    })
+  })
+
+  it('materializes JSON-looking text only when it is complete JSON', () => {
+    const cwd = String.raw`C:\Users\runner\snapshot`
+    const raw = [
+      JSON.stringify({ value: '[{{cwd}} is a path', unchanged: 'plain text' }),
+      JSON.stringify({ value: JSON.stringify(['{{cwd}}', { nested: '{{cwd}}' }]) }),
+      JSON.stringify({ value: JSON.stringify('{{cwd}}') }),
+      '',
+    ].join('\n')
+
+    const [ordinaryLine, nestedLine, stringLine] = materializeSessionFixtureCwd(raw, cwd).split('\n')
+    const ordinary = JSON.parse(ordinaryLine as string) as { value: string; unchanged: string }
+    const nested = JSON.parse(nestedLine as string) as { value: string }
+    const nestedString = JSON.parse(stringLine as string) as { value: string }
+    expect(ordinary).toEqual({ value: `[${cwd} is a path`, unchanged: 'plain text' })
+    expect(JSON.parse(nested.value)).toEqual([cwd, { nested: cwd }])
+    expect(JSON.parse(nestedString.value)).toBe(cwd)
+  })
+
+  it('tokenizes a Windows cwd embedded in JSON text', () => {
+    const cwd = String.raw`C:\Users\runner\AppData\Local\Temp\sdk-snapshot`
+    const raw = [
+      JSON.stringify({ type: 'session', id: 's', createdAt: 1, cwd }),
+      JSON.stringify({ type: 'tool/result', seq: 1, time: 2, data: {
+        content: [{ type: 'text', text: JSON.stringify({ workspace: cwd }) }],
+      } }),
+      '',
+    ].join('\n')
+
+    const result = JSON.parse(tokenizeSessionFixtureCwd(raw).split('\n')[1] as string) as {
+      data: { content: { text: string }[] }
+    }
+    expect(result.data.content[0]?.text).toBe('{"workspace":"{{cwd}}"}')
+  })
+
   it.each([
     {
       name: 'macOS',

@@ -47,7 +47,7 @@ Production 历史读取使用 `{ recovery: 'recoverable', validation: 'transform
 
 该目录直接包含所有受支持的历史读取器。Profile 无法通过挂载功能插件来添加、移除或重新排列迁移边。它通过对 `dsh-session` 的对等依赖（peer dependency）获得已安装的当前事件词表与当前还原规则，而历史迁移边校验器保持冻结。浏览器安全的 `./message-projections` 导出为独立构造函数和 surface 折叠装配当前插件拥有的处理器，不挂载恢复监听器。
 
-`createSessionFormatCatalogWithChildren(childFacts)` 在组装时将显式的子 Session 证据绑定到 V3→V4，见[目录补齐规范](../session-format-v3-to-v4/README.zh.md)。`historicalSessionFormatCatalog` 使用固定的已发布 V3 事件词汇恢复 V0–V3，收集子日志前置事实而不递归补齐其目录。即使已安装写入方认识事件名，可忽略 V3 扩展仍保持不透明。独立转录回放显式提供空数组；持久化必须收集完整的可用直属子 Session 集合。在 catalog 的生命周期内保持传入证据不变。每次恢复各自拥有独立的 stage 状态。静态 `sessionFormatCatalog` 支持 header 和原生当前格式读取；历史正文读取必须使用已绑定子 Session 的 catalog。
+`createSessionFormatCatalogWithChildren(childFacts)` 在组装时将显式的子 Session 证据绑定到 V3→V4，见[目录补齐规范](../session-format-v3-to-v4/README.zh.md)。`historicalSessionFormatCatalog` 使用固定的已发布 V3 事件词汇恢复 V0–V3，收集子日志前置事实而不递归补齐其目录。`historicalV4SessionFormatCatalog` 使用固定的 V4 词汇读取 V4 子会话前置事实，不发布 V5。即使已安装写入方认识事件名，可忽略的历史扩展仍保持不透明。独立转录回放显式提供空数组；持久化必须收集完整的可用直属子 Session 集合。在 catalog 的生命周期内保持传入证据不变。每次恢复各自拥有独立的 stage 状态。静态 `sessionFormatCatalog` 支持 header 和原生当前格式读取；历史正文读取必须使用已绑定子 Session 的 catalog。
 
 -----
 
@@ -71,6 +71,7 @@ Production 历史读取使用 `{ recovery: 'recoverable', validation: 'transform
 - [已发布 v1 到 v2 迁移边](../session-format-v1-to-v2/README.zh.md)——Assistant 流嵌入与基数变化引用重映射。
 - [已发布 V2 到 V3 规范](../session-format-v2-to-v3/README.zh.md#v2-to-v3-specification)——转换、保留与拒绝。
 - [V3 到 V4 规范](../session-format-v3-to-v4/README.zh.md#v3-to-v4-specification)——转换、引用重映射与 delivery generation 校验。
+- [V4 到 V5 迁移](../session-format-v4-to-v5/README.zh.md)——事件恒等转换及 V5 交付归属。
 - [JSONL 持久化](../session-persistence-jsonl/README.zh.md)——不可变 generation 命名与排他发布。
 
 -----

@@ -1,5 +1,7 @@
 # 第 08 章：agent、轮次、步骤与 Inbox
 
+[English](08-agent-turn-step-inbox.md) | 中文
+
 在绝大多数面向初学者的 AI 教程中，「智能体（Agent）」往往被赋予了拟人化的神秘色彩，被描述为某种具备「自主意识与思考决策能力」的黑盒系统。然而，在顶级系统架构师与工业级编译器/运行时工程师的视角下，这种唯心主义的心智模型不仅无法指导严肃的工程实践，更会在面对分布式竞态、内存泄漏、死锁与状态不一致等复杂系统故障时让人束手无策。
 
 本章将彻底剥离大语言模型的神秘光环，将其严谨地还原为一个**概率型只读纯函数**，并将整个 Agent 运行时建模为一个**严格受控、事件驱动、具备事务边界且基于事件溯源（Event Sourcing）的异步分层有限状态机（Hierarchical Asynchronous Finite State Machine）**。我们将深入剖析 `@deepseek-ai/dsh-agent` 与 `@deepseek-ai/dsh-agent-loop` 两个核心包的工业级实现，从内存拓扑、代数状态机推导、双端 Inbox 消息队列，到 Turn（事务轮次）与 Step（迭代执行步骤）的嵌套生命周期，再到微秒级精度的协作式取消（Cooperative Cancellation）与反向拓扑析构（Memoized Reverse Teardown）。

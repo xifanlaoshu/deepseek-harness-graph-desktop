@@ -1,5 +1,7 @@
 # 第 29 章：多 agent 编排与任务图设计
 
+[English](29-multi-agent-orchestration-dag.md) | 中文
+
 在单智能体（Single Agent）架构中，系统依赖一个处于无限循环状态机（`while(true)`）中的 LLM 实例，通过不断接收输入、追加会话事实账本、发起自回归概率采样、调度工具调用并观察环境反馈来解决工程问题。然而，当软件工程任务的复杂度、代码量、涉及文件数与验证流程跨越某个物理临界点时，单 Agent 必然遭遇严重的上下文窗口耗尽、注意力稀释、长链累积误差雪崩以及单线程执行效率低下等物理瓶颈。
 
 为了解决这一系统级矛盾，现代工业级 Agent 框架引入了**多 Agent 编排与任务图设计（Multi-Agent Graph Orchestration）**。在 DeepSeek Harness 的架构体系中，任务图不是随意拼凑的 Prompt 链，也不是无序并发的线程池，而是一个具备严格数学约束、强类型契约、状态机驱动、不可变版本控制（Immutable Revisions）与分布式一致性保障的**有向无环图（Directed Acyclic Graph, DAG）调度引擎**。

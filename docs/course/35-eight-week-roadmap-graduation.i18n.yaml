@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/course/35-eight-week-roadmap-graduation.md
+35-eight-week-roadmap-graduation.md: 64ab550fa77d0243f56854c6e76a512d4055e6f6
+35-eight-week-roadmap-graduation.zh.md: ec3b4a50b4c3982c5d9766ac0fd42f806f2ab794

@@ -32,7 +32,7 @@ The [format references](persistence-changes/historical-formats/README.md) docume
 latestFinalizedVersion: 4
 ```
 
-V4 has an accepted compatibility baseline in the [checkpoint](persistence-changes/finalized/v4.json). Backward-compatible schema changes may remain V4 through new acknowledgement records. Breaking changes require a higher writer version and their own header transition; they cannot reuse the accepted 3→4 transition. Accepted machine records and after schemas remain immutable. [Checkpoint rules](persistence-changes/README.md#compatibility-rules) define the comparison.
+V4 has an accepted compatibility baseline in the [checkpoint](persistence-changes/finalized/v4.json). The checkout writer advances to V5 for Graph-owned message sources and retains a V4→V5 migration; this does not advance the finalization or release records. Backward-compatible V4 additions remain historical V4 data. Accepted machine records and after schemas remain immutable. [Checkpoint rules](persistence-changes/README.md#compatibility-rules) define the comparison.
 
 Finalization does not freeze every future V4 addition and does not assert publication. The release record below retains the independently verified published version. Ordinary comments, aliases, source locations, and implementation fixes preserving the accepted meaning do not change this baseline.
 

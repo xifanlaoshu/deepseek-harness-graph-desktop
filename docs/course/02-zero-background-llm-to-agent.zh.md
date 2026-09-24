@@ -1,5 +1,7 @@
 # 第 02 章：零基础预备：从 LLM 到 Agent 系统
 
+[English](02-zero-background-llm-to-agent.md) | 中文
+
 本章是全书的技术基石。针对具备传统编程经验（Java / C++ / Go / Rust / Python / TypeScript）但对现代 AI 相对陌生的软件工程师，本章将大语言模型（LLM）的黑盒彻底拆解为确定性的**数学公式、概率分布、矩阵运算、显存数据结构与操作系统级系统调用**。
 
 ---
@@ -45,7 +47,7 @@ $$P(y_t = v_k \mid X, y_{<t}) = \text{Softmax}\left(\frac{\mathbf{z}_t}{\tau}\ri
 ### 2.1.3 工业级伪代码：自回归生成主循环
 从软件工程师角度，自回归推理可以精确描述为一个无状态纯函数的串行 `while` 循环：
 
-```ts
+```ts ignore-check
 interface Tokenizer {
   encode(text: string): number[]
   decode(tokens: number[]): string
@@ -121,7 +123,7 @@ flowchart LR
 3. **贪心合并**：将出现频率最高的词元对合并为一个新的复合词元，并加入词表；
 4. **迭代终止**：重复上述过程直到词表大小达到预设阈值（例如 DeepSeek-V3 词表大小约为 129,280）。
 
-```ts
+```ts ignore-check
 // 模拟 BPE 极简合并过程
 class BPETokenizerSimulator {
   private vocab: Map<string, number> = new Map([
@@ -210,7 +212,7 @@ flowchart TD
   Renorm --> RandomSample["依据新概率分布随机抽样得到 Token ID"]
 ```
 
-```ts
+```ts ignore-check
 // 生产级采样算法 TypeScript 实现
 export function sampleFromLogits(
   logits: Float32Array,

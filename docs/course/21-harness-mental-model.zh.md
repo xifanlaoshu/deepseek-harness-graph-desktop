@@ -1,5 +1,7 @@
 # 第 21 章：Harness 基础篇心智模型
 
+[English](21-harness-mental-model.md) | 中文
+
 作为一名具备 C/C++、Java、Go、Rust、Python 或 TypeScript 等传统系统编程背景的软件工程师，初涉大语言模型（LLM）与智能体（Agent）开发时，最常见的认知障碍在于：将 AI 视为具有某种“神秘心智”的黑盒，或是陷入由各种概念框架包装的抽象流行语中。
 
 本章的核心目标是**彻底击碎 AI 系统的黑盒假象**。在 DeepSeek Harness 架构体系中，没有任何魔法——所有行为都可以严密地映射为传统计算机科学中的**确定性状态机、概率型纯函数、控制反转容器（IoC Container）、事件溯源（Event Sourcing）账本、POSIX 系统调用拦截与分布式排他锁（Fencing Token）**。

@@ -1,5 +1,7 @@
 # 第 06 章：Cordis：项目的运行骨架
 
+[English](06-cordis-runtime.md) | 中文
+
 欢迎进入《DeepSeek Harness 深度技术教程》第二阶段的核心枢纽章节。在深入探讨 Agent 状态机循环、提示词装配、任务图编排与分布式协同之前，我们必须首先拆解支撑整个 DeepSeek Harness 系统运转的微内核底座——**Cordis 运行时**。
 
 对于具备 Java、C++、Go、Rust、Python 或现代 TypeScript 开发经验的系统工程师而言，初次接触 AI 智能体框架时常会产生一种直觉偏差：认为智能体框架的核心工作只是简单的字符串模板拼接（Prompt Template）与网络请求包装（Fetch/Axios）。然而，在工业级 Agent 运行时中，系统面临着极其苛刻的动态性、并发性与可靠性挑战——不同大模型 Provider 的热插拔、不同任务沙箱的权限与工具隔离、跨插件的事件拦截与提示词变异、底层操作系统进程与异步资源句柄的零泄漏释放、以及多 Agent 派生时的服务继承与层级隔离。
@@ -264,7 +266,7 @@ _refresh() {
 在 DeepSeek Harness 中，继承 `Service` 的类会自动完成依赖注入的注册：
 
 ```typescript
-import { Context, Service } from 'cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 
 export class SessionStore extends Service {
   // 静态属性声明该 Service 挂载至 ctx 上的名称
@@ -556,11 +558,11 @@ sequenceDiagram
 ### 6.2 完备的 TypeScript 源码实现
 
 ```typescript
-import { Context, Service, type Disposable } from 'cordis'
+import { Context, Service, type Disposable } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 
 // 1. 声明合并 (Declaration Merging)，将自定义 Service 与事件注入到 Context 类型图中
-declare module 'cordis' {
+declare module '@deepseek-ai/cordis' {
   interface Context {
     llmGateway: RateLimitedLLMGatewayService
   }
@@ -758,7 +760,7 @@ export function RateLimitedLLMGatewayPlugin(ctx: Context, rawConfig: GatewayConf
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest'
-import { Context } from 'cordis'
+import { Context } from '@deepseek-ai/cordis'
 import { RateLimitedLLMGatewayPlugin, GatewayConfigSchema } from './plugin.ts'
 
 describe('RateLimitedLLMGatewayPlugin 工业级集成测试', () => {

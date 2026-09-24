@@ -49,6 +49,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@deepseek-ai/dsh-acp-app` | no | The dsh ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over dsh-base |
+| `@deepseek-ai/dsh-browser-chrome-devtools` | yes | Chrome DevTools browser automation bundle for dsh, backed by the official ChromeDevTools MCP server |
 | `@deepseek-ai/dsh-headless` | yes | The dsh one-shot bundle: a direct core Agent/Session runner over dsh-base with no Host, HTTP, or browser layer |
 | `@deepseek-ai/dsh-sdk-app` | yes | The dsh SDK profile bundle: stdio JSON-RPC serving and process lifecycle over dsh-base |
 | `@deepseek-ai/dsh-web-app` | yes | The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, web-surface prompt, bash runtime variables, URL line) |
@@ -74,6 +75,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-directory-picker-browse` | no | In-app directory browsing surface: the workspace directory-flow owner rendering the host's listing and creation primitives |
 | `@deepseek-ai/dsh-client-ui-directory-picker-native` | no | Native directory-picker surface: the renderless workspace directory-flow occupant driving the local Desktop or Host OS chooser |
 | `@deepseek-ai/dsh-client-ui-goal` | no | Session goal surface: GoalBar docked above the composer, read from the goal session projection |
+| `@deepseek-ai/dsh-client-ui-graph` | no | Graph-mode session action, role settings, DAG canvas, and node evidence inspector |
 | `@deepseek-ai/dsh-client-ui-input-trigger` | no | Input trigger pipeline: '/' and '@' detection, candidate menu, pick routing to registered sources |
 | `@deepseek-ai/dsh-client-ui-jobs` | no | Session-header background-job list with on-demand streaming record panels |
 | `@deepseek-ai/dsh-client-ui-layout` | no | Shell plugin: three-column AppFrame with drag handles, ctx.layout viewing-state service (navigation + panels) |
@@ -225,6 +227,24 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-goal` | yes | Event-sourced same-session goal state and lifecycle service for the DeepSeek Harness |
 | `@deepseek-ai/dsh-goal-round-driver` | no | Race-fenced same-session goal-round driver |
 | `@deepseek-ai/dsh-tool-goal` | yes | Model-facing same-session goal tools with execution-time authority checks |
+
+## graph
+
+| Package | Config | Description |
+|---|---|---|
+| `@deepseek-ai/dsh-graph` | no | Durable graph-mode definitions, revisions, run snapshots, and validation |
+| `@deepseek-ai/dsh-graph-artifacts` | no | Provider-neutral content-addressed artifact transport for Graph workers |
+| `@deepseek-ai/dsh-graph-artifacts-fs` | yes | Persistent filesystem Graph artifact transport Provider |
+| `@deepseek-ai/dsh-graph-coordination-loopx` | yes | LoopX CLI provider for durable graph worker coordination and reconciliation |
+| `@deepseek-ai/dsh-graph-mode` | yes | Slash-command controller and bounded background DAG scheduler for graph mode |
+| `@deepseek-ai/dsh-graph-resources` | no | Expiring model-resource observations and fenced reservations for Graph scheduling |
+| `@deepseek-ai/dsh-graph-resources-local` | yes | Local lease, concurrency, weight, OOM, and rate-limit Graph resource provider |
+| `@deepseek-ai/dsh-graph-resources-sqlite` | yes | SQLite-backed cross-process Graph model-resource reservations and backoff |
+| `@deepseek-ai/dsh-graph-scheduler` | no | Fenced scheduler ownership for durable Graph runs |
+| `@deepseek-ai/dsh-graph-scheduler-sqlite` | yes | SQLite-backed cross-process Graph scheduler ownership |
+| `@deepseek-ai/dsh-graph-worker` | no | Provider-neutral assignment, lifecycle, workspace, and artifact seam for graph workers |
+| `@deepseek-ai/dsh-graph-worker-local` | yes | Local isolated Graph Worker Provider over the subagent capability |
+| `@deepseek-ai/dsh-graph-worker-remote` | yes | Authenticated HTTP and out-of-process remote Graph Worker Providers |
 
 ## guard
 

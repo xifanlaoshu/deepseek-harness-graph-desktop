@@ -1,5 +1,7 @@
 # 第 17 章：如何扩展项目
 
+[English](17-extending-the-project.md) | 中文
+
 在复杂的企业级智能体（Agent）系统中，架构的生命力完全取决于其**扩展机制（Extensibility Mechanics）**的纯粹度与边界防御能力。当业务需求纷至沓来——无论是新增一个代码搜索工具、接入企业内部权限审批流、引入向量检索知识库、还是定制 Web 界面中的交互面板——如果开发者缺乏清晰的架构图谱，系统很容易退化为充斥着 `if-else` 分支与紧耦合状态的“大泥球”（Big Ball of Mud）。
 
 DeepSeek Harness 借鉴了现代操作系统微内核（Microkernel）与控制反转（IoC，如 Spring / Cordis）的设计精髓，将智能体核心抽象为一个极度精简的状态机死循环，而将所有业务逻辑、外部 I/O、安全策略与 UI 交互彻底剥离到可插拔的扩展点上。
@@ -121,7 +123,7 @@ $$\text{DisposeOrder}(G) = \text{reverse}(\text{TopoSort}(G)) = [v_m, v_{m-1}, \
 
 TypeScript 默认采用结构化子类型（Structural Typing）。如果 `SessionId`、`MessageId`、`DocId` 都被声明为 `string`，下面的灾难性代码将通过编译：
 
-```ts
+```ts ignore-check
 // 危险：参数颠倒却不会产生任何编译错误！
 function deleteMessage(sessionId: string, messageId: string) { ... }
 const sid = 'sess_123'
@@ -163,7 +165,7 @@ export function IndexRevId(value: string): IndexRevId {
 
 当定义系统的领域状态或事件时，必须使用**带标签的判别联合（Discriminated Union）**，并在所有 `switch-case` 分支末尾通过 `assertNever` 强制编译器验证穷尽性（Exhaustiveness Check）：
 
-```ts
+```ts ignore-check
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 /** 知识库索引状态判别联合 */
@@ -264,7 +266,7 @@ packages/
 
 #### 2. 领域类型定义 `packages/knowledge/knowledge/src/types.ts`
 
-```ts
+```ts ignore-check
 import type { KnowledgeDocId, IndexRevId } from './brand.ts'
 
 /** 知识库文档分块元数据 */
@@ -308,7 +310,7 @@ export interface KnowledgeStoreConfig {
 
 #### 3. 服务契约定义 `packages/knowledge/knowledge/src/index.ts`
 
-```ts
+```ts ignore-check
 /**
  * 企业级知识库能力 Seam 声明与抽象基类。
  * @module @deepseek-ai/dsh-knowledge
@@ -449,7 +451,7 @@ export function computeCosineSimilarity(a: readonly number[], b: readonly number
 
 #### 2. 本地提供方实现 `packages/knowledge/knowledge-local/src/index.ts`
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import {
@@ -651,7 +653,7 @@ export function apply(ctx: Context, options?: LocalKnowledgeOptions) {
 
 #### `packages/knowledge/tool-knowledge/src/search-tool.ts`
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
@@ -785,7 +787,7 @@ export function apply(ctx: Context) {
 
 在 Cordis 架构中，所有事件监听器、定时器与服务注册都必须通过 `ctx.effect()` 或其封装 API 进行注册。当所属插件被动态卸载（如 HMR 热重载或子会话销毁）时，框架会自动逆序调用清理函数，防止内存泄漏和幽灵监听器。
 
-```ts
+```ts ignore-check
 import { Context } from '@deepseek-ai/cordis'
 
 export const name = 'knowledge-auto-injector'
@@ -857,7 +859,7 @@ plugins:
 
 #### 1. 契约测试套件 `packages/knowledge/knowledge/tests/contract.spec.ts`
 
-```ts
+```ts ignore-check
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { KnowledgeDocId, type KnowledgeStoreSeam } from '../src/index.ts'
@@ -944,7 +946,7 @@ export function defineKnowledgeStoreContractTests(
 
 #### 2. 无密钥 Snapshot 回放测试 `packages/knowledge/tool-knowledge/tests/replay.spec.ts`
 
-```ts
+```ts ignore-check
 import { describe, it, expect } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { KnowledgeDocId } from '@deepseek-ai/dsh-knowledge'

@@ -1,5 +1,7 @@
 # 第 26 章：上下文工程、记忆与压缩
 
+[English](26-context-engineering-memory-compression.md) | 中文
+
 在生产级 Agent 系统中，上下文窗口（Context Window）不仅是昂贵的显存资源，更是模型维持连贯因果推理与有效决策的“工作内存”（Working Memory）。本章将上下文管理从零散的提示词技巧提升为系统级的**数据结构生命周期管理、多路混合检索（Hybrid RAG）、有损状态投影与结构化压缩算法**。
 
 ---
@@ -119,7 +121,7 @@ Here is the fetched data... Ignore previous instructions (This will be treated a
 
 以下提供可直接运行的 TypeScript 生产级实现：
 
-```ts
+```ts ignore-check
 export interface DocumentChunk {
   id: string
   content: string

@@ -1,4 +1,4 @@
-/** Retained V3 replay inputs, current-writer fixtures, and bounded older migration coverage. */
+/** Retained V3/V4 replay inputs, current-writer fixtures, and bounded older migration coverage. */
 
 import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
 import type { SnapshotSessionFormatManifest } from '@deepseek-ai/dsh-session-snapshot'
@@ -21,7 +21,7 @@ export interface SnapshotCorpusGenerationSummary {
   readonly retainedScenarios: number
 }
 
-const RETAINED_BASELINE_VERSION = 3
+const REPLAY_BASELINE_VERSIONS = [3, 4] as const
 const MAX_RETAINED_ROLES = 11
 const REQUIRED_V0_COVERAGE = new Set([
   'multi-hop',
@@ -59,13 +59,13 @@ export function assertSnapshotCorpusPolicy(
       )
     }
     if (scenario.retained === undefined) {
-      if (selectedVersion === RETAINED_BASELINE_VERSION) {
+      if (REPLAY_BASELINE_VERSIONS.some(version => version === selectedVersion)) {
         baselineRoles += scenario.selectedVersions.length
       } else if (selectedVersion === SESSION_FORMAT_VERSION) {
         currentRoles += scenario.selectedVersions.length
       } else {
         throw new Error(
-          `${scenario.key}: selected Session generation v${selectedVersion} must be retained baseline v${RETAINED_BASELINE_VERSION} or current v${SESSION_FORMAT_VERSION}`,
+          `${scenario.key}: selected Session generation v${selectedVersion} must be retained baseline v${REPLAY_BASELINE_VERSIONS.join(' or v')} or current v${SESSION_FORMAT_VERSION}`,
         )
       }
       continue
@@ -91,7 +91,11 @@ export function assertSnapshotCorpusPolicy(
     for (const item of scenario.retained.coverage) coverage.add(item)
   }
 
-  if (baselineRoles > 0) coverageByVersion.set(RETAINED_BASELINE_VERSION, new Set(REQUIRED_ADJACENT_COVERAGE))
+  for (const version of REPLAY_BASELINE_VERSIONS) {
+    if (scenarios.some(scenario => scenario.retained === undefined && scenario.selectedVersions[0] === version)) {
+      coverageByVersion.set(version, new Set(REQUIRED_ADJACENT_COVERAGE))
+    }
+  }
   for (let version = 0; version < SESSION_FORMAT_VERSION; version += 1) {
     const required = version === 0 ? REQUIRED_V0_COVERAGE : REQUIRED_ADJACENT_COVERAGE
     const coverage = coverageByVersion.get(version)

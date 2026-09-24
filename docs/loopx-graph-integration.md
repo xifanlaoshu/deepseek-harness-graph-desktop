@@ -579,7 +579,6 @@ The durable target is met only when the following scenarios pass with process-st
 - [Graph Artifacts README](../packages/graph/graph-artifacts/README.md) owns manifests, content addressing, capture, materialization, and reconciliation.
 - [Graph Resources README](../packages/graph/graph-resources/README.md) owns expiring model telemetry, reservations, wait reasons, and resource outcomes.
 - [Session persistence README](../packages/session/session-persistence/README.md) owns asynchronous append coordination, flush barriers, lifecycle, and failure reporting.
-- [SQLite persistence README](../packages/session/session-persistence-sqlite/README.md) owns the default session database, bounded history reads, legacy JSONL import, and crash-tail recovery.
 - [Settings README](../packages/settings/settings/README.md) owns revision-fenced global template storage.
 - [Web bundle patch](../packages/bundle/web-app/cordis.patch.yml) assembles the concrete Scheduler, Resource, Artifact, Worker, Graph Mode, and optional LoopX Provider rows.
 - [Graph UI README](../packages/client/ui-graph/README.md) owns Design/Execution presentation, settings, evidence navigation, and precisely addressed controls.

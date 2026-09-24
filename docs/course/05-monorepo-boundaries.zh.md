@@ -1,5 +1,7 @@
 # 第 05 章：Monorepo 与包边界
 
+[English](05-monorepo-boundaries.md) | 中文
+
 在大型 AI Agent 系统与生产级 Harness（智能体运行框架）的演进过程中，架构设计面临的核心矛盾在于：**模型认知交互的极端易变性**与**底层系统基础设施的极端稳定性**之间的剧烈冲突。如果将大语言模型（LLM）的 Prompt 组装、Tool Schema 暴露、操作系统进程树治理、文件系统沙箱、状态事件溯源（Event Sourcing）以及 Web 交互界面全部揉杂在一个单体工程中，任何细微的业务提示词调整或工具协议变动，都可能引发系统底层的连带故障。
 
 本章将从现代系统工程的视角，深度解构 DeepSeek Harness 的 Monorepo 拓扑架构与包边界（Package Boundaries）划分哲学。我们将揭示如何借助 **Cordis 依赖注入内核**、**Service Definition / Service Provider / Consumer 三元解耦设计模式**、**TypeScript 双端面（Host / Client）物理隔离构建流水线** 以及 **声明式 Bundle 装配层**，构建出一套高内聚、低耦合、强类型安全且支持无缝热插拔的工业级 Agent 系统骨架。

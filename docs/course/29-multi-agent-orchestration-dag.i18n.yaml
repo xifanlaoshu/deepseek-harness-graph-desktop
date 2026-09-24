@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/course/29-multi-agent-orchestration-dag.md
+29-multi-agent-orchestration-dag.md: 4314df25280b17a6fe958868cecdca4ade149123
+29-multi-agent-orchestration-dag.zh.md: 96d3b827d04f9277b50c7234d1d00f3b679915c3
