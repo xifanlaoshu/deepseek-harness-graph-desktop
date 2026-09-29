@@ -7,7 +7,6 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../../vendor/cordis" },
     { "path": "../graph" },
-    { "path": "../graph-scheduler" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../graph-scheduler" }
   ]
 }

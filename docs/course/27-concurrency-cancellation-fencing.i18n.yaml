@@ -1,6 +1,133 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 27-concurrency-cancellation-fencing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/27-concurrency-cancellation-fencing.md
-27-concurrency-cancellation-fencing.md: e7672323b3216309d3ec5c7eb1f57e7245723a9a
-27-concurrency-cancellation-fencing.zh.md: 4d1e1037461eb428384c1614434d95795312dd6e
+/chapter-27-concurrency-cancellation-timeouts-and-fencing:
+  en: 46df07aecdcee7a3
+  zh: 103b1abe4ced7a5e
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-1-mapping-core-concepts-to-systems-engineering:
+  en: b6d104426366a025
+  zh: 54ee1e03cf0c29a0
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-2-asynchronous-ownership-four-separate-authorities:
+  en: dedca86412cc7cb7
+  zh: 508698085a020c5b
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-2-asynchronous-ownership-four-separate-authorities/27-2-1-precise-definition-of-the-four-authorities:
+  en: d645a3831dc84979
+  zh: ef436656040e0faa
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-2-asynchronous-ownership-four-separate-authorities/27-2-2-ownership-state-machine:
+  en: bf1101acf29f38ec
+  zh: b7b253e777b863a4
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-2-asynchronous-ownership-four-separate-authorities/27-2-3-typescript-types-for-ownership-and-authority:
+  en: 7409dc15e423b7ec
+  zh: dbdc9fb655f3331a
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-3-cooperative-cancellation-from-signal-delivery-to-quiescence:
+  en: fa6d63c08a4387a2
+  zh: b1735f155de5d1b1
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-3-cooperative-cancellation-from-signal-delivery-to-quiescence/27-3-1-what-abortsignal-does:
+  en: 3b9c54ea206cc4ea
+  zh: 965fbc22e7d16cfd
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-3-cooperative-cancellation-from-signal-delivery-to-quiescence/27-3-2-three-tier-escalating-disposal-ladder:
+  en: 14d6721fc4d27923
+  zh: 2cd5a04f76199066
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-3-cooperative-cancellation-from-signal-delivery-to-quiescence/27-3-3-antipattern-why-promise-race-is-dangerous:
+  en: d9378e7020833ea9
+  zh: 374c2a67e736ae48
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-3-cooperative-cancellation-from-signal-delivery-to-quiescence/27-3-4-production-cross-platform-process-quiescence-controller:
+  en: f824ce75a9959ebe
+  zh: aca13cc064bce8b0
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-4-timeout-and-cancellation-are-independent-state-separation-and-normalized-results:
+  en: 27ad963d8884888a
+  zh: d4646a2561acbd90
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-4-timeout-and-cancellation-are-independent-state-separation-and-normalized-results/27-4-1-the-trap-of-exit-code-zero:
+  en: 3cf0bf34256ef77b
+  zh: c640611599250f3c
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-4-timeout-and-cancellation-are-independent-state-separation-and-normalized-results/27-4-2-mathematical-definition-of-independent-outcome-fields:
+  en: f9c76360f1def725
+  zh: 20891fdc02c661fc
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-4-timeout-and-cancellation-are-independent-state-separation-and-normalized-results/27-4-3-normalized-discriminated-union:
+  en: 97c0978b0b10e7af
+  zh: b73a31f8f6309cd1
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense:
+  en: f24d5769a6660327
+  zh: b325a89b0b676ffb
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-1-classic-split-brain-sequence-martin-kleppmann-s-gc-pause-example:
+  en: 080dc4ab8623c7bc
+  zh: adb8839cb1783fb0
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-2-formal-proof-of-the-fencing-token-algorithm:
+  en: bea901fbb9af33f0
+  zh: 38a03df6ddbd1c9d
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-2-formal-proof-of-the-fencing-token-algorithm/1-monotonically-increasing-order:
+  en: 155dab3a7375779f
+  zh: ddbb2dabaa23ba8e
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-2-formal-proof-of-the-fencing-token-algorithm/2-atomic-storage-compare-and-swap-condition:
+  en: 089ec91c6d1b2057
+  zh: 33d5af149115054b
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-2-formal-proof-of-the-fencing-token-algorithm/3-why-lease-clock-drift-does-not-break-correctness:
+  en: f24f4fc3bd67aab8
+  zh: d084d9ffdc4c6fd4
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-3-binding-human-approval-to-a-generation:
+  en: 7d5e88832dc01918
+  zh: dc62279ac86653e8
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-3-binding-human-approval-to-a-generation/failure-scenario-approval-from-an-earlier-turn:
+  en: 28cb362f35b686a5
+  zh: a4ae858dc72d60f6
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-5-monotonically-increasing-fencing-tokens-and-split-brain-defense/27-5-3-binding-human-approval-to-a-generation/remedy-generation-bound-authorization-ticket:
+  en: 800acb74ef20968c
+  zh: a07681484fba6134
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events:
+  en: c2d9fc02aa220b97
+  zh: cc4469ce83e5648b
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-1-sqlite-data-model-for-the-fencing-ledger:
+  en: 7f7581c5317c55f2
+  zh: ccd4048f824b07ba
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-2-json-protocol-events-for-concurrency-and-cancellation:
+  en: b44dd0097d867ff2
+  zh: 780c6336961cc175
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-2-json-protocol-events-for-concurrency-and-cancellation/1-cancellation-request-agent-cancel-requested:
+  en: c77550ccb5a58169
+  zh: 74163d8da3b7a783
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-2-json-protocol-events-for-concurrency-and-cancellation/2-rejection-of-a-late-write-fencing-rejected:
+  en: f941baa7951d7a94
+  zh: d844e99f336ead55
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-2-json-protocol-events-for-concurrency-and-cancellation/3-quiescence-confirmation-quiescence-settled:
+  en: 8598b027fd4ae79a
+  zh: a55c1334212657bd
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-6-memory-model-data-layout-and-protocol-events/27-6-3-resource-reclamation-state-matrix:
+  en: fd2db1a2ee1aa51b
+  zh: 788520dc62526ab7
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-7-hands-on-a-production-concurrency-and-fencing-controller:
+  en: f8cee50c364e7265
+  zh: b20b486bdf80d4ae
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-7-hands-on-a-production-concurrency-and-fencing-controller/27-7-1-complete-implementation:
+  en: 58e91b97d57c9230
+  zh: 05358324ce208adc
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-7-hands-on-a-production-concurrency-and-fencing-controller/27-7-2-end-to-end-tests-and-concurrent-sequence-exercises:
+  en: 31436b3f41eaf09a
+  zh: adb6495e786247d4
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting:
+  en: f634f17349abb84d
+  zh: ce66197a6e5c1c4b
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting/27-8-1-incident-1-promise-race-returns-early-and-an-orphan-process-corrupts-the-workspace:
+  en: 27748834d8d1bfd5
+  zh: e6dfdde3bf09edb1
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting/27-8-2-incident-2-an-unclosed-llm-sse-stream-exhausts-gpu-vram:
+  en: db718a25e0939a64
+  zh: 79524f970a611cf6
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting/27-8-3-incident-3-approval-from-a-prior-turn-deletes-production-data:
+  en: 56663d7ca57d8964
+  zh: 6fbcbe237d7f6fbc
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting/27-8-4-incident-4-killing-only-the-parent-on-windows-leaves-a-child-holding-a-port:
+  en: 13ebad444580ec9f
+  zh: 10a77276ffecdb99
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-8-production-incidents-and-troubleshooting/27-8-5-production-troubleshooting-checklist:
+  en: 93b8d4f3612272e5
+  zh: 0fb22f5e1c13e67f
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-9-summary-and-exercises:
+  en: 6842eb390a8e1643
+  zh: 4940b33736ca3fd5
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-9-summary-and-exercises/core-principles:
+  en: b63ebe2a188e623e
+  zh: 09971be81d7ef3df
+/chapter-27-concurrency-cancellation-timeouts-and-fencing/27-9-summary-and-exercises/architecture-exercises:
+  en: 5cabc0c3bbfa8e64
+  zh: 9b9588ebf12cfcb7

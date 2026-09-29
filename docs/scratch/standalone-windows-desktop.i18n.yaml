@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for standalone-windows-desktop.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/scratch/standalone-windows-desktop.md
+/:
+  en: caed1dbe6266320e
+  zh: 0d374b2b2584b926
+/standalone-windows-graph-desktop-plan:
+  en: 2fa6f01ebda86c3e
+  zh: 8204dca9a015bff8
+/standalone-windows-graph-desktop-plan/summary:
+  en: eb5fcc9671c8a544
+  zh: 36591f05c2a039a6
+/standalone-windows-graph-desktop-plan/table-of-contents:
+  en: 0ac195bdcd7c04f8
+  zh: 55dc0c48d05faefe
+/standalone-windows-graph-desktop-plan/delivery-scope:
+  en: 8bf2175cd482cee7
+  zh: 7ab29c36a6e2a10d
+/standalone-windows-graph-desktop-plan/migration-ownership:
+  en: 9a331d403e120da5
+  zh: 50199ab64931dfa1
+/standalone-windows-graph-desktop-plan/runtime-composition:
+  en: 29eb45216cc517e9
+  zh: cb84c2739c55445f
+/standalone-windows-graph-desktop-plan/lifecycle-and-security:
+  en: b75ec33602179950
+  zh: 13a454bf22055a9d
+/standalone-windows-graph-desktop-plan/development-sequence:
+  en: 8806e3b82c482eb8
+  zh: 0ce83a7d289549de
+/standalone-windows-graph-desktop-plan/acceptance:
+  en: d7d2326349f90240
+  zh: 66f59c404471535e
+/standalone-windows-graph-desktop-plan/dev-note:
+  en: 38b588f9d5f82e54
+  zh: 7b0292f1cdb9aaaa

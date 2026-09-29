@@ -117,7 +117,7 @@ $$\mathbf{h}_N = \sum_{j=1}^{k} A_{N, j} \mathbf{v}_j + \sum_{j=k+1}^{N} A_{N, j
 | :--- | :--- | :--- | :--- |
 | **Spoofing (身份伪造)** | 伪造用户身份或证书 | 伪造 Tool Call ID、伪造 MCP 服务身份、伪造 Subagent 来源 | 加密签名上下文、会话 UUID 强校验、不可篡改租约 |
 | **Tampering (数据篡改)** | 篡改传输报文或数据库数据 | 篡改会话事件账本（Session Log）、篡改工作区配置文件（`.git/config`） | 仅追加写（Append-Only）日志、只读挂载系统目录 |
-| **Repudiation (抵赖性)** | 否认曾执行过某项操作 | 模型否认执行过高危 Shell 写入、多 Agent 间互相推诿操作责任 | 审计事件流强溯源、全量 stdout/stderr 磁盘归档 |
+| **Repudiation (抵赖性)** | 否认曾执行过某项操作 | 模型否认执行过高危 Shell 写入、多 Agent 间互相推诿操作责任 | 审计事件流中的来源事件链接、全量 stdout/stderr 磁盘归档 |
 | **Information Disclosure (信息泄密)** | 未授权读取敏感数据 | 通过 Prompt 诱导打印环境变量、通过报错回显提取 `.env` 凭据 | 熵值脱敏过滤器、环境变量白名单清洗、内存凭据剥离 |
 | **Denial of Service (拒绝服务)** | 耗尽带宽、CPU 或内存 | 输出爆炸（Output Bomb）、Token 窗口耗尽（Token Flooding）、Zip 炸弹 | 内存硬阈值、磁盘溢出 Spill 策略、解压配额预检 |
 | **Elevation of Privilege (特权提升)** | 普通用户越权获取 Root 权限 | 只读 Agent 派生出具备写入权限的 Subagent、绕过用户审批执行高危 Shell | 权限单调收窄格（$\sqsubseteq$）、Fail-Closed 审批仲裁器 |

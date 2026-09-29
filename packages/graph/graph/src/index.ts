@@ -1110,7 +1110,8 @@ function validateTerminationPolicy(graph: GraphRevision, config: GraphModeConfig
  */
 export function validateGraphRevision(value: unknown, config: GraphModeConfig): asserts value is GraphRevision {
   validateGraphModeConfig(config)
-  const graph = parseStructure(revisionSchema, value, 'GRAPH_REVISION_STRUCTURE', 'graph revision fields have invalid types or unknown fields') as unknown as GraphRevision
+  const parsed: unknown = parseStructure(revisionSchema, value, 'GRAPH_REVISION_STRUCTURE', 'graph revision fields have invalid types or unknown fields')
+  const graph = parsed as GraphRevision
   if (!normalized(graph.graphId) || !SAFE_ID.test(graph.graphId) || !normalized(graph.objective) || !normalized(graph.userInput)) {
     fail('GRAPH_REVISION_TEXT', 'graph id, objective, and userInput must be normalized non-empty strings')
   }
@@ -1331,7 +1332,8 @@ export function validateGraphRevision(value: unknown, config: GraphModeConfig): 
  * @returns assertion that the value is a valid run of the named revision.
  */
 export function validateGraphRun(value: unknown, graph: GraphRevision): asserts value is GraphRun {
-  const run = parseStructure(runSchema, value, 'GRAPH_RUN_STRUCTURE', 'graph run fields have invalid types or unknown fields') as unknown as GraphRun
+  const parsed: unknown = parseStructure(runSchema, value, 'GRAPH_RUN_STRUCTURE', 'graph run fields have invalid types or unknown fields')
+  const run = parsed as GraphRun
   validateGraphModeConfig(run.configSnapshot)
   if (!normalized(run.id) || !SAFE_ID.test(run.id) || run.graphId !== graph.graphId
     || run.revision !== graph.revision || !RUN_PHASES.has(run.phase)
@@ -1473,7 +1475,7 @@ export function validateGraphRun(value: unknown, graph: GraphRevision): asserts 
     }
     if (state.suppliedByControlId !== undefined && (!normalized(state.suppliedByControlId) || !SAFE_ID.test(state.suppliedByControlId)
       || state.output === undefined || state.attempts.length !== 0)) {
-      fail('GRAPH_RUN_SUPPLIED_OUTPUT', `node ${JSON.stringify(key)} has invalid supplied-output provenance`)
+      fail('GRAPH_RUN_SUPPLIED_OUTPUT', `node ${JSON.stringify(key)} has invalid supplied-output source reference`)
     }
     if (state.resourceWait !== undefined && (!normalized(state.resourceWait.providerId) || !normalized(state.resourceWait.model)
       || !Number.isSafeInteger(state.resourceWait.observedAt) || state.resourceWait.observedAt < run.createdAt
@@ -1503,7 +1505,7 @@ export function validateGraphRun(value: unknown, graph: GraphRevision): asserts 
     if (state.reusedFrom !== undefined && (!normalized(state.reusedFrom.runId)
       || !normalized(state.reusedFrom.generationId) || !SAFE_ID.test(state.reusedFrom.generationId)
       || !normalized(state.reusedFrom.nodeId) || !definitions.has(state.reusedFrom.nodeId))) {
-      fail('GRAPH_RUN_REUSE', `node ${JSON.stringify(key)} has invalid reuse provenance`)
+      fail('GRAPH_RUN_REUSE', `node ${JSON.stringify(key)} has invalid reused-result reference`)
     }
   }
   if (run.error !== undefined && (!normalized(run.error.code) || !normalized(run.error.message)
@@ -1538,12 +1540,13 @@ export function validateGraphRun(value: unknown, graph: GraphRevision): asserts 
  * @returns complete validated run state after applying the update.
  */
 export function applyGraphRunUpdate(value: unknown, prior: GraphRun, graph: GraphRevision): GraphRun {
-  const update = parseStructure(
+  const parsed: unknown = parseStructure(
     runUpdateSchema,
     value,
     'GRAPH_RUN_UPDATE_STRUCTURE',
     'graph run update fields have invalid types or unknown fields',
-  ) as unknown as GraphRunUpdate
+  )
+  const update = parsed as GraphRunUpdate
   if (update.runId !== prior.id || update.graphId !== prior.graphId || update.revision !== prior.revision
     || update.generation !== prior.generation || update.generationId !== prior.generationId
     || update.ownerEpoch !== prior.ownerEpoch || update.updatedAt < prior.updatedAt
@@ -1569,7 +1572,8 @@ export function applyGraphRunUpdate(value: unknown, prior: GraphRun, graph: Grap
 
 /** Validate one operation-journal transition before replay accepts it. */
 function validateOperationTransition(value: unknown, state: GraphProjection): GraphOperationTransition {
-  const transition = parseStructure(operationTransitionSchema, value, 'GRAPH_OPERATION_STRUCTURE', 'graph operation fields have invalid types or unknown fields') as unknown as GraphOperationTransition
+  const parsed: unknown = parseStructure(operationTransitionSchema, value, 'GRAPH_OPERATION_STRUCTURE', 'graph operation fields have invalid types or unknown fields')
+  const transition = parsed as GraphOperationTransition
   const run = state.runs[transition.runId]
     ?? fail('GRAPH_OPERATION_RUN', `operation ${JSON.stringify(transition.eventId)} names unknown run ${JSON.stringify(transition.runId)}`)
   if (![transition.eventId, transition.operationId, transition.workId, transition.generationId, transition.graphId, transition.nodeId]
@@ -1610,7 +1614,8 @@ function validateOperationTransition(value: unknown, state: GraphProjection): Gr
 
 /** Validate one settlement record before replay accepts it. */
 function validateSettlementRecord(value: unknown, state: GraphProjection): GraphSettlementRecord {
-  const settlement = parseStructure(settlementRecordSchema, value, 'GRAPH_SETTLEMENT_STRUCTURE', 'graph settlement fields have invalid types or unknown fields') as unknown as GraphSettlementRecord
+  const parsed: unknown = parseStructure(settlementRecordSchema, value, 'GRAPH_SETTLEMENT_STRUCTURE', 'graph settlement fields have invalid types or unknown fields')
+  const settlement = parsed as GraphSettlementRecord
   const run = state.runs[settlement.runId]
     ?? fail('GRAPH_SETTLEMENT_RUN', `settlement ${JSON.stringify(settlement.id)} names unknown run ${JSON.stringify(settlement.runId)}`)
   if (![settlement.id, settlement.operationId, settlement.workId, settlement.generationId]
@@ -1638,12 +1643,13 @@ function validateSettlementRecord(value: unknown, state: GraphProjection): Graph
 
 /** Validate one graph-revision submission record before replay accepts it. */
 function validateRevisionSubmissionRecord(value: unknown, state: GraphProjection): GraphRevisionSubmissionRecord {
-  const submission = parseStructure(
+  const parsed: unknown = parseStructure(
     revisionSubmissionRecordSchema,
     value,
     'GRAPH_SUBMISSION_STRUCTURE',
     'graph submission fields have invalid types or unknown fields',
-  ) as unknown as GraphRevisionSubmissionRecord
+  )
+  const submission = parsed as GraphRevisionSubmissionRecord
   if (!normalized(submission.id) || !SAFE_ID.test(submission.id)
     || !Number.isSafeInteger(submission.requestedAt)
     || (submission.completedAt !== undefined && (
@@ -1726,7 +1732,8 @@ function validateRevisionSubmissionRecord(value: unknown, state: GraphProjection
  * @returns validated checkpoint.
  */
 export function validateGraphCheckpoint(value: unknown, state: GraphProjection): GraphCheckpoint {
-  const checkpoint = parseStructure(checkpointSchema, value, 'GRAPH_CHECKPOINT_STRUCTURE', 'graph checkpoint fields have invalid types or unknown fields') as unknown as GraphCheckpoint
+  const parsed: unknown = parseStructure(checkpointSchema, value, 'GRAPH_CHECKPOINT_STRUCTURE', 'graph checkpoint fields have invalid types or unknown fields')
+  const checkpoint = parsed as GraphCheckpoint
   const graph = state.graphs[checkpoint.graphId]?.find(item => item.revision === checkpoint.revision)
     ?? fail('GRAPH_CHECKPOINT_GRAPH', `checkpoint ${JSON.stringify(checkpoint.id)} names an unknown graph revision`)
   const run = state.runs[checkpoint.runId]
@@ -1810,7 +1817,8 @@ export function validateGraphCheckpoint(value: unknown, state: GraphProjection):
 
 /** Validate one completed human or controller operation. */
 function validateControlRecord(value: unknown, state: GraphProjection): GraphControlRecord {
-  const control = parseStructure(controlRecordSchema, value, 'GRAPH_CONTROL_STRUCTURE', 'graph control fields have invalid types or unknown fields') as unknown as GraphControlRecord
+  const parsed: unknown = parseStructure(controlRecordSchema, value, 'GRAPH_CONTROL_STRUCTURE', 'graph control fields have invalid types or unknown fields')
+  const control = parsed as GraphControlRecord
   const run = state.runs[control.runId] ?? fail('GRAPH_CONTROL_RUN', `control ${JSON.stringify(control.id)} names an unknown run`)
   const graph = state.graphs[control.graphId]?.find(item => item.revision === run.revision)
     ?? fail('GRAPH_CONTROL_GRAPH', `control ${JSON.stringify(control.id)} names an unknown graph`)

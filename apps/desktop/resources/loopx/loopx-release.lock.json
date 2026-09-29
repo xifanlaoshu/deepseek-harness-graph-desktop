@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "loopx",
+  "version": "1.2.2",
+  "source": "https://github.com/loopx-project/loopx/releases/tag/v1.2.2",
+  "sourceCommit": "ee9dad81b14c6d15d32b95851b5d38fcc485e732",
+  "wheel": {
+    "fileName": "loopx-1.2.2-py3-none-any.whl",
+    "url": "https://github.com/loopx-project/loopx/releases/download/v1.2.2/loopx-1.2.2-py3-none-any.whl",
+    "size": 6847544,
+    "sha256": "67a56249f2cd0b2282e50f83daabfe9759493a401bb42182dbe664d58e10e0d6"
+  },
+  "python": ">=3.11",
+  "node": ">=22.22.3",
+  "license": "Apache-2.0",
+  "licenseFiles": ["LICENSE", "NOTICE", "LICENSE-MIT"]
+}

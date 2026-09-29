@@ -13,6 +13,7 @@ import { createElectronBuilderConfig } from '../scripts/electron-builder-config.
 import { verifyRuntimeArchive } from '../scripts/verify-runtime-archive.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { inventoryDesktopRuntime, type DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
+import { forkIdentityEnvironment } from './desktop-identity-fixture.ts'
 
 vi.mock('../scripts/windows-sign.mjs', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/windows-sign.mjs')>(),
@@ -48,7 +49,7 @@ afterEach(async () => {
 
 function unsignedWindowsConfig(appId: string, source: string) {
   return createElectronBuilderConfig({
-    DSH_DESKTOP_APP_ID: appId, DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+    ...forkIdentityEnvironment(appId), DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
     DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
     DSH_DESKTOP_UNSIGNED: '1',
   }, 'win32', 'x64', source)
@@ -74,6 +75,16 @@ async function fixture(external: boolean) {
   }
   await writeFile(join(source, 'node_modules', 'foo', 'companion.json'), '{}')
   await writeFile(join(source, 'node_modules', 'foo', '$xarchy.binary'), 'neighbor')
+  for (const [name, manifest] of [
+    ['@deepseek-ai/libreoffice-kit', { name: '@deepseek-ai/libreoffice-kit', optionalDependencies: { '@deepseek-ai/libreoffice-kit-win32-x64': '0.0.4' }, dependencies: { 'office-codec': '1' } }],
+    ['@deepseek-ai/libreoffice-kit-win32-x64', { name: '@deepseek-ai/libreoffice-kit-win32-x64' }],
+    ['office-codec', { name: 'office-codec' }],
+  ] as const) {
+    const directory = join(source, 'node_modules', name)
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, 'package.json'), JSON.stringify(manifest))
+    await writeFile(join(directory, 'cli.js'), 'export {}')
+  }
   const config = {
     files: [{ from: source, to: 'dsh', filter: ['**/*'] },
       { from: join(source, 'node_modules'), to: 'dsh/node_modules', filter: ['**/*'] }],
@@ -176,7 +187,7 @@ it.each([true, false])('validates the real builder hook for unsigned=%s', async 
   const certificate = join(input.root, 'certificate.cer')
   await writeFile(certificate, 'fixture public certificate')
   const config = createElectronBuilderConfig({
-    DSH_DESKTOP_APP_ID: 'com.example.unpack', DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+    ...forkIdentityEnvironment('com.example.unpack'), DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
     DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
     DSH_DESKTOP_TARGET_PLATFORM: 'win32', DSH_DESKTOP_TARGET_ARCH: 'x64', DSH_DESKTOP_UNSIGNED: unsigned ? '1' : '0',
     DSH_DESKTOP_WINDOWS_CER_FILE: certificate, DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com', DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
@@ -235,6 +246,9 @@ it.each([false, true])('keeps the complete Office engine outside ASAR with exter
   await packageFixture(input)
   const archive = await readAsar(join(input.resources, 'app.asar'))
   expect(archive.getFile(join('dsh', 'node_modules', '@deepseek-ai', 'libreoffice-kit-wasm', 'package.json')).unpacked).not.toBe(true)
+  for (const name of ['@deepseek-ai/libreoffice-kit', 'office-codec']) {
+    expect(archive.getFile(join('dsh', 'node_modules', name, 'cli.js')).unpacked).toBe(true)
+  }
   for (const file of files) {
     expect(archive.getFile(join('dsh', engine, file), false).unpacked).toBe(true)
     expect(await readFile(join(input.resources, 'app.asar.unpacked', 'dsh', engine, file), 'utf8')).toBe('{}')

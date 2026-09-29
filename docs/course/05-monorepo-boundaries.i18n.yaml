@@ -1,6 +1,148 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 05-monorepo-boundaries.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/05-monorepo-boundaries.md
-05-monorepo-boundaries.md: cbf2166b9848d5ad5ae0c80c01cee6704d133adb
-05-monorepo-boundaries.zh.md: 3673a4569a421188c05c1a537b630ee0b4363b6b
+/chapter-05-monorepo-and-package-boundaries:
+  en: 41da3ff830649d62
+  zh: ecc9883a172500fc
+/chapter-05-monorepo-and-package-boundaries/5-1-architectural-mental-model-monorepo-boundaries-through-systems-programming:
+  en: 1960ee400ce97462
+  zh: 932a5ffeda3c05fd
+/chapter-05-monorepo-and-package-boundaries/5-1-architectural-mental-model-monorepo-boundaries-through-systems-programming/5-1-1-systems-level-mapping-table:
+  en: c031a2378d8dc8b5
+  zh: 29ba7c3644f4bf8b
+/chapter-05-monorepo-and-package-boundaries/5-1-architectural-mental-model-monorepo-boundaries-through-systems-programming/5-1-2-why-can-t-a-large-agent-harness-be-a-monolithic-script:
+  en: 894b5398352dc2f9
+  zh: 0ae125565b370d4e
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups:
+  en: cea202701cde0742
+  zh: 2f7ce1dbcf92549d
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-1-core-the-core-product-api:
+  en: 3c4cdb0fa241f8c2
+  zh: 0c16aa759d339cbe
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-2-llm-llm-abstractions-and-adapters:
+  en: 7e0eb57205155c8a
+  zh: db10f7177dcabf97
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-3-fs-filesystem-seam-sandboxed-i-o-and-model-facing-tools:
+  en: 2b6e9ea2a74a2fea
+  zh: a9eb3fc4d21a7290
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-4-shell-cross-platform-command-execution-environment-injection-and-tools:
+  en: 3dde90b27731286b
+  zh: 7ed2500fa13d8640
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-5-subprocess-process-tree-management-and-lifecycle:
+  en: 7ce6df042a0c344c
+  zh: 9b94ff5d75cb56f1
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-6-sandbox-operating-system-process-isolation-and-policy:
+  en: 6fab86b6385d398e
+  zh: 247d8dac98b48144
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-7-web-web-search-and-fetch-abstractions:
+  en: 9b27b8431c16b84f
+  zh: 8f05f6bb54a3584d
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-8-session-fact-ledger-event-sourcing-persistence-and-projection-cache:
+  en: 30b058ab37b39d64
+  zh: 4ee83bce2beead1b
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-9-storage-general-non-session-storage-and-domain-data-forms:
+  en: 38a3065c928af4b9
+  zh: d989c9ca7240190a
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-10-subagent-multi-agent-delegation-and-continuation-control:
+  en: 28b3aae45ca99b76
+  zh: 01716d54c51c29d3
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-11-jobs-general-background-task-runtime:
+  en: 68d90aa4328caa3e
+  zh: a16f6184d4a9983a
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-12-workflow-structured-workflow-engine-and-worker-thread-isolation:
+  en: b235322baf1cddfb
+  zh: 0b20b20acb740145
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-13-graph-multi-agent-dags-and-distributed-scheduling:
+  en: 11e4c55e10be5cbe
+  zh: b77c829ad3e1df73
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-14-host-web-gui-host-bff-gateway-and-http-routes:
+  en: b9d24f1a657d4740
+  zh: c0b7a65a3f00bf67
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-15-client-browser-reactive-state-and-ui-plugins:
+  en: ef33c62b98b0af58
+  zh: 78bac1d5c22fc286
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-16-api-rpc-gateway-and-remote-contracts:
+  en: 3bb568300a0cb598
+  zh: 01f3340bd25159de
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-17-typert-type-graph-generation-and-runtime-reflection:
+  en: 30ae24bc463c2fa7
+  zh: a46058b24fcf0828
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-18-bundle-top-level-application-assemblies:
+  en: 2171a88185f29167
+  zh: 40e4b586e3aecf12
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-19-preset-mounting-preset-agent-configuration:
+  en: 09b7095f72e1406e
+  zh: d431cec736fb79c0
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-20-boot-application-bootstrapping-and-cli-assembly:
+  en: 4727f003bee8df01
+  zh: 7fa54614d3846b02
+/chapter-05-monorepo-and-package-boundaries/5-2-responsibilities-of-the-core-package-groups/5-2-21-sdk-out-of-process-protocol-and-multilanguage-sdks:
+  en: 0c7a8e3f8027ebaf
+  zh: b2f337c0dcd1e26b
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio:
+  en: 79be78f3f7c04511
+  zh: 90adf7ab564dbaa1
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio/5-3-1-why-an-abstract-class-instead-of-a-typescript-interface:
+  en: 9164f2f1803b5663
+  zh: b77881b727d7311d
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio/5-3-2-complete-typescript-example-of-the-three-role-pattern:
+  en: fb38b274eb03b218
+  zh: 70ec429fb57bbe53
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio/5-3-2-complete-typescript-example-of-the-three-role-pattern/1-service-definition-packages-shell-shell-src-index-ts:
+  en: 7f4fa5e80a9412b2
+  zh: 843991c2f377217d
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio/5-3-2-complete-typescript-example-of-the-three-role-pattern/2-service-provider-packages-shell-bash-local-src-index-ts:
+  en: 579c45f6d900a920
+  zh: 3a24d7f7ecd7fd06
+/chapter-05-monorepo-and-package-boundaries/5-3-core-design-pattern-the-service-definition-provider-consumer-trio/5-3-2-complete-typescript-example-of-the-three-role-pattern/3-consumer-packages-shell-tool-bash-src-index-ts:
+  en: 716060c00fe30826
+  zh: 3250099e417235fd
+/chapter-05-monorepo-and-package-boundaries/5-4-separating-source-and-artifact-planes-in-the-build-pipeline:
+  en: 055dbe9e6aa68229
+  zh: f4d527855516b304
+/chapter-05-monorepo-and-package-boundaries/5-4-separating-source-and-artifact-planes-in-the-build-pipeline/5-4-1-isolating-host-and-client-programs-to-prevent-context-collisions:
+  en: a75c3710f497e1fe
+  zh: 1ea74e952f15facb
+/chapter-05-monorepo-and-package-boundaries/5-4-separating-source-and-artifact-planes-in-the-build-pipeline/5-4-2-physical-separation-of-the-source-plane-paths-and-artifact-plane-exports:
+  en: 319c1803f84293c6
+  zh: 0b496fa95507058a
+/chapter-05-monorepo-and-package-boundaries/5-4-separating-source-and-artifact-planes-in-the-build-pipeline/5-4-2-physical-separation-of-the-source-plane-paths-and-artifact-plane-exports/1-source-plane:
+  en: 060260d22ab7e3b4
+  zh: 4dc31b7a02bc0ad5
+/chapter-05-monorepo-and-package-boundaries/5-4-separating-source-and-artifact-planes-in-the-build-pipeline/5-4-2-physical-separation-of-the-source-plane-paths-and-artifact-plane-exports/2-artifact-plane:
+  en: e27d0bf0f9d2b81a
+  zh: 50ad0fb4697832f5
+/chapter-05-monorepo-and-package-boundaries/5-5-bundle-assembly-and-declarative-profiles:
+  en: 721b5b40a3282b69
+  zh: bc0922aaa3403cbb
+/chapter-05-monorepo-and-package-boundaries/5-5-bundle-assembly-and-declarative-profiles/5-5-1-declarative-patch-assembly-cordis-patch-yml:
+  en: e4d420ea17ca28b0
+  zh: ceba894c0b2d45bc
+/chapter-05-monorepo-and-package-boundaries/5-5-bundle-assembly-and-declarative-profiles/5-5-1-declarative-patch-assembly-cordis-patch-yml/1-base-bundle-packages-bundle-base-cordis-patch-yml:
+  en: e3dc59c0b4a2aedc
+  zh: 0069a8db1cf2fb4c
+/chapter-05-monorepo-and-package-boundaries/5-5-bundle-assembly-and-declarative-profiles/5-5-1-declarative-patch-assembly-cordis-patch-yml/2-web-application-bundle-packages-bundle-web-app-cordis-patch-yml:
+  en: e62565fabbf1ec85
+  zh: d4e3eafd39a57c74
+/chapter-05-monorepo-and-package-boundaries/5-6-production-failure-cases-and-troubleshooting:
+  en: 993bbcb086c5c135
+  zh: e15a042fe318ccc0
+/chapter-05-monorepo-and-package-boundaries/5-6-production-failure-cases-and-troubleshooting/5-6-1-failure-1-context-declaration-collision-causes-widespread-compilation-failure:
+  en: d2b7a969256e12fa
+  zh: d488ed56fd6ad55f
+/chapter-05-monorepo-and-package-boundaries/5-6-production-failure-cases-and-troubleshooting/5-6-2-failure-2-consumer-bypasses-the-service-definition-escaping-the-sandbox-and-orphaning-processes:
+  en: 934e2349bc8c2b9a
+  zh: ef6b863a3fa9c86e
+/chapter-05-monorepo-and-package-boundaries/5-6-production-failure-cases-and-troubleshooting/5-6-3-failure-3-cross-package-build-race-before-typert-remote-contracts-are-written:
+  en: 4ce3d8f36b0850f5
+  zh: a95ad19d43021446
+/chapter-05-monorepo-and-package-boundaries/5-7-review-questions-and-hands-on-exercise:
+  en: 573debb40a65fe98
+  zh: ad1b5c0cb0e754b5
+/chapter-05-monorepo-and-package-boundaries/5-7-review-questions-and-hands-on-exercise/5-7-1-review-questions:
+  en: 33bcf9fdfbcf848e
+  zh: 74fe4d6e0bd8dec8
+/chapter-05-monorepo-and-package-boundaries/5-7-review-questions-and-hands-on-exercise/5-7-2-hands-on-exercise-extend-a-custom-ctx-metrics-monitoring-seam:
+  en: 33eb8c2dc79bb2e0
+  zh: c4a7d152e30c426e

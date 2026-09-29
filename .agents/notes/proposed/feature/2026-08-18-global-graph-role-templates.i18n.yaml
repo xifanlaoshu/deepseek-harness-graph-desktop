@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-global-graph-role-templates.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-global-graph-role-templates.md
-2026-08-18-global-graph-role-templates.md: 43aa2ea6dc686c2d063077b51297a5cbf2994960
-2026-08-18-global-graph-role-templates.zh.md: abc94832511e8ff85790b4c487f30ca3f39899a4
+/agent-note-global-graph-role-templates-with-session-snapshots:
+  en: df797464d6c7bc72
+  zh: d6b785119eb18792
+/agent-note-global-graph-role-templates-with-session-snapshots/problem:
+  en: 676e1755645b1e3c
+  zh: f279b03111afe9eb
+/agent-note-global-graph-role-templates-with-session-snapshots/proposal:
+  en: d2ead9677ad4a228
+  zh: d9909fe2a6a0129d
+/agent-note-global-graph-role-templates-with-session-snapshots/current-implementation:
+  en: b626190996ad322d
+  zh: 7680f361989cbc17
+/agent-note-global-graph-role-templates-with-session-snapshots/alternatives-considered:
+  en: c48fcc40a4f86ae7
+  zh: 40eaa3b05423f0d4
+/agent-note-global-graph-role-templates-with-session-snapshots/acceptance-criteria:
+  en: 703243b29c2dcb85
+  zh: adaab913d8d58d39
+/agent-note-global-graph-role-templates-with-session-snapshots/risks:
+  en: 7b3154f4da5ae401
+  zh: e87e671ced3660db

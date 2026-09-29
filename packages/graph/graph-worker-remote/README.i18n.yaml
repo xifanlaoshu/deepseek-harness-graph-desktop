@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-worker-remote/README.md
-README.md: 37f7b3da79b11aa371aa262697a5a11fa830e1ce
-README.zh.md: 93a436bbaca6740c254037adcb82292d45bf6bb7
+/:
+  en: 7a1bfc7205960789
+  zh: 4fe4afb77503765a
+/deepseek-ai-dsh-graph-worker-remote:
+  en: 25e7b940718aea1f
+  zh: fc4f9836fe83baab
+/deepseek-ai-dsh-graph-worker-remote/summary:
+  en: 8636d203838a5647
+  zh: b002a7995c55ab69
+/deepseek-ai-dsh-graph-worker-remote/table-of-contents:
+  en: 2b4a439ee824454d
+  zh: 63d10da83d7b5342
+/deepseek-ai-dsh-graph-worker-remote/configuration:
+  en: 3c19708e37d41dad
+  zh: 947560466510dc7b
+/deepseek-ai-dsh-graph-worker-remote/contract:
+  en: 68d7923ecb15fc32
+  zh: ec33e1c724ca3c1a
+/deepseek-ai-dsh-graph-worker-remote/dev-note:
+  en: 6f6a19c3d7a8f7a9
+  zh: 7a3810798d53b961
+/deepseek-ai-dsh-graph-worker-remote/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-graph-worker-remote/model-experience/remote-assignment:
+  en: 2dcc7602f41192c9
+  zh: 2dcc7602f41192c9
+/deepseek-ai-dsh-graph-worker-remote/model-experience/remote-assignment/what-the-model-sees:
+  en: 2232059046dad219
+  zh: 88e74d84223aaab0
+/deepseek-ai-dsh-graph-worker-remote/model-experience/remote-assignment/token-effect:
+  en: ad0bb68d8fed3988
+  zh: 2870631b8d96319a
+/deepseek-ai-dsh-graph-worker-remote/model-experience/remote-assignment/kv-cache-effect:
+  en: e853fded05fee003
+  zh: 0756758596fb4098
+/deepseek-ai-dsh-graph-worker-remote/known-limitations-and-deferred-work:
+  en: 7cb0cc88c5a72600
+  zh: f45f78727352c390

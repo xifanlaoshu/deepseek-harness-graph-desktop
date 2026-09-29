@@ -647,7 +647,7 @@ Base Rows [A, B]
    v Snapshot 4 (+ CLI --patch)     ---> Rows [A'', B, C', D](D inserted by CLI)
 ```
 
-The resulting YAML inserts `# ==` provenance comments above consecutive blocks.
+The resulting YAML places `# ==` comments with each entry's original and patching layers above consecutive blocks.
 
 ### 7.6.2 Command-Line Examples
 
@@ -922,7 +922,7 @@ export function renderConfigDump(
 
   let previous = baseEntries
   let previousWarningsCount = 0
-  const provenance: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
+  const entryLayerHistory: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
     origin: baseLabel,
     patchedBy: [],
   }))
@@ -941,9 +941,9 @@ export function renderConfigDump(
     const beforeStrings = previous.map(e => JSON.stringify(e))
     for (let idx = 0; idx < composed.length; idx++) {
       if (idx >= beforeStrings.length) {
-        provenance.push({ origin: layer.label, patchedBy: [] })
+        entryLayerHistory.push({ origin: layer.label, patchedBy: [] })
       } else if (JSON.stringify(composed[idx]) !== beforeStrings[idx]) {
-        provenance[idx]?.patchedBy.push(layer.label)
+        entryLayerHistory[idx]?.patchedBy.push(layer.label)
       }
     }
     previous = composed
@@ -963,7 +963,7 @@ export function renderConfigDump(
   }
 
   for (let idx = 0; idx < composed.length; idx++) {
-    const record = provenance[idx]
+    const record = entryLayerHistory[idx]
     const header = record.patchedBy.length === 0
       ? record.origin
       : `${record.origin}, patched by ${record.patchedBy.join(', ')}`

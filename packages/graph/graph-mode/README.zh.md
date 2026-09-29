@@ -1,6 +1,23 @@
+---
+description: "配置主控策略并使用有界工作代理、检查点和恢复机制执行持久化 Graph 运行。本文介绍会话 Graph Mode 的行为及其配置。"
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph-mode`
 
 [English](README.md) | 中文
+
+## 概述
+
+使用可配置的主控角色、有界 Worker 容量和明确的检查点及恢复策略来规划并执行持久化 Graph 运行。Graph Mode 协调各提供方，而 graph 软件包负责持久化领域规则。
+
+## 目录
+
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
 
 对于新任务和修订，`graph_submit` 可以接收可选 lineage 决策，其中包含 `new_task`、`analysis_refactor` 或 `execution_correction`、具体标题、触发来源与摘要、引用的 Run 或节点、错误证据和成功条件。Graph Mode 会校验这些引用与分类，推导逻辑任务身份、父关系或跨 Batch 关系，以及精确的新增、修改、移除、保留和失效节点，然后把完整记录与临时提交一起保存。主控省略该决策时，Host 会根据已接受的检查点、控制和终态 Run 证据进行保守分类；模型始终不能编写运行指标。
 
@@ -42,6 +59,18 @@ Web 组合会在 `isolated-copy` 工作区中派发 Graph 节点。每份 Assign
 
 调度执行排空后，暂停、取消、重试、恢复或替换 Revision 的每条控制路径都会终态结算更早失败 Attempt 遗留的 Claim，替换工作才可认领重叠作用域。已经确认的终态 Coordination Settlement 保持不变。
 
+<a id="dev-note"></a>
+## 开发备注
+该插件不发布不变量 companion：持久 Graph 关系由 `@deepseek-ai/dsh-graph` 持有并校验。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 主控策略
@@ -72,7 +101,7 @@ Web 组合会在 `isolated-copy` 工作区中派发 Graph 节点。每份 Assign
 
 相同角色和模型的子代理可以复用角色提示词前缀，但节点目标、依赖输出和协调观察会随尝试变化。
 
-## 已知限制与待完成工作
+## 已知限制与待完成工作 <a id="known-limitations-and-deferred-work"></a>
 
 - 恢复流程可以重放已暂存的 Settlement、重试失败的 Settlement Attempt、对账 Worker/工作区与模型 Reservation 引用、取消仍处于 Claim 状态的 LoopX 工作，并重新执行确认缺失且幂等的工作，但无法证明任意外部副作用。手动、隔离、冲突或未知结果会停在 `awaiting_user`，直到精确寻址的控制操作解决它们。
 - Web 组合中的 SQLite 调度与资源 Provider 会协调共享同一会话目录的本地 Host 进程，其 Artifact Provider 会在该文件系统中持久化 Manifest。Artifact 集成目前支持带源哈希的普通文件；符号链接物化和隔离删除仍需显式集成实现。独立 Host 仍需要经过认证的分布式调度 Provider、持久 Worker 身份与健康状态、远程遥测、经过认证的产物传输和引用感知孤儿清理。

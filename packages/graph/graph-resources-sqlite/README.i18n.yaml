@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-resources-sqlite/README.md
-README.md: 5182700790df9548295bff8b19ef73d989c98b7b
-README.zh.md: fa266a4ffe98de05737d30b2e9c09ec101998474
+/:
+  en: 1ee383acf53ed189
+  zh: 10ec86bc4a3973e8
+/deepseek-ai-dsh-graph-resources-sqlite:
+  en: f6e46b4bdd2c4a31
+  zh: 4940de2c2d0e64bf
+/deepseek-ai-dsh-graph-resources-sqlite/summary:
+  en: edffb1dc84a2f09a
+  zh: 6fe9ad5003adf312
+/deepseek-ai-dsh-graph-resources-sqlite/table-of-contents:
+  en: 7d630c6f836be361
+  zh: c7af5980dfe5b1aa
+/deepseek-ai-dsh-graph-resources-sqlite/configuration:
+  en: 301882eb5d6da90a
+  zh: 52b4be83848233d8
+/deepseek-ai-dsh-graph-resources-sqlite/contract:
+  en: abe017915bb0d534
+  zh: 79f5f2513fe75c56
+/deepseek-ai-dsh-graph-resources-sqlite/dev-note:
+  en: c1deedd732064b89
+  zh: 5b15ab111e6268ec
+/deepseek-ai-dsh-graph-resources-sqlite/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-resources-sqlite/model-experience/persistent-capacity-evidence:
+  en: 627cc9f320a27e20
+  zh: 9e57b99547f8c72d
+/deepseek-ai-dsh-graph-resources-sqlite/model-experience/persistent-capacity-evidence/what-the-model-sees:
+  en: bb0a20885a22bbe8
+  zh: fc9f41c25d912741
+/deepseek-ai-dsh-graph-resources-sqlite/model-experience/persistent-capacity-evidence/token-effect:
+  en: 18834b0ef590584e
+  zh: 7846dc0b2113fed1
+/deepseek-ai-dsh-graph-resources-sqlite/model-experience/persistent-capacity-evidence/kv-cache-effect:
+  en: 79805e699df8afc5
+  zh: bdbf1b338b270daf
+/deepseek-ai-dsh-graph-resources-sqlite/known-limitations-and-deferred-work:
+  en: f209918172c4debf
+  zh: fb8c635182dd58bf

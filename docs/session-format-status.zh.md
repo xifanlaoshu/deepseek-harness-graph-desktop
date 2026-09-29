@@ -42,11 +42,11 @@ V4 的已接受兼容性基线保存在[检查点](persistence-changes/finalized
 ## 发布记录
 
 ```yaml session-format-release
-latestReleasedVersion: 3
-evidenceTag: dsh-v0.1.5-alpha.1
+latestReleasedVersion: 4
+evidenceTag: dsh-v0.2.0-rc.2
 ```
 
-证据：已发布产品标签 `dsh-v0.1.5-alpha.1`；该标签的写入器路径：`packages/core/session/src/types.ts`。
+证据：已发布产品标签 `dsh-v0.2.0-rc.2`；该标签的写入器路径：`packages/core/session/src/types.ts`。
 
 <a id="updating-the-record"></a>
 ## 更新记录

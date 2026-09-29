@@ -1,6 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
 import { GraphControlOperationId, GraphWorkId } from '@deepseek-ai/dsh-graph'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import { describe, expect, it, vi } from 'vitest'
 import GraphResourceRuntime, {
   GraphResourceReservationId,
@@ -8,7 +7,6 @@ import GraphResourceRuntime, {
   type GraphResourceReservationRequest,
   type GraphResourceSnapshot,
 } from '../src/index.ts'
-import * as ResourceInvariant from '../src/invariant.ts'
 
 const now = 10_000
 const request = (overrides: Partial<GraphResourceReservationRequest> = {}): GraphResourceReservationRequest => ({
@@ -131,12 +129,4 @@ describe('graph resource service', () => {
     expect(gpu.reserveMock).not.toHaveBeenCalled()
   })
 
-  it('reserves package invariant ownership', async () => {
-    const ctx = new Context()
-    await ctx.plugin(InvariantRegistry, { enabled: true })
-    await ctx.plugin(ResourceInvariant).await()
-    expect(() => {
-      ctx.invariants.register('@deepseek-ai/dsh-graph-resources', () => {})
-    }).toThrow(/already registered/)
-  })
 })

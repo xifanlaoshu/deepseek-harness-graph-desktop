@@ -1,6 +1,109 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 31-hands-on-context-plugin.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/31-hands-on-context-plugin.md
-31-hands-on-context-plugin.md: 4bddeb3eb4a0f70dc23c82ee0cde3be2e76c852c
-31-hands-on-context-plugin.zh.md: 130c021e3f3b95a1c980f3dbe46f8f10428cb615
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin:
+  en: de2ac82ea53fffb4
+  zh: 8cc793199b24bd57
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/1-requirements-problem-definition-and-architecture:
+  en: 2251d9ae42ccfbe7
+  zh: 658aac9e1ee744ae
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/1-requirements-problem-definition-and-architecture/1-1-why-an-llm-needs-a-dynamic-project-label:
+  en: c87e8bb71ccaf2ee
+  zh: bc95e10ff169dd9a
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/1-requirements-problem-definition-and-architecture/1-2-functional-and-nonfunctional-requirements:
+  en: 84f876812b86643f
+  zh: c3cf6f53634c3d43
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/1-requirements-problem-definition-and-architecture/1-3-mapping-systems-engineering-to-agent-context-engineering:
+  en: 4c1f683a4feef42b
+  zh: fc72e338df8fc598
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/2-choosing-storage-why-memory-variables-and-settings-are-unsuitable:
+  en: f0505869cdf019a1
+  zh: 4da0b537a3751b5c
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/2-choosing-storage-why-memory-variables-and-settings-are-unsuitable/2-1-option-a-limitations-of-an-in-memory-map:
+  en: dac7eba7fa7cea4f
+  zh: ca2ab7626bf07d63
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/2-choosing-storage-why-memory-variables-and-settings-are-unsuitable/2-2-option-b-why-static-or-user-settings-have-the-wrong-scope:
+  en: 847890c7b334df3d
+  zh: c78fc051219cdac9
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/2-choosing-storage-why-memory-variables-and-settings-are-unsuitable/2-3-option-c-an-immutable-session-event-sourcing-ledger:
+  en: 08f427dddca995b8
+  zh: 2cdc6657331f05d8
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/2-choosing-storage-why-memory-variables-and-settings-are-unsuitable/2-4-comparing-the-three-storage-options-across-ten-dimensions:
+  en: 4989a031f49b6776
+  zh: 2113961e5c860a79
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity:
+  en: cf88f5eb13c2026e
+  zh: 8ed45592fe866c19
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-1-how-dynamic-context-placement-affects-attention-and-kv-cache-reuse:
+  en: 7ba961aaa5299f31
+  zh: 60fc00afcab21cd5
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-1-how-dynamic-context-placement-affects-attention-and-kv-cache-reuse/3-1-1-derivation-autoregressive-attention-and-prefix-hash-invalidation:
+  en: 2126dc786cbc1e59
+  zh: 165dd4f1cd8d4534
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-1-how-dynamic-context-placement-affects-attention-and-kv-cache-reuse/3-1-2-kv-cache-memory-calculation:
+  en: 2a5b12deffc5091a
+  zh: a9d00082d2901e62
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-2-pure-projection-folding-and-asymptotic-complexity:
+  en: 40e4d6ed8bc91a36
+  zh: 0a450b4fa6bc4010
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-2-pure-projection-folding-and-asymptotic-complexity/3-2-1-formal-algebraic-definition:
+  en: d175a7e5c8104623
+  zh: 36fdeddc8d73a323
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/3-mathematical-derivation-kv-cache-costs-and-projection-complexity/3-2-pure-projection-folding-and-asymptotic-complexity/3-2-2-complexity-of-reverse-scanning-with-early-exit:
+  en: 8cbe48580150c722
+  zh: 4432a7b613a05a90
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/4-data-structures-and-validation-requirements:
+  en: 18e9bb5078770e34
+  zh: ee81d37802f54772
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/4-data-structures-and-validation-requirements/4-1-core-design-constraints:
+  en: 48f854e116724b4f
+  zh: 7d1cf3dfdf3cbcbf
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/5-complete-typescript-implementation:
+  en: a0534bcece55ad7e
+  zh: 5ecd58c9f29f5997
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/5-complete-typescript-implementation/5-1-source-file-one-data-types-and-interfaces-src-types-ts:
+  en: 847d62f1c67c669e
+  zh: 4345c53ad386b723
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/5-complete-typescript-implementation/5-2-source-file-two-pure-sanitization-and-normalization-functions-src-normalize-ts:
+  en: ba53b3b39226c518
+  zh: a1cbf9264b2643a7
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/5-complete-typescript-implementation/5-3-source-file-three-pure-projection-folding-src-projection-ts:
+  en: 9bcac815c4dbce36
+  zh: eba1c65c408afca7
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/5-complete-typescript-implementation/5-4-source-file-four-cordis-plugin-and-interception-hook-src-index-ts:
+  en: 5eed451a860444e1
+  zh: 6121f5bfe4c561c3
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/6-four-layer-test-pyramid:
+  en: cf52a26927b41895
+  zh: b18004e0275d4a7d
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/6-four-layer-test-pyramid/6-1-layer-one-unit-tests-for-bounds-sanitization-and-reverse-projection:
+  en: 71de0fe4a08500d1
+  zh: f0361d46e6711af0
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/6-four-layer-test-pyramid/6-2-layer-two-cordis-lifecycle-tests-for-load-and-dispose:
+  en: cc12008a04cfff25
+  zh: cf687a919eaae595
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/6-four-layer-test-pyramid/6-3-layer-three-agent-loop-integration-tests-for-model-visible-labels:
+  en: d1bb1e626df390ee
+  zh: f2e919245705867a
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/6-four-layer-test-pyramid/6-4-layer-four-snapshot-replay-and-crash-recovery-tests:
+  en: fa4bfe80efff3caa
+  zh: 936b2fcc8daede6f
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/7-production-failures-timing-diagnostics-and-architecture-rules:
+  en: 856aceee0638cef0
+  zh: e00cb4c76a6378c6
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/7-production-failures-timing-diagnostics-and-architecture-rules/7-1-failure-one-dynamic-injection-invalidates-the-kv-cache:
+  en: 650a9ae6731b5104
+  zh: 4095bb1a34b9cfe4
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/7-production-failures-timing-diagnostics-and-architecture-rules/7-2-failure-two-concurrent-turns-mix-labels-across-step-boundaries:
+  en: 4300fd1124ee5095
+  zh: 74151e57123e2091
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/7-production-failures-timing-diagnostics-and-architecture-rules/7-3-failure-three-a-listener-survives-plugin-hot-unload:
+  en: 3b15c14652a29c2b
+  zh: 2b4263880ea76156
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/7-production-failures-timing-diagnostics-and-architecture-rules/7-4-failure-four-a-malicious-project-label-escapes-the-prompt-format:
+  en: 48ba19a7da384029
+  zh: 3be94b54446bb78b
+/chapter-31-hands-on-development-of-a-model-visible-context-plugin/8-chapter-summary-and-next-exercise:
+  en: 767874056cc83019
+  zh: 5199a59195dc5dbb

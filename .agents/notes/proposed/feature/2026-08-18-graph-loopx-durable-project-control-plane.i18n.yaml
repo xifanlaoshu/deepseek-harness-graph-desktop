@@ -1,6 +1,67 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-graph-loopx-durable-project-control-plane.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-graph-loopx-durable-project-control-plane.md
-2026-08-18-graph-loopx-durable-project-control-plane.md: 532b3fd524bdcd4537c27c760675bed6b2af789d
-2026-08-18-graph-loopx-durable-project-control-plane.zh.md: 7ba7eb4acec5d2e89ce4713ba6704b3f76156e00
+/agent-note-graph-and-loopx-durable-project-control-plane:
+  en: 6815464b403a729e
+  zh: 4e899ac799871738
+/agent-note-graph-and-loopx-durable-project-control-plane/problem:
+  en: a6dc9db5dcc6e656
+  zh: e6a4db60a8b130e4
+/agent-note-graph-and-loopx-durable-project-control-plane/proposal:
+  en: 59c446030d6a93df
+  zh: d99f2cd00175c525
+/agent-note-graph-and-loopx-durable-project-control-plane/product-contract:
+  en: 937fff26a8c846b8
+  zh: 8d68b753d521bbaa
+/agent-note-graph-and-loopx-durable-project-control-plane/formal-target-baseline:
+  en: a25acc0d9c683000
+  zh: c1c53f237270ff9b
+/agent-note-graph-and-loopx-durable-project-control-plane/authority-and-state-model:
+  en: 40cfcc2ae37319bf
+  zh: 6edd9e2bafeb5b42
+/agent-note-graph-and-loopx-durable-project-control-plane/package-topology:
+  en: d5eee3090acc2c67
+  zh: 89c796f9ed15f141
+/agent-note-graph-and-loopx-durable-project-control-plane/end-to-end-execution:
+  en: 96c1adb4b0549614
+  zh: d93d0b31c8a0926b
+/agent-note-graph-and-loopx-durable-project-control-plane/controller-and-graph-semantics:
+  en: 1fd6ecd5f951034b
+  zh: f810d78b9c5bd7e5
+/agent-note-graph-and-loopx-durable-project-control-plane/default-software-engineering-team:
+  en: 27c940f5fba2ac4d
+  zh: e3ce20d76ff3979e
+/agent-note-graph-and-loopx-durable-project-control-plane/execution-and-recovery-state-machines:
+  en: 46ec18a118116c82
+  zh: f691daeccca8567e
+/agent-note-graph-and-loopx-durable-project-control-plane/worker-workspace-and-resource-model:
+  en: d1ce0d15c021454f
+  zh: e39ffd279079f64d
+/agent-note-graph-and-loopx-durable-project-control-plane/loopx-protocol-and-ledger-reconciliation:
+  en: 8606f32f70c2e2c4
+  zh: 5adc38ddbeeca4f6
+/agent-note-graph-and-loopx-durable-project-control-plane/human-control-and-ui:
+  en: 75c356d687f098e9
+  zh: a63d57e53c7ce630
+/agent-note-graph-and-loopx-durable-project-control-plane/design-precedents:
+  en: 45727d7c7e1f0941
+  zh: deff36f6f7f0c921
+/agent-note-graph-and-loopx-durable-project-control-plane/history-versioning-and-retention:
+  en: 330ce6dc3b4fa8c7
+  zh: e8c681fdde9cf077
+/agent-note-graph-and-loopx-durable-project-control-plane/delivery-order-and-completion-gates:
+  en: aa9282feae8d59f9
+  zh: 9469462939e9063a
+/agent-note-graph-and-loopx-durable-project-control-plane/verification-matrix:
+  en: 7368fa5bd1dd4a1c
+  zh: 3bdefecc94ef9c65
+/agent-note-graph-and-loopx-durable-project-control-plane/alternatives-considered:
+  en: da4d627ec88ef679
+  zh: f8929063cc3ea934
+/agent-note-graph-and-loopx-durable-project-control-plane/acceptance-criteria:
+  en: 8f3ba965337afacf
+  zh: d7472ce7403b76ef
+/agent-note-graph-and-loopx-durable-project-control-plane/risks:
+  en: 42cfc6b3e8a773fc
+  zh: d5342fcddcc9c2aa

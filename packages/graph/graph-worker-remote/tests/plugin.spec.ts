@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import GraphWorkerRuntime from '@deepseek-ai/dsh-graph-worker'
 import type { WebRoute, WebServer } from '@deepseek-ai/dsh-host-webserver'
+import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { describe, expect, it } from 'vitest'
 import * as RemoteWorker from '../src/index.ts'
 
@@ -16,9 +16,7 @@ describe('remote Graph Worker plugin composition', () => {
     const ctx = new Context()
     await ctx.plugin(AgentRegistry).await()
     await ctx.plugin(GraphWorkerRuntime).await()
-    ctx.provide('credentials', {
-      resolve: async () => ({ value: '0123456789abcdef0123456789abcdef', source: 'test' }),
-    } as unknown as CredentialProvider)
+    await ctx.plugin(MemoryCredentials, { GRAPH_WORKER_SECRET: '0123456789abcdef0123456789abcdef' }).await()
     ctx.provide('webServer', {
       register: (route: WebRoute) => {
         routes.push(route)

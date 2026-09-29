@@ -5,41 +5,85 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import type { GraphProjection } from '@deepseek-ai/dsh-graph/client'
+import {
+  GraphAttemptId,
+  GraphId,
+  GraphNodeId,
+  GraphRoleId,
+  GraphRunGenerationId,
+  GraphRunId,
+  GraphWorkId,
+  type GraphProjection,
+} from '@deepseek-ai/dsh-graph/client'
+import { defaultGraphModeConfig, defaultGraphNodeExecutionBudget } from '@deepseek-ai/dsh-graph'
 import {
   GraphChildAction,
   graphAttemptLocation,
   type GraphChildActionProps,
 } from '../src/client/GraphChildAction.tsx'
 import { zh } from '../src/client/locales.ts'
+import { graphGlobalStandardProps, graphSessionStandardProps } from './slot-standard-props.client.ts'
 
 afterEach(cleanup)
 
+const defaultConfig = defaultGraphModeConfig()
+const config = {
+  ...defaultConfig,
+  active: true,
+  roles: defaultConfig.roles.map(role => role.id === GraphRoleId('engineer')
+    ? { ...role, model: { provider: 'local', model: 'coder', reasoningEffort: 'medium' } }
+    : role),
+}
+const graphId = GraphId('g1')
+const buildId = GraphNodeId('build')
 const projection = {
-  config: { active: true },
+  config,
   graphs: {
     g1: [{
-      graphId: 'g1',
+      graphId,
       revision: 2,
-      nodes: [{ id: 'build', title: 'Build feature', roleId: 'engineer' }],
+      objective: 'Build feature',
+      createdAt: 1,
+      userInput: 'Build feature',
+      nodes: [{
+        id: buildId,
+        title: 'Build feature',
+        objective: 'Build feature',
+        kind: 'implementation',
+        roleId: GraphRoleId('engineer'),
+        acceptanceCriteria: ['Feature works'],
+        outputSchema: { id: 'graph-node-output', version: 1, maxBytes: 4096, schema: { type: 'object' } },
+        maxAttempts: 2,
+        weight: 1,
+        executionBudget: defaultGraphNodeExecutionBudget(config.executionPolicy),
+        skippable: false,
+        effectPolicy: 'idempotent',
+      }],
+      edges: [],
+      branchGroups: [],
+      terminationPolicy: { ...config.executionPolicy, onExhausted: 'failed' },
     }],
   },
   runs: {
     run1: {
-      id: 'run1',
-      graphId: 'g1',
+      id: GraphRunId('run1'),
+      graphId,
       revision: 2,
       generation: 3,
-      configSnapshot: {
-        roles: [{ id: 'engineer', label: 'Engineer', model: { model: 'coder', reasoningEffort: 'medium' } }],
-      },
+      generationId: GraphRunGenerationId('run1-generation-3'),
+      ownerEpoch: 1,
+      configSnapshot: config,
       overrides: {},
+      phase: 'running',
+      createdAt: 1,
+      updatedAt: 2,
       nodes: {
         build: {
-          nodeId: 'build',
+          workId: GraphWorkId('run1-build'),
+          nodeId: buildId,
           phase: 'running',
           attempts: [{
-            id: 'attempt-2',
+            id: GraphAttemptId('attempt-2'),
             number: 2,
             startedAt: 20,
             childSessionId: 'child-primary',
@@ -49,7 +93,13 @@ const projection = {
       },
     },
   },
-} as unknown as GraphProjection
+  operations: {},
+  settlements: {},
+  submissions: {},
+  checkpoints: {},
+  controls: {},
+  campaigns: {},
+} satisfies GraphProjection
 
 const t: GraphChildActionProps['t'] = makeTranslate(zh, commonZh)
 
@@ -67,12 +117,14 @@ describe('GraphChildAction', () => {
     ) => Promise<string | null>>(() => Promise.resolve(null))
     const openParent = vi.fn()
     render(<GraphChildAction {...{
+      ...graphGlobalStandardProps(),
+      ...graphSessionStandardProps(),
       childSessionId: 'child-primary',
       useParentGraph: bindSnapshotSelector(parentGraph),
       controlParent,
       openParent,
       t,
-    } as unknown as GraphChildActionProps} />)
+    } satisfies GraphChildActionProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: zh['child.trigger'] }))
     expect(screen.getByText('Engineer · coder · 推理强度 medium')).toBeTruthy()
@@ -94,12 +146,14 @@ describe('GraphChildAction', () => {
   it('stays absent for a non-Graph child session', () => {
     const parentGraph = createSnapshotStore<GraphProjection | undefined>(projection)
     const { container } = render(<GraphChildAction {...{
+      ...graphGlobalStandardProps(),
+      ...graphSessionStandardProps(),
       childSessionId: 'other',
       useParentGraph: bindSnapshotSelector(parentGraph),
       controlParent: () => Promise.resolve(null),
       openParent: () => {},
       t,
-    } as unknown as GraphChildActionProps} />)
+    } satisfies GraphChildActionProps} />)
     expect(container.innerHTML).toBe('')
   })
 })

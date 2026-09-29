@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-graph-worker-isolation-and-resource-scheduling.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-graph-worker-isolation-and-resource-scheduling.md
-2026-08-18-graph-worker-isolation-and-resource-scheduling.md: afed9812469a49ad6e464882466841a907fcb89c
-2026-08-18-graph-worker-isolation-and-resource-scheduling.zh.md: f0ebdfcb6cb9bc864d8754c50595e94e289478ba
+/agent-note-graph-worker-isolation-and-resource-scheduling:
+  en: 7072ad147c15f46f
+  zh: 2802d12e26ac0d57
+/agent-note-graph-worker-isolation-and-resource-scheduling/problem:
+  en: eebf1f2895218b41
+  zh: 7330a6e0fb4740c5
+/agent-note-graph-worker-isolation-and-resource-scheduling/current-foundation:
+  en: f57f98451b50dac4
+  zh: 0cf491fbaf590d4f
+/agent-note-graph-worker-isolation-and-resource-scheduling/proposal:
+  en: 43e9e98456afe91f
+  zh: c7051ebfc8589537
+/agent-note-graph-worker-isolation-and-resource-scheduling/workspace-and-file-ownership:
+  en: cfa07b198a74b4a6
+  zh: 1749e023738f430a
+/agent-note-graph-worker-isolation-and-resource-scheduling/live-model-resource-scheduling:
+  en: 2ad9fea3deb4b815
+  zh: a40bceb4e2839871
+/agent-note-graph-worker-isolation-and-resource-scheduling/security-and-trust:
+  en: aa66d5dc5e0488e3
+  zh: 9aed43cf35de1a8c
+/agent-note-graph-worker-isolation-and-resource-scheduling/alternatives-considered:
+  en: f078420d3a626cbb
+  zh: c1dc47e442d79603
+/agent-note-graph-worker-isolation-and-resource-scheduling/acceptance-criteria:
+  en: f56b7e3bc5230d45
+  zh: f40d5b4cb8de04c6
+/agent-note-graph-worker-isolation-and-resource-scheduling/risks:
+  en: 7bda150f9424419f
+  zh: 80db5d5a418f7675

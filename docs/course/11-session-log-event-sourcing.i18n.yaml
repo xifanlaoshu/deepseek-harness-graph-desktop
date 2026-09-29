@@ -1,6 +1,121 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 11-session-log-event-sourcing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/11-session-log-event-sourcing.md
-11-session-log-event-sourcing.md: 40375b796f7e8e2e2b1062243a2223f79f90c972
-11-session-log-event-sourcing.zh.md: b4ac90179363bd1fcee09a801132fe7a5fa7e632
+/chapter-11-the-session-log-as-the-system-s-record-of-fact:
+  en: 2c18de550f506115
+  zh: 62a062552a7590ac
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/1-concept-mapping-from-systems-programming-to-event-sourced-sessions:
+  en: b0d26d7d8469cfc1
+  zh: ff523940277928bf
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log:
+  en: 99531e511883f498
+  zh: afd7c1ff8fd9ab4e
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-1-why-is-persisting-a-mutable-chat-array-dangerous:
+  en: f2b7cfb8adccad2a
+  zh: f8fef9831b0d93b6
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-2-three-axioms-of-the-factual-log:
+  en: 1550bd93d4405e3f
+  zh: cfd96e51d7ede288
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-2-three-axioms-of-the-factual-log/axiom-1-facts-are-immutable:
+  en: d308a564bcb3d63c
+  zh: 27a18184503d7c92
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-2-three-axioms-of-the-factual-log/axiom-2-sequence-numbers-are-strictly-contiguous:
+  en: 69c427d71671fb78
+  zh: c2183cd9abde54e8
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-2-three-axioms-of-the-factual-log/axiom-3-state-is-a-pure-projection-of-events:
+  en: edbb3e6c702b19e2
+  zh: 6bec57cb2c4b4f67
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-3-sessioneventmap-a-strongly-typed-event-vocabulary-and-declaration-merging:
+  en: 22ed11f0dd0217b7
+  zh: 4b2d6aecd857ebdc
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/2-why-use-an-append-only-event-log/2-3-sessioneventmap-a-strongly-typed-event-vocabulary-and-declaration-merging/discriminated-unions-and-the-ignorable-true-rule-for-unknown-events:
+  en: 3798aa050e442756
+  zh: 847190d46a8a7686
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm:
+  en: f659e6d9b020240d
+  zh: 9ecdfb667f01a390
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm/3-1-a-mathematical-formulation:
+  en: dbe1e7329994117c
+  zh: 612e50a024bac476
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm/3-1-a-mathematical-formulation/projection-complexity-from-o-n-2-to-o-delta-n:
+  en: 7a30823826d929b1
+  zh: fd7e09e634526e46
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm/3-2-the-pure-node-projection-function-deriveeventmessage:
+  en: 9c88d62b88aea3d0
+  zh: 01ddb6333d8210be
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm/3-3-the-surfacemanager-state-machine-and-source-event-assertions:
+  en: 92325678b93f047b
+  zh: d5606172dad3f9f2
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/3-the-session-derivemessages-projection-algorithm/3-4-worked-example-ten-event-folding-steps-and-surface-evolution:
+  en: b2b97403a253cf4a
+  zh: fbd2aeac92bab4d2
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/4-persistence-engines-and-the-coordinator:
+  en: c385a4b7c8957073
+  zh: 8ac6dc919ca371be
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/4-persistence-engines-and-the-coordinator/4-1-the-persistence-capability-seam-sessionpersistence:
+  en: d31e1e0f61e7116e
+  zh: e2500e9186424dba
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/4-persistence-engines-and-the-coordinator/4-2-the-bounded-asynchronous-write-queue-sessionwritebehind:
+  en: d09034d61ea8188c
+  zh: b44fc2670154203c
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite:
+  en: 3a84becaf3baf4ed
+  zh: e64ec1bc31cbd250
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-1-jsonl-with-concatenated-zstandard-frames:
+  en: 74a4c1a3d3742414
+  zh: 654c40af4299e44c
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-1-jsonl-with-concatenated-zstandard-frames/filesystem-safe-path-encoding-encodesegment:
+  en: e0a691ea883e5133
+  zh: 2a3ed274ab475284
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-1-jsonl-with-concatenated-zstandard-frames/concatenated-zstandard-frames:
+  en: 11480fb6825b20a7
+  zh: ed05276d5c681a14
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-1-jsonl-with-concatenated-zstandard-frames/fast-frame-boundary-scanning-without-decompression-scanzstdframes:
+  en: 1452ed0d786323ca
+  zh: 319df8968c3b1b08
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-2-the-synchronous-node-node-sqlite-engine-in-wal-mode:
+  en: 4a256a286e2e45b5
+  zh: f2281e5d12249891
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-2-the-synchronous-node-node-sqlite-engine-in-wal-mode/strictly-typed-tables-strict-tables:
+  en: 6dfb585d56290957
+  zh: 524bd948305181cd
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/5-storage-backends-jsonl-with-zstandard-and-sqlite/5-2-the-synchronous-node-node-sqlite-engine-in-wal-mode/database-hardening-and-durability-pragmas:
+  en: d5c652da76a440d7
+  zh: 7387bfa6c62d4f0f
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/6-crash-recovery-and-reconciliation:
+  en: 9e8638a2a95bf048
+  zh: 71d63ae15d1e0915
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/6-crash-recovery-and-reconciliation/6-1-crash-windows-why-failure-can-occur-between-any-two-bytes:
+  en: 5fc8aec4ebaa2e1e
+  zh: e03432912d51a341
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/6-crash-recovery-and-reconciliation/6-2-physical-repair-truncating-a-torn-tail:
+  en: 75b3f91185018390
+  zh: 8722ff07a0531ce8
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/6-crash-recovery-and-reconciliation/6-3-logical-repair-the-interruptedturnclosers-state-balancing-algorithm:
+  en: f76cf2135726719d
+  zh: 2a894a0451b81a9f
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/6-crash-recovery-and-reconciliation/6-4-why-unfinished-calls-must-be-marked-tool-outcome-unknown:
+  en: cf4dd14e335bbe55
+  zh: d39b8fd1ed038904
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/7-production-failure-modes-and-practices:
+  en: 24badc6abd398c36
+  zh: 19825afb5d03fe7a
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/7-production-failure-modes-and-practices/7-1-concurrent-reads-and-writes-desynchronize-sessionsurface-from-the-log:
+  en: 17f668d0528e6d68
+  zh: 5846ab77d9e22222
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/7-production-failure-modes-and-practices/7-2-writing-every-streaming-chunk-amplifies-disk-i-o:
+  en: 6708d8f379f8ea6f
+  zh: 678c9d5a347a4d2e
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/7-production-failure-modes-and-practices/7-3-mishandling-firstliveseq-repeats-side-effects-during-replay:
+  en: 8f436d68ed421e0c
+  zh: 839f826dd2a818d4
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/7-production-failure-modes-and-practices/7-4-unclosed-windows-file-handles-cause-ebusy-races:
+  en: e9cefc54c6d420b1
+  zh: fa1c23f7b4241dd8
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/8-summary-and-architecture-checklist:
+  en: f9f4e33eb31e2e45
+  zh: 47a69bf4d1dfa937
+/chapter-11-the-session-log-as-the-system-s-record-of-fact/8-summary-and-architecture-checklist/8-1-core-architecture-checklist:
+  en: 0aff5798e2d5629a
+  zh: e04286a6dc8d7e41

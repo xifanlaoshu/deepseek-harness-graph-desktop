@@ -1,6 +1,26 @@
+---
+description: "为持久化 DAG 规划、执行、协调、工作代理分派、资源跟踪和制品传输选择 Graph 软件包。此软件包组索引将各项能力链接到对应软件包。"
+kind: "package-group"
+---
+
 # Graph
 
 [English](README.md) | 中文
+
+## 概述
+
+使用 Graph 软件包系列组合持久化多代理 DAG 规划、执行、协调、容量跟踪和制品处理。可根据部署需求独立选择各类提供方。
+
+## 目录
+
+- [软件包索引](#package-map)
+- [组合方式](#composition)
+- [开发备注](#dev-note)
+
+-----
+
+<a id="package-map"></a>
+## 软件包索引
 
 graph 组负责多代理工作的持久化、可编辑 DAG 编排。[子系统参考](../../docs/subsystems/graph.zh.md)列出其 Cordis 服务。
 
@@ -21,4 +41,17 @@ graph 组负责多代理工作的持久化、可编辑 DAG 编排。[子系统�
 | [`dsh-graph-scheduler`](graph-scheduler/README.zh.md) | 与 Provider 无关的整图运行带围栏所有权 | `graphScheduler` |
 | [`dsh-graph-scheduler-sqlite`](graph-scheduler-sqlite/README.zh.md) | 跨进程运行租约与持久 fencing 计数 | `graphScheduler` |
 
+<a id="composition"></a>
+## 组合方式
+
 调度器必须挂载一个具名 Worker 提供方，但可以不使用外部协调、运行所有权或实时资源遥测。生产组合应挂载运行所有权 Provider，确保只有一个 Host 可以推进恢复后的运行。需要跨代理控制面状态的部署应挂载一个协调提供方；LoopX 提供方在配置的 goal 或 peer 名册不可用时会明确失败。挂载资源提供方后，Graph 静态限制仍是硬上限。
+
+<a id="dev-note"></a>
+## 开发备注
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>

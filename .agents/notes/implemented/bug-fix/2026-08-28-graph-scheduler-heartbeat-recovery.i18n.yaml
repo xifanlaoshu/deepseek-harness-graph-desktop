@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-28-graph-scheduler-heartbeat-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-28-graph-scheduler-heartbeat-recovery.md
-2026-08-28-graph-scheduler-heartbeat-recovery.md: cd7619d0e7483e80bb04e8899b0c933eb943ec68
-2026-08-28-graph-scheduler-heartbeat-recovery.zh.md: 5338566ce13c0eabcdd5cf99f6a4d064ab0a0c32
+/agent-note-scheduler-heartbeat-recovery-preserves-node-attempt-budgets:
+  en: d2de6923d03bdb26
+  zh: 34327c0d0a1bda24
+/agent-note-scheduler-heartbeat-recovery-preserves-node-attempt-budgets/problem:
+  en: 0756e9b970d803f8
+  zh: a19b91dff072d416
+/agent-note-scheduler-heartbeat-recovery-preserves-node-attempt-budgets/decision:
+  en: 8060773c04f8bcab
+  zh: 0a2f3617ba11add0
+/agent-note-scheduler-heartbeat-recovery-preserves-node-attempt-budgets/alternatives-considered:
+  en: 8a1f494ae78ca4f3
+  zh: e6fe4538a3ed5a02
+/agent-note-scheduler-heartbeat-recovery-preserves-node-attempt-budgets/consequences:
+  en: 17024a16f3e291df
+  zh: 0409b6b3a3f6769d

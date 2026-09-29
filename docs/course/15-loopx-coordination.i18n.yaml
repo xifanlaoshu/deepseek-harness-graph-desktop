@@ -1,6 +1,127 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 15-loopx-coordination.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/15-loopx-coordination.md
-15-loopx-coordination.md: a1e3fa966e667711153494985c9bcd4c03d7c38b
-15-loopx-coordination.zh.md: 04d62b84b987667cdd44b0e8e92936aa00fcf392
+/chapter-15-loopx-design-implementation-and-integration:
+  en: deee65d4b1c44f9c
+  zh: df797934dce2b891
+/chapter-15-loopx-design-implementation-and-integration/1-mental-model-and-architectural-role:
+  en: 60a5706b81de5139
+  zh: c23e0f0259913b1f
+/chapter-15-loopx-design-implementation-and-integration/1-mental-model-and-architectural-role/1-1-physical-separation-of-execution-and-project-control:
+  en: f35ba818a355a386
+  zh: 6ff4402f9e0c95b9
+/chapter-15-loopx-design-implementation-and-integration/1-mental-model-and-architectural-role/1-2-why-does-harness-retain-dag-and-model-scheduling:
+  en: 05604cce339fb15e
+  zh: 5c3651e1be3a34ac
+/chapter-15-loopx-design-implementation-and-integration/2-the-dsh-graph-coordination-service-abstraction:
+  en: d96a8743bcc01532
+  zh: 9cbb0d4fe4e75583
+/chapter-15-loopx-design-implementation-and-integration/2-the-dsh-graph-coordination-service-abstraction/2-1-eight-core-operations:
+  en: 507c909d9474a580
+  zh: f9a796256aa1eb96
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model:
+  en: 0c3c566e561bcd92
+  zh: bf469b67776e5171
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details:
+  en: 9ecbb165a782d807
+  zh: 7964a8b1f87d4843
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/1-goal:
+  en: 8e2eb9716f94c701
+  zh: bdc088936ed23945
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/2-todo:
+  en: 0ceda993d78f90a9
+  zh: 97f2669f2e04fd3f
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/3-peer:
+  en: 9a5bad9f51371470
+  zh: 959ba5d6246a1c07
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/4-claim:
+  en: 0e565de2f2607bbc
+  zh: 7c41f5c853e74bb5
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/5-hard-task-lease:
+  en: ff507c80153cfb16
+  zh: e1cf89b17398ddbf
+/chapter-15-loopx-design-implementation-and-integration/3-six-core-entities-and-the-domain-model/3-1-entity-details/6-settlement:
+  en: 8b312f066ecc46b4
+  zh: cb7bd39b141efe80
+/chapter-15-loopx-design-implementation-and-integration/4-node-kinds-and-action-kind-mapping:
+  en: 692e7383ea3bd1b3
+  zh: 27ba7c36af19aff5
+/chapter-15-loopx-design-implementation-and-integration/5-leases-fencing-tokens-and-cas-protection-against-late-settlement:
+  en: 6214e79044e9d0e9
+  zh: 8f52be99f78c7d59
+/chapter-15-loopx-design-implementation-and-integration/5-leases-fencing-tokens-and-cas-protection-against-late-settlement/5-1-sequence-of-a-stale-write:
+  en: f72419d5598695bc
+  zh: 2152a18711ddd8d3
+/chapter-15-loopx-design-implementation-and-integration/5-leases-fencing-tokens-and-cas-protection-against-late-settlement/5-2-lease-state-and-cas-transitions:
+  en: c8485a954349be54
+  zh: 5218a198cbf87b6b
+/chapter-15-loopx-design-implementation-and-integration/5-leases-fencing-tokens-and-cas-protection-against-late-settlement/5-2-lease-state-and-cas-transitions/deriving-cas-state-transitions:
+  en: dae23e5d140404c2
+  zh: 0f1197baac30ba1e
+/chapter-15-loopx-design-implementation-and-integration/5-leases-fencing-tokens-and-cas-protection-against-late-settlement/5-3-the-settlement-serialization-queue-serializesettlement:
+  en: eb0ffe506f9dafd7
+  zh: ef6c255225811cd2
+/chapter-15-loopx-design-implementation-and-integration/6-local-sqlite-journal-projection-schema-version-2-and-dual-ledgers:
+  en: 961a9880413f9741
+  zh: f7ba7f1966590075
+/chapter-15-loopx-design-implementation-and-integration/6-local-sqlite-journal-projection-schema-version-2-and-dual-ledgers/6-1-sqlite-ddl-and-data-dictionary:
+  en: 2c7b8def1ae79457
+  zh: 4ba0de13872529b6
+/chapter-15-loopx-design-implementation-and-integration/6-local-sqlite-journal-projection-schema-version-2-and-dual-ledgers/6-2-transaction-guarantees-and-cursor-continuity-assertions:
+  en: 20829516b11956b0
+  zh: a70cb7e07c0112d4
+/chapter-15-loopx-design-implementation-and-integration/6-local-sqlite-journal-projection-schema-version-2-and-dual-ledgers/6-3-three-crash-windows-and-reconciliation:
+  en: 341f986d535e226f
+  zh: 0db9d709fc122897
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker:
+  en: 1d3d92e1d9b2703a
+  zh: 148ddb9e16a95a8e
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-1-persistent-broker-protocol-examples:
+  en: 095a13e2be326d37
+  zh: 8e08032f96f8c76c
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-1-persistent-broker-protocol-examples/1-ready-handshake-broker-to-host:
+  en: fe2972088fd4d6b1
+  zh: 0713d931cb6c3737
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-1-persistent-broker-protocol-examples/2-command-request-host-to-broker:
+  en: f09814c993bff557
+  zh: 2013ecbd71547276
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-1-persistent-broker-protocol-examples/3-successful-response-broker-to-host:
+  en: 53a1a402b3980fb5
+  zh: 49332c07b4b020c0
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-1-persistent-broker-protocol-examples/4-cooperative-cancellation-host-to-broker:
+  en: 7313c0aab1e87abb
+  zh: 4b17986b76ebe3ca
+/chapter-15-loopx-design-implementation-and-integration/7-interprocess-communication-through-a-persistent-broker/7-2-cross-platform-path-and-encoding-safeguards:
+  en: 7f8a784c70114517
+  zh: 46316de32255a437
+/chapter-15-loopx-design-implementation-and-integration/8-complete-production-oriented-typescript-implementation:
+  en: fdb27295bb9b4aef
+  zh: 3a4d2877de3a3ad1
+/chapter-15-loopx-design-implementation-and-integration/9-privacy-and-isolation-of-model-visible-context:
+  en: ce7429fc8e728b61
+  zh: 6b7b0357c7720c69
+/chapter-15-loopx-design-implementation-and-integration/9-privacy-and-isolation-of-model-visible-context/9-1-prefix-cache-friendly-design:
+  en: 1f78b1aef11d842d
+  zh: 0e36c85c7a7c8b3f
+/chapter-15-loopx-design-implementation-and-integration/10-production-troubleshooting:
+  en: d594240166303ddc
+  zh: 0421c4b1f4beeb68
+/chapter-15-loopx-design-implementation-and-integration/10-production-troubleshooting/10-1-expired-worker-settlement-is-rejected-by-cas-leaving-work-pending:
+  en: c80763c332fe50e8
+  zh: bc2d16986078bc17
+/chapter-15-loopx-design-implementation-and-integration/10-production-troubleshooting/10-2-torn-sqlite-journal-cursor:
+  en: 130edabb267209db
+  zh: 3b5d33bb552455e2
+/chapter-15-loopx-design-implementation-and-integration/10-production-troubleshooting/10-3-wsl-socket-exhaustion-stalls-the-broker-wsl-service-0x80072747:
+  en: 779fe0c5894c80cc
+  zh: b554196bad51b321
+/chapter-15-loopx-design-implementation-and-integration/10-production-troubleshooting/10-4-missing-role-mappings-reject-work-during-prepare:
+  en: 5da370d7e247f413
+  zh: 2080336911f22cd8
+/chapter-15-loopx-design-implementation-and-integration/11-summary-and-systems-architecture-lessons:
+  en: 4e08710a8860a532
+  zh: a36206f57b3d6788
+/chapter-15-loopx-design-implementation-and-integration/questions-and-practice:
+  en: 16e6d455d573f211
+  zh: e8caca2f492cb81e

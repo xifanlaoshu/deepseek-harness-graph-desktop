@@ -1,6 +1,136 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 18-build-test-quality-gates.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/18-build-test-quality-gates.md
-18-build-test-quality-gates.md: 0f24b1a74eee4cd02cd3201857dbc126d176c177
-18-build-test-quality-gates.zh.md: 02fc62e84ed730bae6b28eaa5cfcaf6d11d3c404
+/chapter-18-builds-tests-and-quality-gates:
+  en: dbafb16fc3d4dc3f
+  zh: 8516d47aca23bfb7
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown:
+  en: 2c72e6cecc579e53
+  zh: da2b3a7031992d4e
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-1-why-one-ts-program-cannot-safely-cover-host-and-client:
+  en: 073905ca047c6141
+  zh: adeec5eba58902a0
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-1-why-one-ts-program-cannot-safely-cover-host-and-client/root-solution-tsconfig:
+  en: 087de9819abfff59
+  zh: 73268787b9450810
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-1-why-one-ts-program-cannot-safely-cover-host-and-client/performance-one-program-versus-project-references:
+  en: c260e21521fb95fa
+  zh: b9aaca6c1947035d
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-2-tsdown-runtime-bundles-node-esm-and-browser-closure-factories:
+  en: 454e93324493ef0a
+  zh: 5fdc1ef5b1ddb8f2
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-2-tsdown-runtime-bundles-node-esm-and-browser-closure-factories/1-node-runtime-output-platform-node:
+  en: 6f0db2513e9073f7
+  zh: f9781e98115b32b7
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-2-tsdown-runtime-bundles-node-esm-and-browser-closure-factories/2-browser-plugin-closure-factory-output-platform-browser:
+  en: f02ba64a3a58eccc
+  zh: 29e61ad42dfd0832
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-2-tsdown-runtime-bundles-node-esm-and-browser-closure-factories/3-bundle-purity-gate:
+  en: df7564acba84243d
+  zh: 2754854d2d207b26
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-3-vite-frontend-build-and-asset-chunking:
+  en: 6338a1001f0ca3fe
+  zh: 27d043b477abba50
+/chapter-18-builds-tests-and-quality-gates/18-1-monorepo-builds-typescript-project-references-and-tsdown/18-1-4-typert-rpc-code-generation-pipeline:
+  en: 7d945d2e39f770fb
+  zh: 98c17ae5e50b1e7c
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work:
+  en: 0c3dd9a08a90b1c0
+  zh: 4658b79aab49ce41
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-1-gate-scheduling-in-scripts-run-gates-ts:
+  en: dae2888a2c2930f9
+  zh: 1ac144d6c59ae0e8
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-1-gate-scheduling-in-scripts-run-gates-ts/critical-path-timing-and-scheduling-model:
+  en: 92ada78d2ca06b7a
+  zh: 6f3c871fae25fade
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-2-gate-1-pnpm-run-typecheck-strict-tsc-checking:
+  en: b107a0f3b6043987
+  zh: c686a8d9dd6f0486
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-3-gate-2-pnpm-run-lint-oxlint-and-duplication-checks:
+  en: adb3e0f28937889e
+  zh: efa3f3730ee51921
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-3-gate-2-pnpm-run-lint-oxlint-and-duplication-checks/rabin-karp-rolling-hashes-for-duplicate-detection:
+  en: 67e89fe4f84f4901
+  zh: 7c8f6a6ffc648ce9
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-4-gate-3-pnpm-run-test-coverage-100-per-file-ci-coverage:
+  en: 7961631200f1554c
+  zh: edb1a11193862d81
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-4-gate-3-pnpm-run-test-coverage-100-per-file-ci-coverage/coverage-partitions-and-heavy-suite-exemption:
+  en: d3ce3acef03bd123
+  zh: 06667ce2de2840ee
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-5-gate-4-pnpm-run-test-snapshot-keyless-recorded-session-replay:
+  en: 9cdf7a0a3d47a8fc
+  zh: 489e14053d2ba540
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-6-gate-5-pnpm-run-hygiene-knip-publint-and-nodenext-consumption:
+  en: 7c212833ff481737
+  zh: ef6cc7c56649e3c3
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-6-gate-5-pnpm-run-hygiene-knip-publint-and-nodenext-consumption/1-knip-dead-code-detection:
+  en: aa5ea121cfa10b3a
+  zh: 8115b70982125ff9
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-6-gate-5-pnpm-run-hygiene-knip-publint-and-nodenext-consumption/2-publint-all-scripts-publint-all-ts-publication-closure-and-exports:
+  en: 0181260fd29373a4
+  zh: 162b202c88d1a81b
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-6-gate-5-pnpm-run-hygiene-knip-publint-and-nodenext-consumption/3-verify-node-next-types-scripts-verify-node-next-types-ts-external-nodenext-consumer-test:
+  en: 407e1ec2f005c0b1
+  zh: b6a5f4c53cded218
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-7-gate-6-pnpm-run-verify-md-wrap-one-physical-line-per-markdown-paragraph:
+  en: 9d2e099d7f0e43c7
+  zh: 6c80c6fb97bc3c71
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-7-gate-6-pnpm-run-verify-md-wrap-one-physical-line-per-markdown-paragraph/why-require-one-physical-line:
+  en: d42c1135ae7b8b45
+  zh: be6a297cd3777c3d
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-8-gate-7-pnpm-run-verify-mermaid-mermaid-syntax-and-complexity:
+  en: d10c98e63fea5ff9
+  zh: 10e3ec2b45550ea0
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-9-gate-8-pnpm-run-doc-sync-documentation-synchronization:
+  en: 1e7352fd3e1c7413
+  zh: 3180f4a5ad8542d7
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-9-gate-8-pnpm-run-doc-sync-documentation-synchronization/1-doc-typecheck-scripts-doc-typecheck-ts-compile-documentation-examples:
+  en: be5bd0a312ad5db5
+  zh: 709d7aaddcc272b3
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-9-gate-8-pnpm-run-doc-sync-documentation-synchronization/2-generated-catalog-consistency-verify-catalog:
+  en: f56f38991282c8c9
+  zh: e44886252dad82dc
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-9-gate-8-pnpm-run-doc-sync-documentation-synchronization/3-bilingual-pairing-verify-translation-pairing:
+  en: 86d4060bfe9b471b
+  zh: a9b76d51d42de7e0
+/chapter-18-builds-tests-and-quality-gates/18-2-eight-quality-gates-and-how-they-work/18-2-9-gate-8-pnpm-run-doc-sync-documentation-synchronization/4-documentation-budgets-verify-doc-budgets-ts:
+  en: b05f799ff17803bd
+  zh: 5248261b9f999928
+/chapter-18-builds-tests-and-quality-gates/18-3-why-snapshot-replay-matters-more-than-mocks-for-agent-systems:
+  en: 3e0890668074dbe9
+  zh: 216e8b8946f54b47
+/chapter-18-builds-tests-and-quality-gates/18-3-why-snapshot-replay-matters-more-than-mocks-for-agent-systems/18-3-1-four-ways-mocks-fail-agent-systems:
+  en: a249ab8c5b723162
+  zh: 1f31800f56635811
+/chapter-18-builds-tests-and-quality-gates/18-3-why-snapshot-replay-matters-more-than-mocks-for-agent-systems/18-3-2-information-theoretic-view-of-transcript-replay:
+  en: 48520117427175b0
+  zh: bebddb55f663294d
+/chapter-18-builds-tests-and-quality-gates/18-3-why-snapshot-replay-matters-more-than-mocks-for-agent-systems/18-3-3-deterministic-keyless-replay-provider:
+  en: 7b7f9a167853c25d
+  zh: a619cbb7f5de7503
+/chapter-18-builds-tests-and-quality-gates/18-4-complete-typescript-implementation-of-a-quality-gate-runner:
+  en: 828e31fe8b5b1075
+  zh: a23c97ed0de92b7c
+/chapter-18-builds-tests-and-quality-gates/18-5-production-failures-and-diagnosis:
+  en: 749305698c2c182d
+  zh: e4c28b90ba6aaa0b
+/chapter-18-builds-tests-and-quality-gates/18-5-production-failures-and-diagnosis/18-5-1-case-1-cordis-context-declaration-contamination-across-host-and-client:
+  en: 7dbd729f77eaba3c
+  zh: 2d2142f95db455e7
+/chapter-18-builds-tests-and-quality-gates/18-5-production-failures-and-diagnosis/18-5-2-case-2-v8-coverage-instrumentation-slows-subprocess-tests:
+  en: 1f72754d43537b22
+  zh: aae67e027d273caa
+/chapter-18-builds-tests-and-quality-gates/18-5-production-failures-and-diagnosis/18-5-3-case-3-missing-js-extension-breaks-a-published-nodenext-package:
+  en: f843e57702506ad7
+  zh: c653d4e1b7dea1db
+/chapter-18-builds-tests-and-quality-gates/18-5-production-failures-and-diagnosis/18-5-4-case-4-hard-wrapped-markdown-causes-merge-conflicts:
+  en: 8a4b06f60144f257
+  zh: cfa55c9bfda60bf4
+/chapter-18-builds-tests-and-quality-gates/18-6-quality-gate-checklist-for-architects:
+  en: 6cad7dd114da5fa5
+  zh: 3fa3b137eb197d3b
+/chapter-18-builds-tests-and-quality-gates/18-7-summary-and-systems-perspective:
+  en: c1761420d4d86718
+  zh: 9c9c3aca466aad5a

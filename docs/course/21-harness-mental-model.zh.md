@@ -387,7 +387,7 @@ export class Context {
 #### 4. 工业级 TypeScript 状态机核心驱动器完整实现
 
 ```typescript
-// packages/core/agent-loop/src/driver.ts
+// packages/core/agent-loop/src/agent.ts
 
 import { Context } from '../../cordis-mini/src/container.js';
 
@@ -625,7 +625,7 @@ $$\forall m \in \text{ModelContext}, \quad m = \mathcal{P}(\text{SessionLog})$$
 #### 4. 工业级 TypeScript 事件溯源与投影算法完整实现
 
 ```typescript
-// packages/core/session/src/session.ts
+// packages/core/session/src/index.ts
 
 export type SessionEventType =
   | 'turn/start'
@@ -783,14 +783,14 @@ export class Session {
                                          | 实现接口
 +-----------------------------------------------------------------------------------+
 | 2. Service Provider (具体能力提供方实现包)                                         |
-|    - packages/provider/fs-local: 基于 Node.js 本地文件系统实现                    |
-|    - packages/provider/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
+|    - packages/fs/fs-local: 基于 Node.js 本地文件系统实现                    |
+|    - packages/fs/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
 +-----------------------------------------------------------------------------------+
                                          ^
                                          | 消费注入 (ctx.fs)
 +-----------------------------------------------------------------------------------+
 | 3. Consumer / Tools (面向大模型的工具消费包)                                      |
-|    - packages/tools/fs-tools: 向模型暴露 read_file / write_file 工具 DSL          |
+|    - packages/fs/tool-fs: 向模型暴露 read_file / write_file 工具 DSL          |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -829,7 +829,7 @@ Step 开始
 #### 4. 工业级 TypeScript 受控工具执行流水线完整实现
 
 ```typescript
-// packages/core/tools/src/pipeline.ts
+// packages/core/tools/src/index.ts
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -996,7 +996,7 @@ Host A (Worker 1)          Scheduler (Coordination)         Shared Storage (Auth
 #### 4. 工业级 TypeScript 分布式 Fencing 存储与对账实现
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -1253,7 +1253,7 @@ export class ManagedProcessExecutor {
 引入带有 Fencing Token 强校验的原子写入适配器：
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -1308,7 +1308,7 @@ export class FencedArtifactStore {
 在会话层引入原子排队写屏障与启动期自动空洞修补对账算法：
 
 ```typescript
-// packages/core/session/src/persistence-repair.ts
+// packages/core/session/src/repair.ts
 
 import { SessionEvent } from './session.js';
 

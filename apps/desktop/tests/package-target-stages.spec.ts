@@ -5,6 +5,7 @@ import { withMacOSNotarizationProxy } from '../scripts/macos-notarization-proxy.
 import { packageMacOSArtifacts } from '../scripts/package-macos.ts'
 import { withWindowsSigningStage } from '../scripts/windows-signing-stage.mjs'
 import { prepareWindowsSignatureCacheDirectory } from '../scripts/windows-signature-cache-directory.mjs'
+import { forkIdentityEnvironment } from './desktop-identity-fixture.ts'
 
 vi.mock('../scripts/macos-notarization-proxy.ts', () => ({
   withMacOSNotarizationProxy: vi.fn(async (_proxy: string | undefined, action: () => Promise<void>) => action()),
@@ -28,7 +29,7 @@ vi.mock('node:fs', async importOriginal => ({
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-const environment = { DSH_DESKTOP_APP_ID: 'com.example.test', DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
+const environment = { ...forkIdentityEnvironment('com.example.test'), DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
   DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com', DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
   DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin', DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '2' }
 
@@ -64,8 +65,19 @@ it('requires one signing preflight before building, then records only the comple
     }
   }
   expect(writeFileSync).toHaveBeenCalledOnce()
-  const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as { publicUrl: string }
+  const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as { updateMode: string; publicUrl: string }
+  expect(record.updateMode).toBe('feed')
   expect(record.publicUrl).toBe('https://updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/win-x64/')
+})
+
+it('records disabled fork packages without a feed URL', async () => {
+  const { run } = supervisor()
+  const offline = { ...forkIdentityEnvironment('com.example.offline'), DSH_DESKTOP_UPDATE_MODE: 'disabled' }
+  await packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), offline, run)
+  const record = JSON.parse(vi.mocked(writeFileSync).mock.calls[0]![1] as string) as Record<string, unknown>
+  expect(record).toMatchObject({ updateMode: 'disabled', target: 'win-x64' })
+  expect(record).not.toHaveProperty('publicUrl')
+  expect(record).not.toHaveProperty('environment')
 })
 
 it('initializes shared storage only after acquiring the preflight stage lock', async () => {

@@ -12,13 +12,13 @@ const launcher = fileURLToPath(new URL('../scripts/upload-with-credentials.ps1',
 const roots: string[] = []
 const quote = (value: string): string => `'${value.replaceAll("'", "''")}'`
 
-async function check(mode: 'valid' | 'plaintext' | 'blank' | 'missing' | 'upload' | 'upload-failure', deployment = 'production') {
+async function check(mode: 'valid' | 'plaintext' | 'blank' | 'missing' | 'upload' | 'upload-latest' | 'upload-failure', deployment = 'production') {
   const root = await mkdtemp(join(tmpdir(), 'desktop-credentials-'))
   roots.push(root)
   const credentialPath = join(root, 'credential.clixml')
   let entry = launcher
   let uploadArguments = ''
-  if (mode === 'upload' || mode === 'upload-failure') {
+  if (mode === 'upload' || mode === 'upload-latest' || mode === 'upload-failure') {
     const scripts = join(root, 'apps/desktop/scripts')
     await mkdir(scripts, { recursive: true })
     entry = join(scripts, 'upload-with-credentials.ps1')
@@ -26,20 +26,25 @@ async function check(mode: 'valid' | 'plaintext' | 'blank' | 'missing' | 'upload
     await symlink(fileURLToPath(new URL('../../../node_modules', import.meta.url)), join(root, 'node_modules'), 'junction')
     // Replace only the child uploader: this fixture must never contact real release storage.
     await writeFile(join(scripts, 'upload-target.ts'), `
-      import assert from 'node:assert/strict'
-      assert.equal(process.env.DOWNLOAD_PROD_COS_SECRET_ID, 'fixture-id')
-      assert.equal(process.env.DOWNLOAD_PROD_COS_SECRET_KEY, 'fixture-secret')
-      assert.equal(process.env.DOWNLOAD_PROD_COS_BUCKET, 'fixture-bucket')
-      assert.equal(process.env.DOWNLOAD_TEST_COS_SECRET_KEY, undefined)
-      assert.equal(process.env.DSH_DESKTOP_WINDOWS_TOKEN_PIN, undefined)
-      assert.equal(process.env.NODE_OPTIONS, undefined)
-      assert.equal(process.argv[2], 'win-x64')
-      assert.deepEqual(process.argv.slice(3), ['--credential-launcher', '--environment', 'production', '--bucket', 'fixture-bucket'])
+      const check = (matches, field) => {
+        if (!matches) {
+          console.log('safe child-environment mismatch: ' + field)
+          process.exit(23)
+        }
+      }
+      check(process.env.DOWNLOAD_PROD_COS_SECRET_ID === 'fixture-id', 'production secret ID')
+      check(process.env.DOWNLOAD_PROD_COS_SECRET_KEY === 'fixture-secret', 'production secret key')
+      check(process.env.DOWNLOAD_PROD_COS_BUCKET === 'fixture-bucket', 'production bucket')
+      check(process.env.DOWNLOAD_TEST_COS_SECRET_KEY === undefined, 'unselected test secret')
+      check(process.env.DSH_DESKTOP_WINDOWS_TOKEN_PIN === undefined, 'signing pin')
+      check(process.env.NODE_OPTIONS === undefined, 'Node preload options')
+      check(process.argv[2] === 'win-x64', 'target argument')
+      check(JSON.stringify(process.argv.slice(3)) === JSON.stringify(['--credential-launcher', '--environment', 'production', '--bucket', 'fixture-bucket'${mode === 'upload-latest' ? ", '--latest'" : ''}]), 'launcher arguments')
       console.log('fixture-id fixture-secret')
       console.error('private service details fixture-secret')
       process.exit(${mode === 'upload-failure' ? 17 : 0})
     `)
-    uploadArguments = ' -Upload -Target win-x64 -Bucket fixture-bucket'
+    uploadArguments = ` -Upload -Target win-x64 -Bucket fixture-bucket${mode === 'upload-latest' ? ' -Latest' : ''}`
   }
   const setup = mode === 'missing' ? '' : `
     [pscustomobject]@{
@@ -134,9 +139,9 @@ describe.skipIf(process.platform !== 'win32')('Windows upload credentials', () =
     expect(result.output).not.toContain('child environment verified')
   })
 
-  it.each(['upload', 'upload-failure'] as const)('isolates the %s child and sanitizes both output streams', async (mode) => {
+  it.each(['upload', 'upload-latest', 'upload-failure'] as const)('isolates the %s child and sanitizes both output streams', async (mode) => {
     const result = await check(mode)
-    expect(result.code, result.output).toBe(mode === 'upload' ? 0 : 1)
+    expect(result.code, result.output).toBe(mode === 'upload-failure' ? 1 : 0)
     expect(result.output).toContain('[REDACTED] [REDACTED]')
     expect(result.output).not.toContain('fixture-id')
     expect(result.output).not.toContain('fixture-secret')

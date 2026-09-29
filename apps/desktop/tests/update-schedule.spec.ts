@@ -33,6 +33,18 @@ function fixture(jitter = 0, random = () => 0.5) {
 }
 
 describe('ordinary update polling', () => {
+  it('returns idle without a timer or network request when feeds are disabled', async () => {
+    const f = fixture()
+    const disabled = new DesktopUpdateSchedule(f.coordinator, {
+      intervalMs: 10_000, maxBackoffMs: 40_000, jitter: 0.2,
+    }, Math.random, undefined, false)
+    cleanup.push(() =>{  disabled.dispose() })
+    expect(await disabled.check(true)).toEqual({ phase: 'idle' })
+    await disabled.check(false, true)
+    expect(f.checkForUpdates).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('checks immediately, doubles failed delays up to the cap, and resets after success', async () => {
     const f = fixture()
     f.checkForUpdates.mockRejectedValue(new Error('offline'))

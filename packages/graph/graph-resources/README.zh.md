@@ -1,9 +1,28 @@
+---
+description: "观察会过期的模型资源容量，并为带围栏的 Graph 工作预留资源。本文介绍与提供方无关的服务及证据限制。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-resources
 
 [English](README.md) | 中文
 
+## 概述
+
+观察会过期的容量，并为带围栏的 Graph 工作预留资源。提供方负责遥测和预留策略，而持久化 Graph 限制仍是硬上限。
+
+## 目录
+
+- [开发备注](#dev-note)
+- [契约](#contract)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
+
 `ctx.graphResources` 是 Graph 准入使用的过期模型资源观测、带 fencing 的 Reservation 和运行时容量结果 Service Definition。静态 Graph 配置始终是硬上限，Provider Telemetry 只能降低或延迟准入。
 
+<a id="contract"></a>
 ## Contract
 
 - Snapshot 标识一个精确 Provider/Model 路由，可以报告路由状态、活动请求、队列深度、并行和权重上限、上下文/输出容量、Memory Class、可用设备内存、近期 OOM 和限流截止时间。未知字段保持缺失。
@@ -14,6 +33,18 @@
 - Telemetry 不能授权未配置模型、提高已配置并行或权重限制，也不能证明外部副作用已完成。
 - 每个 Provider 都运行共享资源一致性测试套件。该套件验证稳定 Reservation 重放、冲突请求拒绝、替代 Reservation 的单调 Fencing、过期写入拒绝、容量等待、幂等释放与恢复，以及 OOM 退避。
 
+<a id="dev-note"></a>
+## 开发备注
+该服务不发布不变量 companion：资源观测会过期，并在每项操作中重新校验。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Resource evidence
@@ -30,7 +61,7 @@
 
 没有直接影响；检查点摘要属于可变执行证据。
 
-## Known Limitations and Deferred Work
+## Known Limitations and Deferred Work <a id="known-limitations-and-deferred-work"></a>
 
 - Provider 可能在过期前发布陈旧或不完整测量；硬上限和 Worker Fencing 仍然是权威规则。
 - 本包不轮询特定模型服务器或 GPU API，相关集成由部署 Provider 负责。

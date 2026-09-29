@@ -194,6 +194,17 @@ describe('desktop external plugin profile', () => {
     expect(JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8'))).toMatchObject({ dependencies: {} })
   })
 
+  it('enables the bundled Chrome profile entry only for a runtime that carries Chrome', async () => {
+    const { manager } = setup()
+    const browserManager = new DesktopProjectManager(manager.paths, { ...manager.runtime, browserEnabled: true })
+    await browserManager.applyRelease()
+    const manifest = JSON.parse(readFileSync(join(manager.paths.profile, 'package.json'), 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    expect(manifest.dsh.profile.bundles).toContain('@deepseek-ai/dsh-browser-chrome-devtools')
+    expect(manifest.dsh.profile.bundles).toContain('@deepseek-ai/dsh-web-app')
+  })
+
   it.skipIf(process.platform !== 'win32')('reuses the profile when the launch path changes only Windows letter casing', async () => {
     const { manager } = setup()
     await manager.applyRelease()

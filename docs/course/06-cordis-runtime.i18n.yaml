@@ -1,6 +1,115 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 06-cordis-runtime.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/06-cordis-runtime.md
-06-cordis-runtime.md: f83436b249bd7d1ef3d066310cb5babd1cd4b415
-06-cordis-runtime.zh.md: 4862ea9c01e10542acd96330f1da177e3ddc5cad
+/chapter-06-cordis-the-runtime-framework:
+  en: 4b26e4b3d9e212b8
+  zh: 89dfdcf3c8d9a3a1
+/chapter-06-cordis-the-runtime-framework/1-why-do-agent-systems-need-cordis-an-engineer-s-mental-model:
+  en: d7ff7ee8a2d38b4f
+  zh: 7ba8a113258971b4
+/chapter-06-cordis-the-runtime-framework/1-why-do-agent-systems-need-cordis-an-engineer-s-mental-model/1-1-failure-modes-of-an-unstructured-architecture:
+  en: 5b2557edcee9ceaa
+  zh: efc1e84177c471da
+/chapter-06-cordis-the-runtime-framework/2-context-and-dependency-injection-proxies-prototypes-and-scope-trees:
+  en: 56050b903658b6f5
+  zh: 577ecc98ada31f35
+/chapter-06-cordis-the-runtime-framework/2-context-and-dependency-injection-proxies-prototypes-and-scope-trees/2-1-the-context-proxy-and-lazy-property-resolution:
+  en: 366d94011dff929d
+  zh: 1067658645a5fd45
+/chapter-06-cordis-the-runtime-framework/2-context-and-dependency-injection-proxies-prototypes-and-scope-trees/2-2-prototype-inheritance-with-ctx-extend:
+  en: a4470dd89d7ccd27
+  zh: dfc6dfd6cfbaf851
+/chapter-06-cordis-the-runtime-framework/2-context-and-dependency-injection-proxies-prototypes-and-scope-trees/2-3-isolating-a-service-scope-with-ctx-isolate:
+  en: e819c538faffe54e
+  zh: fe56f312b58cc796
+/chapter-06-cordis-the-runtime-framework/2-context-and-dependency-injection-proxies-prototypes-and-scope-trees/2-4-hierarchical-configuration-merge-and-ctx-intercept:
+  en: 86c4046192807b7c
+  zh: 159a5135ab75ed89
+/chapter-06-cordis-the-runtime-framework/3-the-fiber-state-machine-and-declarative-service-lifecycle:
+  en: 567e2ec2ddd2f1bd
+  zh: d8a8fdc56a882aa3
+/chapter-06-cordis-the-runtime-framework/3-the-fiber-state-machine-and-declarative-service-lifecycle/3-1-fiber-state-transitions:
+  en: d81bd06175fb3907
+  zh: 580d4eb05925ce5e
+/chapter-06-cordis-the-runtime-framework/3-the-fiber-state-machine-and-declarative-service-lifecycle/3-2-dependency-injection-and-epoch-signatures:
+  en: 64316e3a80fc0add
+  zh: 6e97ba1df6ecbd4f
+/chapter-06-cordis-the-runtime-framework/3-the-fiber-state-machine-and-declarative-service-lifecycle/3-3-declarative-and-callable-services:
+  en: 57a4a386cee8a291
+  zh: 72523b0eb607c49d
+/chapter-06-cordis-the-runtime-framework/4-registering-effects-and-cascading-disposal-in-reverse-order:
+  en: e5108ae60986b5bb
+  zh: b63bed2ba43ba442
+/chapter-06-cordis-the-runtime-framework/4-registering-effects-and-cascading-disposal-in-reverse-order/4-1-disposal-through-ctx-effect:
+  en: bd9799836a2cf22d
+  zh: 5e71c733aedcc392
+/chapter-06-cordis-the-runtime-framework/4-registering-effects-and-cascading-disposal-in-reverse-order/4-2-reverse-ownership-order:
+  en: cdb3c11b24e83788
+  zh: 159240d4564bad7c
+/chapter-06-cordis-the-runtime-framework/4-registering-effects-and-cascading-disposal-in-reverse-order/4-2-reverse-ownership-order/mathematical-and-logical-argument:
+  en: 24c10b5a4c1df201
+  zh: 96e21c06c66dbf16
+/chapter-06-cordis-the-runtime-framework/4-registering-effects-and-cascading-disposal-in-reverse-order/4-3-cascading-unload-order-and-error-isolation:
+  en: 9b4afd29046314ef
+  zh: 6be13339256f5432
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall:
+  en: b29734a5b9c04dd9
+  zh: 8b28aaf79af23b0b
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-1-broadcast-ctx-emit-and-ctx-parallel:
+  en: 4de62bbaf7280371
+  zh: 0fd50691c5374715
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-1-broadcast-ctx-emit-and-ctx-parallel/1-ctx-emit-name-args-synchronous-broadcast:
+  en: 88831dd7b9eda8e1
+  zh: db009e542be80358
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-1-broadcast-ctx-emit-and-ctx-parallel/2-ctx-parallel-name-args-asynchronous-concurrent-barrier:
+  en: 4cee93d7bf24e693
+  zh: 7d07dda045a9ef21
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-2-serial-short-circuit-ctx-serial-and-ctx-bail:
+  en: 3a8b16bcac59f316
+  zh: 22c8ab5c385fcdde
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-2-serial-short-circuit-ctx-serial-and-ctx-bail/source-implementation:
+  en: 73e4529fae55df3a
+  zh: 5ee3bcd63239d96c
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-3-the-ctx-waterfall-middleware-model:
+  en: 93e6f3dba0d59ce4
+  zh: daf8a0900e4e14bc
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-3-the-ctx-waterfall-middleware-model/1-why-must-a-waterfall-listener-call-next-explicitly:
+  en: 4272e2fb15928ad5
+  zh: 76e6cd563a8785bf
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-3-the-ctx-waterfall-middleware-model/2-how-waterfall-advances-through-listeners:
+  en: c00f678bfffffcde
+  zh: 6571f3568b48b748
+/chapter-06-cordis-the-runtime-framework/5-three-event-dispatch-semantics-broadcast-serial-and-waterfall/5-3-the-ctx-waterfall-middleware-model/3-short-circuiting-versus-data-mutation:
+  en: f0dceb5b4045d0c9
+  zh: 30c208523df297b9
+/chapter-06-cordis-the-runtime-framework/6-hands-on-writing-a-complete-production-style-cordis-plugin:
+  en: 1c415b40ff2aa442
+  zh: 09b687b4c870c0ec
+/chapter-06-cordis-the-runtime-framework/6-hands-on-writing-a-complete-production-style-cordis-plugin/6-1-plugin-requirements:
+  en: f62f202813047a43
+  zh: dc956472acaee4cf
+/chapter-06-cordis-the-runtime-framework/6-hands-on-writing-a-complete-production-style-cordis-plugin/6-2-complete-typescript-implementation:
+  en: e876d2d7b2e0d10b
+  zh: 9e07df2887d9661e
+/chapter-06-cordis-the-runtime-framework/6-hands-on-writing-a-complete-production-style-cordis-plugin/6-3-unit-tests-and-lifecycle-verification-vitest:
+  en: a14724719c6c4446
+  zh: abd6d1b2686fabae
+/chapter-06-cordis-the-runtime-framework/7-common-production-failures-causes-and-diagnosis:
+  en: 93de4e70ebadbe7b
+  zh: d00e21e6123fd83e
+/chapter-06-cordis-the-runtime-framework/7-common-production-failures-causes-and-diagnosis/failure-1-a-waterfall-omits-next-and-silently-stops-the-call-chain:
+  en: b90d2e534e6c6b7d
+  zh: e97de39062373241
+/chapter-06-cordis-the-runtime-framework/7-common-production-failures-causes-and-diagnosis/failure-2-asynchronous-ctx-effect-disposal-deadlock-inertia-deadlock:
+  en: fdf66956eca9244f
+  zh: 1cd023017868b424
+/chapter-06-cordis-the-runtime-framework/7-common-production-failures-causes-and-diagnosis/failure-3-prototype-chain-scope-leak:
+  en: 86c4ac01478d35c6
+  zh: 7b0b6f3817307dd1
+/chapter-06-cordis-the-runtime-framework/7-common-production-failures-causes-and-diagnosis/failure-4-circular-dependencies-leave-plugins-pending:
+  en: 9ddf7e2ed91de0a4
+  zh: 186f7f7510d0df8c
+/chapter-06-cordis-the-runtime-framework/8-chapter-summary-and-what-comes-next:
+  en: 52f8fc647c324296
+  zh: 653714c0f3f8b394

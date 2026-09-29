@@ -31,12 +31,12 @@ changes:
     after: "22c6899a78214dd841c266348ae997027ef391174ddb21127f1b71dc1b362824"
     decision: version-bump
   - root: "event:agent/inbox/spliced"
-    previous: "2026-09-16-session-format-v4"
-    after: "24a14b470420c6d7a396efce26e45a98e5ae0324c5b5894568f41ecab167568d"
+    previous: "2026-09-21-user-question-reply"
+    after: "6ef4c9ac17fc6a23dc71ec6d40b9f9ee63e946d45c4d54f399e7e197eae52248"
     decision: version-bump
   - root: "event:developer/message"
-    previous: "2026-09-16-session-format-v4"
-    after: "6a56f79c9ce197c5358c30de62cdd4592506847ea8b495ae753e20ddfcedd47d"
+    previous: "2026-09-21-user-question-reply"
+    after: "cb30c2f40c8a10bae684e2ddb2f0502032e9a741681dbf57f8b022bbc83339d8"
     decision: version-bump
   - root: "event:graph/campaign"
     previous: null
@@ -75,16 +75,16 @@ changes:
     after: "4c277b1c1cfc2fa0934326ef4129f4126e39d282cd304dd2910c24ee83d15626"
     decision: version-bump
   - root: "event:session/title-llm-request"
-    previous: "2026-09-16-session-format-v4"
-    after: "3ad933ed2ec7a59e5cd8b4e7bae916eb8ed6118ce0ba18fa00260a07d80acf3e"
+    previous: "2026-09-21-user-question-reply"
+    after: "52350d34d206328eb17352496d891ba2c3b0b2ede38e1d6cc87432541e233dd4"
     decision: version-bump
   - root: "event:subagent/descriptor"
     previous: "2026-09-11-initial"
     after: "f0d8c1a2a894bc3807870ef73668d03768754110647b48f031e5faa16cf68ecc"
     decision: version-bump
   - root: "event:user/message"
-    previous: "2026-09-16-session-format-v4"
-    after: "d1c55b1ed092372f3e6bc09b12ddfaac8aff5d1db6e29fa024321a3687c5241f"
+    previous: "2026-09-21-user-question-reply"
+    after: "356198b07a5f910bbe88cbd2f0197d8fc009906a64634467a4aea3d351abe7b2"
     decision: version-bump
 ```
 

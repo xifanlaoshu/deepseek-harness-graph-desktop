@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-worker-local/README.md
-README.md: 8cfa980438a0ad3f4d6b049ea847b725e589d647
-README.zh.md: b856f05bccfe85a1d11c5ae7956213225ea96182
+/:
+  en: 5952937c00964fdf
+  zh: f62ab037a4f58352
+/deepseek-ai-dsh-graph-worker-local:
+  en: abe3a698e0014788
+  zh: e30db95c1fce44d4
+/deepseek-ai-dsh-graph-worker-local/summary:
+  en: 8f0936688e62bc53
+  zh: a35e3471bcd1e7a8
+/deepseek-ai-dsh-graph-worker-local/table-of-contents:
+  en: 9340d00f80b29407
+  zh: b11430cb35919ac5
+/deepseek-ai-dsh-graph-worker-local/configuration:
+  en: 75a1adbdfd04270b
+  zh: 76d7245f72e260d7
+/deepseek-ai-dsh-graph-worker-local/contract:
+  en: f9f4417f4842a416
+  zh: a610afcd39d0915d
+/deepseek-ai-dsh-graph-worker-local/dev-note:
+  en: e18f83459eb80cde
+  zh: e5448fc729dbc76e
+/deepseek-ai-dsh-graph-worker-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-graph-worker-local/model-experience/local-assignment:
+  en: c21a093a685a258a
+  zh: c21a093a685a258a
+/deepseek-ai-dsh-graph-worker-local/model-experience/local-assignment/what-the-model-sees:
+  en: ac7a3453e6c1cb9c
+  zh: 567cbddf05d9acce
+/deepseek-ai-dsh-graph-worker-local/model-experience/local-assignment/token-effect:
+  en: f37a87a3a9a0a841
+  zh: e485dc4024b26a08
+/deepseek-ai-dsh-graph-worker-local/model-experience/local-assignment/kv-cache-effect:
+  en: 16f00bbafe1381e7
+  zh: c03ce4840cbebfdf
+/deepseek-ai-dsh-graph-worker-local/known-limitations-and-deferred-work:
+  en: 0d05456d7b93fd62
+  zh: be4e56e1ceb4b3da

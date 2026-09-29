@@ -1,6 +1,151 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 28-agent-security-model.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/28-agent-security-model.md
-28-agent-security-model.md: c4faa3368c3e6a0d49e8eadc6d07cde6c0f17b1a
-28-agent-security-model.zh.md: 78be53f187f2e3dec39252afbbe796f70ec09511
+/chapter-28-the-agent-security-model:
+  en: b50dc6e4a5238252
+  zh: 3c52915545695387
+/chapter-28-the-agent-security-model/1-mental-model-and-trust-boundaries:
+  en: e8299f16ee731c73
+  zh: 217d3463ade0cb47
+/chapter-28-the-agent-security-model/1-mental-model-and-trust-boundaries/1-1-concept-mapping:
+  en: e273748968322dad
+  zh: a1bd93ec5565a15a
+/chapter-28-the-agent-security-model/1-mental-model-and-trust-boundaries/1-2-why-a-prompt-is-never-a-security-boundary:
+  en: 4a3250a66648a3e9
+  zh: 02b58579c2e09fbc
+/chapter-28-the-agent-security-model/1-mental-model-and-trust-boundaries/1-3-six-untrusted-input-sources:
+  en: c0ac0c779c8eef8d
+  zh: a7e10f1e1e32532a
+/chapter-28-the-agent-security-model/1-mental-model-and-trust-boundaries/1-4-stride-threat-modeling-for-agents:
+  en: d58b399d2e159017
+  zh: 0d2f2384e74a103e
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth:
+  en: 12b05c6504d8949b
+  zh: cf72478e0e980f28
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-1-layer-1-declared-permissions-and-interactive-approval:
+  en: 90226d3ce27e41f3
+  zh: bba32f7370a558d9
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-2-layer-2-runtime-policy:
+  en: c9b1d3cc4d0cf992
+  zh: e75bca99bd7bc546
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-3-layer-3-kernel-sandboxing:
+  en: 780ad2d564e3ba6e
+  zh: f098263c547f8662
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-3-layer-3-kernel-sandboxing/2-3-1-linux-landlock-and-abi-evolution:
+  en: b29ecb862f45baa5
+  zh: 97fcf58240a72e75
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-3-layer-3-kernel-sandboxing/2-3-2-linux-bubblewrap-bwrap-namespaces:
+  en: f245e0b1ffa63d87
+  zh: a53dc5254101d664
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-3-layer-3-kernel-sandboxing/2-3-3-macos-seatbelt-sandbox-exec-and-sbpl:
+  en: ce9ddf47cd75f785
+  zh: 7e71269747d5c79c
+/chapter-28-the-agent-security-model/2-layered-defense-in-depth/2-3-layer-3-kernel-sandboxing/2-3-4-windows-restricted-tokens-and-dacls:
+  en: fcd57cdfa2500661
+  zh: a851c27750e5c904
+/chapter-28-the-agent-security-model/3-monotonic-privilege-narrowing:
+  en: dc076a1e3021ea41
+  zh: 6e5029e3518f50c3
+/chapter-28-the-agent-security-model/3-monotonic-privilege-narrowing/3-1-security-lattice-model:
+  en: f4dc268c5b305707
+  zh: 107c2b8b8fc3c081
+/chapter-28-the-agent-security-model/3-monotonic-privilege-narrowing/3-2-child-agent-permission-theorem-and-proof:
+  en: 8d862cbfe8e810ad
+  zh: 26f017f7f8925336
+/chapter-28-the-agent-security-model/3-monotonic-privilege-narrowing/3-3-one-call-approval-grants-leases-and-epochs:
+  en: 02305612f9220740
+  zh: 24643e44cac93950
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses:
+  en: eae1cba5be818e28
+  zh: 0ea6e812b7d846f8
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-1-attack-one-path-traversal-and-unicode-obfuscation:
+  en: 350728ec24319499
+  zh: f1705ca203e3b28f
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-2-attack-two-symlink-and-hardlink-escape-through-toctou-races:
+  en: 04891ae9a1b64c29
+  zh: 954003fc943b8fae
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-3-attack-three-command-injection-and-argument-hijacking:
+  en: 7fb011873ed0e934
+  zh: 211fa148c5cc83b2
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-4-attack-four-environment-and-credential-exfiltration:
+  en: beaee59697a27260
+  zh: 9e3fea37e107b24c
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-5-attack-five-output-bombs-and-resource-exhaustion:
+  en: 7a12943796fe86ae
+  zh: 662bb76d74c80456
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-6-attack-six-zip-tar-bombs-and-zip-slip-escape:
+  en: 4aa3a0acd3fc6816
+  zh: c2c52c198152a33a
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-7-attack-seven-ssrf-private-network-probing-and-dns-rebinding:
+  en: b490cf3f134c5471
+  zh: 45ff066da6fa11d4
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-8-attack-eight-direct-and-indirect-prompt-injection:
+  en: 2bbbb93700a18524
+  zh: 331b19bba0553a86
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-9-attack-nine-cross-tenant-confused-deputy-and-context-bleed:
+  en: c44781857f322485
+  zh: 9da981e00c7d5ba3
+/chapter-28-the-agent-security-model/4-ten-common-attacks-and-defenses/4-10-attack-ten-mcp-supply-chain-poisoning-and-malicious-tools:
+  en: b36506d792ae2879
+  zh: 05cf547a08b61277
+/chapter-28-the-agent-security-model/5-browser-environment-and-mcp-protocol-security:
+  en: 0360ac8a7d893805
+  zh: 77ff0006261fc237
+/chapter-28-the-agent-security-model/5-browser-environment-and-mcp-protocol-security/5-1-browser-context-isolation:
+  en: 4a5e450f79ab432d
+  zh: 4ad67db3c54017b5
+/chapter-28-the-agent-security-model/5-browser-environment-and-mcp-protocol-security/5-2-mcp-model-context-protocol-pipeline-security:
+  en: cbec2d8a74aa86df
+  zh: 7057f0f1abae6df5
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation:
+  en: 96f35a4ac4110d3b
+  zh: 9c8e4c702f7d2603
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation/6-1-canonical-path-resolution-and-access-enforcement-securepathresolver:
+  en: e015cd1c66ea8c92
+  zh: d5d0be2a1daa5e37
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation/6-2-production-http-client-resistant-to-dns-rebinding-hardenedhttpclient:
+  en: 5c31ba6f53d31b5a
+  zh: 420786b974ed79de
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation/6-3-strictly-constrained-external-command-execution-safeprocesslauncher:
+  en: daffc104661bb6b8
+  zh: c557dabe62a1ee22
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation/6-4-monotonically-narrowing-delegated-permissions-delegatedpermissionengine:
+  en: 6351aa325da908ab
+  zh: 95d5ba6b1c714f2d
+/chapter-28-the-agent-security-model/6-production-grade-typescript-security-implementation/6-5-dynamic-approval-and-fail-closed-arbitration-escalationengine:
+  en: ea1efceb2a377571
+  zh: 0abf3b0a1dbd265b
+/chapter-28-the-agent-security-model/7-memory-and-data-layout:
+  en: 97c762e7bd454e13
+  zh: 0fea6570f57d156a
+/chapter-28-the-agent-security-model/7-memory-and-data-layout/7-1-security-context-memory-layout:
+  en: cd3c6897b64eda06
+  zh: b431ea4231c2cba4
+/chapter-28-the-agent-security-model/7-memory-and-data-layout/7-2-linux-landlock-lsm-structure-layout-c-uapi:
+  en: 6ec16f0813fe16e2
+  zh: 49c7f29a007674ae
+/chapter-28-the-agent-security-model/7-memory-and-data-layout/7-3-session-security-event-sequence-and-state-transitions:
+  en: 0e534c3d1e18bbc9
+  zh: 54bbd391a6320bfd
+/chapter-28-the-agent-security-model/8-production-incident-reviews-and-troubleshooting:
+  en: 3dbcf17d29fe9628
+  zh: 613e7cd4f5c4d3fc
+/chapter-28-the-agent-security-model/8-production-incident-reviews-and-troubleshooting/8-1-case-one-symlink-toctou-overwrites-system-configuration-outside-the-workspace-cwe-59-cwe-367:
+  en: 4ce939240386528b
+  zh: d270e94e10340c5a
+/chapter-28-the-agent-security-model/8-production-incident-reviews-and-troubleshooting/8-2-case-two-dns-rebinding-bypasses-ssrf-protection-and-retrieves-aws-metadata-cwe-918:
+  en: 376746211aba3afb
+  zh: 96b439ecade872c9
+/chapter-28-the-agent-security-model/8-production-incident-reviews-and-troubleshooting/8-3-case-three-a-subagent-escalates-permissions-and-changes-a-git-hook-cwe-269-cwe-250:
+  en: ec6eab7a081576b9
+  zh: 1424d9b26a2af5bd
+/chapter-28-the-agent-security-model/9-chapter-summary-and-architecture-checklist:
+  en: 17c008bdad0a153c
+  zh: c0189fcadbd4e935
+/chapter-28-the-agent-security-model/9-chapter-summary-and-architecture-checklist/9-1-ten-security-architecture-principles:
+  en: 47da8788e6b9d51c
+  zh: 8c86f5b7aa3fa32f
+/chapter-28-the-agent-security-model/9-chapter-summary-and-architecture-checklist/9-2-architecture-review-checklist:
+  en: b8f35f052f564952
+  zh: cbcd47fa39346365

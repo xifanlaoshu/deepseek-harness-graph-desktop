@@ -7,7 +7,6 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import { GraphAction } from '../src/client/GraphAction.tsx'
 import { GraphChildAction, type GraphChildActionInjected } from '../src/client/GraphChildAction.tsx'
@@ -19,7 +18,32 @@ import {
 import type { GraphActionInjected } from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as applyHost } from '../src/index.ts'
-import * as GraphUiInvariant from '../src/invariant.ts'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isGraphTemplateInjected(value: unknown): value is GraphTemplateSettingsTabInjected {
+  return isRecord(value) && isRecord(value.hooks)
+    && 'settings' in value.hooks && 'models' in value.hooks
+    && typeof value.loadModels === 'function'
+    && typeof value.saveTemplate === 'function'
+    && typeof value.resetTemplate === 'function'
+}
+
+function isGraphActionInjected(value: unknown): value is GraphActionInjected {
+  return isRecord(value) && isRecord(value.hooks) && 'models' in value.hooks
+    && typeof value.loadModels === 'function'
+    && typeof value.saveConfig === 'function'
+    && typeof value.control === 'function'
+    && typeof value.openSession === 'function'
+}
+
+function isGraphChildActionInjected(value: unknown): value is GraphChildActionInjected {
+  return isRecord(value) && isRecord(value.hooks) && 'parentGraph' in value.hooks
+    && typeof value.controlParent === 'function'
+    && typeof value.openParent === 'function'
+}
 
 const config = {
   version: 2,
@@ -48,15 +72,6 @@ const config = {
 describe('ui-graph browser apply', () => {
   it('keeps the host half as a no-op', () => {
     applyHost()
-  })
-
-  it('reserves package invariant ownership', async () => {
-    const ctx = new Context()
-    await ctx.plugin(InvariantRegistry, { enabled: true })
-    await ctx.plugin(GraphUiInvariant).await()
-    expect(() => {
-      ctx.invariants.register('@deepseek-ai/dsh-client-ui-graph', () => {})
-    }).toThrow(/already registered/)
   })
 
   it('registers the header action and serializes config through /graph', async () => {
@@ -125,6 +140,7 @@ describe('ui-graph browser apply', () => {
       .mockRejectedValueOnce(new Error('catalog offline'))
     const modelStore = createSnapshotStore<ModelDirectoryState>({
       current: null,
+      pending: null,
       routable: null,
       groups: [],
       failures: [],
@@ -137,7 +153,9 @@ describe('ui-graph browser apply', () => {
     await fiber.await()
     const templateEntry = ctx.slots.entries('settings.plugins.tab').find(item => item.options.id === 'graph-templates')!
     expect(templateEntry.component).toBe(GraphTemplateSettingsTab)
-    const templateInjected = (templateEntry.inject as unknown as () => GraphTemplateSettingsTabInjected)()
+    const templateInjectedValue = templateEntry.inject?.()
+    if (!isGraphTemplateInjected(templateInjectedValue)) throw new TypeError('Graph template injection is incomplete.')
+    const templateInjected = templateInjectedValue
     expect(templateInjected.hooks.settings).toBe(graphTemplateScope)
     templateInjected.loadModels()
     templateInjected.loadModels()
@@ -149,7 +167,11 @@ describe('ui-graph browser apply', () => {
     expect(mutateTemplate).toHaveBeenNthCalledWith(2, expect.any(Array), 8)
     const entry = ctx.slots.entries('conversation.session.header.actions').find(item => item.options.id === 'graph-mode')!
     expect(entry.component).toBe(GraphAction)
-    const injected = (entry.inject as unknown as (id: SessionId) => GraphActionInjected)('s1' as SessionId)
+    const injectedValue: unknown = entry.inject === undefined
+      ? undefined
+      : Reflect.apply(entry.inject, undefined, ['s1' as SessionId])
+    if (!isGraphActionInjected(injectedValue)) throw new TypeError('Graph action injection is incomplete.')
+    const injected = injectedValue
     expect(injected.hooks.models).toBe(modelStore)
     injected.loadModels()
     injected.loadModels()
@@ -167,9 +189,11 @@ describe('ui-graph browser apply', () => {
     const childEntry = ctx.slots.entries('conversation.session.header.actions')
       .find(item => item.options.id === 'graph-child')!
     expect(childEntry.component).toBe(GraphChildAction)
-    const childInjected = (childEntry.inject as unknown as (id: SessionId) => GraphChildActionInjected)(
-      'child' as SessionId,
-    )
+    const childInjectedValue: unknown = childEntry.inject === undefined
+      ? undefined
+      : Reflect.apply(childEntry.inject, undefined, ['child' as SessionId])
+    if (!isGraphChildActionInjected(childInjectedValue)) throw new TypeError('Graph child action injection is incomplete.')
+    const childInjected = childInjectedValue
     expect(childInjected.hooks.parentGraph).toBe(parentGraph)
     await expect(childInjected.controlParent({ action: 'cancel-node' })).resolves.toBeNull()
     expect(execute).toHaveBeenCalledWith('parent', expect.stringMatching(/^\/graph control /), [])

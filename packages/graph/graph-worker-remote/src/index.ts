@@ -156,9 +156,9 @@ export interface Config {
   /** Maximum bytes captured from one remote structured result. */
   readonly maxArtifactBytes: number
   /** Authenticated HTTP route; omission retains the out-of-process subagent adapter. */
-  readonly http?: HttpConfig
+  readonly http?: HttpConfig | undefined
   /** Authenticated inbound Worker service; required in server and both modes. */
-  readonly server?: HttpServerConfig
+  readonly server?: HttpServerConfig | undefined
 }
 
 /** Plugin configuration schema. */
@@ -170,7 +170,7 @@ export const Config: z<Config> = z.object({
   artifactProvider: z.string(),
   maxArtifactFiles: z.natural().min(1).max(100_000).default(10_000),
   maxArtifactBytes: z.natural().min(1).default(536_870_912),
-  http: z.object({
+  http: z.union([z.object({
     endpoint: z.string().required(),
     principal: z.string().required(),
     audience: z.string().required(),
@@ -189,8 +189,8 @@ export const Config: z<Config> = z.object({
     artifactAllowedMaterializeRoots: z.array(z.string()).default([]),
     artifactMaxFiles: z.natural().min(1).max(100_000).default(10_000),
     artifactMaxBytes: z.natural().min(1).default(536_870_912),
-  }).default(undefined as unknown as HttpConfig),
-  server: z.object({
+  }), z.const(undefined)]),
+  server: z.union([z.object({
     audience: z.string().required(),
     basePath: z.string().default('/graph-worker'),
     journalPath: z.string().default('.sessions/graph-worker-http.sqlite'),
@@ -215,7 +215,7 @@ export const Config: z<Config> = z.object({
     artifactTempRoot: z.string().default('.sessions/graph-worker-http-artifacts'),
     artifactMaxFiles: z.natural().min(1).max(100_000).default(10_000),
     artifactMaxBytes: z.natural().min(1).default(536_870_912),
-  }).default(undefined as unknown as HttpServerConfig),
+  }), z.const(undefined)]),
 })
 
 function installServer(ctx: Context, config: HttpServerConfig): void {

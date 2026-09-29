@@ -1,6 +1,23 @@
+---
+description: "通过与提供方无关的声明、观察和证据来协调 Graph 工作代理。本文介绍协调服务及外部权威的限制。"
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph-coordination`
 
 [English](README.md) | 中文
+
+## 概述
+
+与外部 Graph 协调提供方交换带围栏的声明、观察和证据。Graph Mode 仍然拥有图状态和策略的持久化所有权。
+
+## 目录
+
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
 
 这是 Harness 会话日志之外的任务图 worker 协调 Service Definition。提供方为不可变任务图修订准备工作项，用最新的紧凑观察信息准入并认领每个节点，然后记录终态证据和进度。调度器仍负责子代理执行、DAG 依赖、重试和持久化运行快照。
 
@@ -16,6 +33,18 @@ Protocol Version 3 同时携带稳定逻辑 `workId` 与 Generation 作用域的
 
 每个 Provider 都会运行共享的八操作一致性套件。该套件联合验证 prepare、claim、heartbeat、observe/watch、进度、取消、结算与对账，并覆盖重复投递、冲突载荷、过期 fenced 写入、有序取消观察以及匹配或冲突的终态证据。
 
+<a id="dev-note"></a>
+## 开发备注
+该服务不发布不变量 companion：外部状态由 Provider 负责，并通过类型化操作结果返回。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 协调观察
@@ -32,6 +61,6 @@ Protocol Version 3 同时携带稳定逻辑 `workId` 与 Generation 作用域的
 
 观察是尝试特有的后缀，因此不会在不同节点之间提供稳定的缓存内容。
 
-## 已知限制与待完成工作
+## 已知限制与待完成工作 <a id="known-limitations-and-deferred-work"></a>
 
 - Service Definition 不持久化或恢复提供方状态。每个提供方自行负责外部身份、可用性、观察长度限制和恢复策略。

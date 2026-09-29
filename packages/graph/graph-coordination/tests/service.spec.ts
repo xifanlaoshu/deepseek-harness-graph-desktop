@@ -1,8 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import { describe, expect, it } from 'vitest'
 import GraphCoordination, { MemoryGraphCoordination } from '../src/index.ts'
-import * as CoordinationInvariant from '../src/invariant.ts'
 import { runGraphCoordinationContract } from './contract.ts'
 
 class MemoryCoordination extends GraphCoordination {
@@ -26,14 +24,39 @@ describe('graph coordination service', () => {
     expect(ctx.graphCoordination).toBeInstanceOf(MemoryCoordination)
   })
 
-  it('reserves package invariant ownership', async () => {
+  it('drains each consumer once and shares its shutdown callback with unregister', async () => {
     const ctx = new Context()
-    await ctx.plugin(InvariantRegistry, { enabled: true })
-    await ctx.plugin(CoordinationInvariant).await()
-    expect(() => {
-      ctx.invariants.register('@deepseek-ai/dsh-graph-coordination', () => {})
-    }).toThrow(/already registered/)
+    await ctx.plugin(MemoryCoordination).await()
+    const coordination = ctx.graphCoordination
+    let release!: () => void
+    const held = new Promise<void>((resolve) => { release = resolve })
+    let calls = 0
+    const unregister = coordination.registerQuiescence(async () => { calls += 1; await held })
+    const providerDrain = coordination.quiesceConsumers()
+    const consumerDispose = unregister()
+    await Promise.resolve()
+    expect(calls).toBe(1)
+    await expect(Promise.resolve().then(() => coordination.registerQuiescence(async () => {})))
+      .rejects.toThrow(/no longer accepts consumers/)
+    release()
+    await Promise.all([providerDrain, consumerDispose])
+    expect(calls).toBe(1)
   })
+
+  it('waits for every consumer callback and reports aggregate failures', async () => {
+    const ctx = new Context()
+    await ctx.plugin(MemoryCoordination).await()
+    const coordination = ctx.graphCoordination
+    let completed = 0
+    coordination.registerQuiescence(async () => { completed += 1; throw new Error('first close failed') })
+    coordination.registerQuiescence(async () => { await Promise.resolve(); completed += 1 })
+    await expect(coordination.quiesceConsumers()).rejects.toMatchObject({
+      name: 'AggregateError', message: 'graph coordination consumers failed to quiesce',
+    })
+    expect(completed).toBe(2)
+    await expect(coordination.quiesceConsumers()).rejects.toMatchObject({ name: 'AggregateError' })
+  })
+
 })
 
 runGraphCoordinationContract('memory', async () => {

@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-coordination-loopx/README.md
-README.md: c931505da5fed8c8e61e3f56439a3f959451b605
-README.zh.md: 8bbe669d390f8315df554ba9df3f401401de9f66
+/:
+  en: e7304cf60d2d4232
+  zh: 511d9fd37848a64e
+/deepseek-ai-dsh-graph-coordination-loopx:
+  en: 86f511f9f5d766dd
+  zh: 3c84dc9c5f245bbe
+/deepseek-ai-dsh-graph-coordination-loopx/summary:
+  en: 21f046cb40137512
+  zh: 780133e79a13dad5
+/deepseek-ai-dsh-graph-coordination-loopx/table-of-contents:
+  en: cc7fe342d14bca33
+  zh: 136f026afb437bf2
+/deepseek-ai-dsh-graph-coordination-loopx/dev-note:
+  en: 9ddbad3d1070e192
+  zh: 4eb04841a58e354b
+/deepseek-ai-dsh-graph-coordination-loopx/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-coordination-loopx/model-experience/loopx-worker-observation:
+  en: a14dcb2b43cc0a84
+  zh: e177416c18fb7a74
+/deepseek-ai-dsh-graph-coordination-loopx/model-experience/loopx-worker-observation/what-the-model-sees:
+  en: 51c713fe6338b3c0
+  zh: 7be363ea4b3e5d28
+/deepseek-ai-dsh-graph-coordination-loopx/model-experience/loopx-worker-observation/token-effect:
+  en: 6466908390fd1012
+  zh: cce59bacc38d95fb
+/deepseek-ai-dsh-graph-coordination-loopx/model-experience/loopx-worker-observation/kv-cache-effect:
+  en: a98809f4f671f05c
+  zh: 9e9c0530b92c33db
+/deepseek-ai-dsh-graph-coordination-loopx/known-limitations-and-deferred-work:
+  en: f4a36517237b1226
+  zh: c001c94687e3245e

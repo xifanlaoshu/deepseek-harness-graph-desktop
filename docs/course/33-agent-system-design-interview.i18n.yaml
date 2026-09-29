@@ -1,6 +1,172 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 33-agent-system-design-interview.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/33-agent-system-design-interview.md
-33-agent-system-design-interview.md: bb17aec6237d2562ac04862b69b7d5a6116c9461
-33-agent-system-design-interview.zh.md: 88af69112b644a7f76bc38d78cf93004f859aa3e
+/chapter-33-an-agent-system-design-interview-framework:
+  en: 21bdea511d3e6201
+  zh: c31b8f77269af11f
+/chapter-33-an-agent-system-design-interview-framework/1-an-architect-s-view-what-an-ai-agent-system-is-and-how-it-is-evaluated:
+  en: a6bec9366e78e66b
+  zh: d753dc9683db49e2
+/chapter-33-an-agent-system-design-interview-framework/1-an-architect-s-view-what-an-ai-agent-system-is-and-how-it-is-evaluated/1-1-the-shift-from-traditional-to-agent-system-design:
+  en: 2ed5bda03c5dbf5c
+  zh: 64b0667c670fe6b7
+/chapter-33-an-agent-system-design-interview-framework/1-an-architect-s-view-what-an-ai-agent-system-is-and-how-it-is-evaluated/1-2-what-interviewers-evaluate:
+  en: e87f78dc3ccf3e8e
+  zh: 7b3b6570dad7507c
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews:
+  en: 0fbcd71d9a97db94
+  zh: 766ddc941349fd00
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-1-step-1-clarify-business-constraints-and-service-level-objectives:
+  en: d1d694de6b5950c9
+  zh: c5431cf0dcdfc25f
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-1-step-1-clarify-business-constraints-and-service-level-objectives/2-1-1-business-model-and-interaction-pattern:
+  en: 07130196a016d2cb
+  zh: 6e0e34c66444b163
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-1-step-1-clarify-business-constraints-and-service-level-objectives/2-1-2-side-effect-classification-matrix:
+  en: 7c21a280c050f930
+  zh: df7cd40bc9089d87
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-1-step-1-clarify-business-constraints-and-service-level-objectives/2-1-3-nonfunctional-objectives-slos-slas:
+  en: 8c193dbb9868cc06
+  zh: 60c118d2ec691f95
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-2-step-2-model-core-data-and-domain-state:
+  en: 3eb5969a166fe4c7
+  zh: e211b0d6a1a1c36b
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-2-step-2-model-core-data-and-domain-state/2-2-1-domain-entity-relationships:
+  en: a9531c0452a82169
+  zh: 87ba5d6d02ded7d2
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-2-step-2-model-core-data-and-domain-state/2-2-2-production-typescript-domain-types:
+  en: da79e5fca6efc23e
+  zh: 500d6fff66edf99c
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-2-step-2-model-core-data-and-domain-state/2-2-3-relational-ddl-postgresql-sqlite-wal:
+  en: 4c8a429d285a5c30
+  zh: 925ea0f1e499ba39
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-2-step-2-model-core-data-and-domain-state/2-2-4-storage-tiering:
+  en: 49e728f41de07fd2
+  zh: 2c85999027650c7e
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-3-step-3-design-the-control-loop-and-state-machine:
+  en: aed4488d8462a7d4
+  zh: 98327ff6ef3dfa46
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-3-step-3-design-the-control-loop-and-state-machine/2-3-1-end-to-end-request-pipeline:
+  en: 718719a1250d5bac
+  zh: 07e94512b4c6851a
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-3-step-3-design-the-control-loop-and-state-machine/2-3-2-core-state-transition-table:
+  en: cb1daa0ec9fbb72a
+  zh: 3ceb49462d93ae5e
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-3-step-3-design-the-control-loop-and-state-machine/2-3-3-typescript-control-loop-implementation:
+  en: fc9c41442ccbd74a
+  zh: cea3a600319475cf
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience:
+  en: 4e928db93eedb0a3
+  zh: d7aa5cead9d3205d
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-1-failure-scenarios-and-defenses:
+  en: 0743c709a5fd311d
+  zh: 98271075dca39b52
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-1-failure-scenarios-and-defenses/1-upstream-llm-rate-limits-429-and-5xx-errors:
+  en: eadc384e73dfef47
+  zh: 5b26c189d5c5a907
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-1-failure-scenarios-and-defenses/2-external-side-effects-in-an-in-doubt-state-and-saga-compensation:
+  en: e6935e2886a94db6
+  zh: c130bd480b36e30f
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-1-failure-scenarios-and-defenses/3-asynchronous-races-and-ghost-writes:
+  en: 9180c900907065eb
+  zh: e9e801b3e8cc8e95
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-1-failure-scenarios-and-defenses/4-indirect-prompt-injection-defense:
+  en: 289222f53bc78a56
+  zh: 51cddf3d929db700
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-4-step-4-analyze-failure-domains-and-resilience/2-4-2-saga-compensation-and-fencing-coordinator-example:
+  en: b42b35ea648a3b62
+  zh: bf58c87c12afc6e1
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance:
+  en: e4944975925950d9
+  zh: 4c275b8c7d5b8d19
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance/2-5-1-concurrent-qps-and-token-throughput:
+  en: 3d24be38b67b4b0b
+  zh: 32c7f04465c09670
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance/2-5-1-concurrent-qps-and-token-throughput/1-daily-requests-and-peak-qps:
+  en: 648a60ef60cc2f99
+  zh: b03ac53cd197c0a4
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance/2-5-1-concurrent-qps-and-token-throughput/2-token-throughput-tps:
+  en: 8bb8b4f8647c6b73
+  zh: 7aeab38435a911f0
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance/2-5-2-kv-cache-gpu-memory-and-gpu-nodes:
+  en: c819622be79791dc
+  zh: b2c72cbd86528590
+/chapter-33-an-agent-system-design-interview-framework/2-a-five-step-framework-for-senior-agent-system-interviews/2-5-step-5-estimate-capacity-and-performance/2-5-3-database-wal-write-throughput-and-i-o:
+  en: 1a79462f9e59ebbe
+  zh: c09857b76e036922
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox:
+  en: fa8ee110ad65f0f3
+  zh: 512e1c1222a9069b
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-1-use-case-slos-and-constraints:
+  en: 9105a3053647c34d
+  zh: f6635b7bc0d95340
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-2-architecture-and-components:
+  en: 33cd994d47f63918
+  zh: 6c065eaf25bd5d38
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-3-virtual-file-transactions-and-diff-based-patches:
+  en: 6826af89c644544c
+  zh: fbe519e9c33b4662
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-4-implementation-atomic-vfs-transactions-and-a-sandbox-executor:
+  en: 9aaa76469ca54a34
+  zh: dbf7ae24090e116c
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-5-production-failures-and-pitfalls:
+  en: 2f1017d3a22592d7
+  zh: 6cfaa7cd297a2f1b
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-5-production-failures-and-pitfalls/case-1-crlf-and-lf-differences-break-patches:
+  en: 0007468f0db8b72c
+  zh: cc0855c458a85e0d
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-5-production-failures-and-pitfalls/case-2-zombie-local-subprocesses-keep-ports-occupied:
+  en: 37733ecfcef1aa69
+  zh: e815b67e8d91fd9f
+/chapter-33-an-agent-system-design-interview-framework/3-design-example-one-enterprise-coding-agent-with-a-local-single-tenant-sandbox/3-5-production-failures-and-pitfalls/case-3-llm-generated-git-reset-hard-erases-user-work:
+  en: d04cf329d7715193
+  zh: 269151c08b3a9f98
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent:
+  en: 248a1c05993eabb1
+  zh: d4d5f499e864fbd8
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-1-use-case-slos-and-constraints:
+  en: 629625801375bd27
+  zh: 1bca87b49cfeece7
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-2-distributed-topology-and-control-plane:
+  en: 5005d0e818170a18
+  zh: 649dd3015170196a
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-3-distributed-scheduling-with-map-reduce-reflect:
+  en: 6390e7532e243416
+  zh: 79f4cce9eefd6072
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-4-implementation-distributed-dag-scheduler-and-lease-manager:
+  en: edc75aa559213cc8
+  zh: f0db27f0f9b9be70
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-5-production-failures-and-pitfalls:
+  en: c876f227415c9dfb
+  zh: ee86682850d254fd
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-5-production-failures-and-pitfalls/case-1-split-brain-execution-and-duplicate-charges-during-a-network-partition:
+  en: 1006364a0453c23e
+  zh: df74536e03183b97
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-5-production-failures-and-pitfalls/case-2-recursive-subtask-growth-triggers-a-rate-limit-storm:
+  en: 6a46d68f3cc5ce38
+  zh: 95b9b995fb506ed7
+/chapter-33-an-agent-system-design-interview-framework/4-design-example-two-a-distributed-multi-tenant-research-agent/4-5-production-failures-and-pitfalls/case-3-long-running-blackboard-state-leaks-memory:
+  en: ac2ebc1635345572
+  zh: 08da8ef8b8ac78e9
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives:
+  en: 01296a5db822333d
+  zh: 08f8e1234b9edf14
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives/q1-how-do-you-prevent-tool-loops-and-goal-drift-during-exploration:
+  en: 701ac782900483f9
+  zh: 35fd66552c78d788
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives/q2-why-combine-a-static-dag-with-local-llm-decisions-instead-of-a-fully-free-form-autogpt-loop:
+  en: 29db74c149c4f61e
+  zh: 0c9e0ab16ce6f858
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives/q3-how-should-a-prompt-be-ordered-to-maximize-kv-cache-hits-in-long-conversations:
+  en: 24133142cb1bd88b
+  zh: 23a7f8e7f8129917
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives/q4-how-do-you-design-end-to-end-agent-observability:
+  en: 09e691ed98dd518e
+  zh: 0fbb5148cc7204e6
+/chapter-33-an-agent-system-design-interview-framework/5-common-interview-deep-dives/q5-how-do-you-cancel-distributed-agent-work-and-release-resources-within-100-ms:
+  en: 534261c66f44f63f
+  zh: a1432e8a283fbcb9
+/chapter-33-an-agent-system-design-interview-framework/6-summary-and-agent-architect-competencies:
+  en: eef1623b067b983e
+  zh: 43607d1f44a14e89

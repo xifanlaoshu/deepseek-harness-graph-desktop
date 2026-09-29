@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-progressive-graph-planning-checkpoints.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-progressive-graph-planning-checkpoints.md
-2026-08-18-progressive-graph-planning-checkpoints.md: a87f35cc4370d3e6d077f540f76991f5d993f8d4
-2026-08-18-progressive-graph-planning-checkpoints.zh.md: dd17737da335ec8600f1b71374bc9ea26378f227
+/agent-note-progressive-graph-planning-checkpoints:
+  en: 1e397ffd77775377
+  zh: f8e3fe831355ecdb
+/agent-note-progressive-graph-planning-checkpoints/problem:
+  en: d7f1bd75b0ac9a4d
+  zh: 89562bf681a8c2b8
+/agent-note-progressive-graph-planning-checkpoints/proposal:
+  en: 79635bc980727e7b
+  zh: b096b10f190439b3
+/agent-note-progressive-graph-planning-checkpoints/alternatives-considered:
+  en: 39ce2b42d52cbff7
+  zh: 2b5df75b5a74b135
+/agent-note-progressive-graph-planning-checkpoints/acceptance-criteria:
+  en: ce7ef71a1fba4c71
+  zh: 01b81a833b512e9a
+/agent-note-progressive-graph-planning-checkpoints/risks:
+  en: 4885019bfd4ba08f
+  zh: 90df32c611bc1374

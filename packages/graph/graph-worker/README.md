@@ -1,9 +1,28 @@
+---
+description: "Assign fenced Graph node attempts to named Worker Providers and enforce advertised capabilities. This reference describes assignment evidence, lifecycle, and recovery responsibilities."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-worker
 
 English | [中文](README.zh.md)
 
+## Summary
+
+Assign fenced Graph node attempts to local or remote Worker Providers and validate their capabilities. Providers own workspace allocation, child execution, cancellation, artifact staging, and reconciliation.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Contract](#contract)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
 `ctx.graphWorkers` is the Service Definition for assigning one fenced Graph node attempt to a named local or remote Worker Provider. It validates protocol and capability requirements, while Providers own workspace allocation, child execution, cancellation, artifact staging, and terminal resource classification.
 
+<a id="contract"></a>
 ## Contract
 
 - An assignment freezes the Graph work, operation, attempt, run generation, owner epoch, fencing token, role, node, prompt, output schema, workspace policy, deadline, and tool policy before a Provider accepts it.
@@ -14,6 +33,18 @@ English | [中文](README.zh.md)
 - The Service Definition does not choose a Provider, allocate resources, interpret model output, or integrate artifacts. Those responsibilities belong to Graph Mode, a resource Consumer, and an integration node.
 - Every Provider runs the shared Worker conformance suite. It verifies advertised capabilities, pre-terminal Worker and workspace references, one completed or aborted terminal result, cooperative cancellation, and exact active-Worker reconciliation with mismatched workspace rejection.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because provider registration ownership is enforced synchronously.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Worker evidence

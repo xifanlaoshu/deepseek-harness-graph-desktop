@@ -14,7 +14,7 @@ describe('browser-chrome-devtools bundle patch', () => {
     }
     expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.dependencies).toMatchObject({
-      '@deepseek-ai/dsh-mcp-client': 'workspace:^',
+      '@deepseek-ai/dsh-mcp-client': 'workspace:*',
       'chrome-devtools-mcp': '1.7.0',
     })
     const parsed = yaml.load(
@@ -32,6 +32,9 @@ describe('browser-chrome-devtools bundle patch', () => {
           __jsExpr: "process.env.DSH_CHROME_DEBUG_URL?.trim() ? 'external' : 'managed'",
         },
         chromeChannel: 'stable',
+        chromeExecutablePath: {
+          __jsExpr: "process.env.DSH_CHROME_EXECUTABLE_PATH?.trim() || (!process.env.DSH_CHROME_DEBUG_URL?.trim() ? process.env.DSH_DESKTOP_PRIVATE_CHROME_EXECUTABLE_PATH?.trim() : '') || ''",
+        },
         headless: false,
         isolatedProfile: true,
         startMaximized: true,

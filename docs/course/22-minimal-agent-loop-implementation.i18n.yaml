@@ -1,6 +1,142 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 22-minimal-agent-loop-implementation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/22-minimal-agent-loop-implementation.md
-22-minimal-agent-loop-implementation.md: 3034f79b3515a7ce4d41d49d112f4d0fa4949297
-22-minimal-agent-loop-implementation.zh.md: 9c922949670f16a6bd63eb919796550b1a52d1eb
+/chapter-22-build-a-minimal-agent-loop-from-scratch:
+  en: c1aa4039e81f3bfe
+  zh: 4591d1bf627f25a7
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor:
+  en: b90bb0f14631cf01
+  zh: 66625ddeb7569983
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-1-mapping-the-agent-loop-to-an-os-event-loop:
+  en: 4533b2354749715c
+  zh: 1b9909923251f7aa
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-2-inversion-of-control-who-drives-the-protocol:
+  en: c7afa83895bb8e51
+  zh: d9d7c4a38b2c1eed
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-3-mathematical-model-autoregression-and-markov-decision-processes:
+  en: 6b66da56a4545b34
+  zh: 256d76cd39b6e2d4
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-3-mathematical-model-autoregression-and-markov-decision-processes/1-3-1-state-transitions-and-context-growth-recurrence:
+  en: 1521297dc9779163
+  zh: 9df4f82351dbbbe8
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-3-mathematical-model-autoregression-and-markov-decision-processes/1-3-2-quadratic-growth-in-context-processing:
+  en: c552d5f836061e5a
+  zh: 93dbb0e5f8789d24
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-3-mathematical-model-autoregression-and-markov-decision-processes/1-3-3-worked-example-tokens-and-vram-over-ten-steps:
+  en: ed59b301ad3a32e8
+  zh: 827787658db15bd3
+/chapter-22-build-a-minimal-agent-loop-from-scratch/1-engineering-model-a-deterministic-state-machine-and-an-untrusted-coprocessor/1-3-mathematical-model-autoregression-and-markov-decision-processes/1-3-4-the-halting-problem-and-finite-state-constraints:
+  en: e4454db41e55bfcd
+  zh: 12f7b3a0dafe988d
+/chapter-22-build-a-minimal-agent-loop-from-scratch/2-state-machine-lifecycle-and-transition-topology:
+  en: f84a86c3b1b05737
+  zh: 0c37209e3933f38c
+/chapter-22-build-a-minimal-agent-loop-from-scratch/2-state-machine-lifecycle-and-transition-topology/2-1-states-and-transition-matrix:
+  en: 4660d47ba225855a
+  zh: 797edf46ef220379
+/chapter-22-build-a-minimal-agent-loop-from-scratch/2-state-machine-lifecycle-and-transition-topology/2-2-main-state-transition-topology:
+  en: 599e6bc1504016fa
+  zh: b67bf5a9706b44a0
+/chapter-22-build-a-minimal-agent-loop-from-scratch/2-state-machine-lifecycle-and-transition-topology/2-3-transition-invariants-and-runtime-pre-postconditions:
+  en: 0d2b8a8cb8bdb317
+  zh: 02a4242357512db7
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses:
+  en: 67622fe98fba6c32
+  zh: dae1e0d141f05182
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-1-condition-1-final-natural-language-answer:
+  en: 2f68a0af594a6866
+  zh: 5e2480a170da4430
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-2-condition-2-maximum-step-count:
+  en: 884db1560c3e0cc9
+  zh: eef658be231b43fa
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-3-condition-3-token-budget-exhaustion:
+  en: 4f22b2b0b7c7299a
+  zh: 3eff02a0daa928f4
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-4-condition-4-wall-clock-timeouts-and-exponential-backoff:
+  en: f377ad1533c5e97a
+  zh: e4eb4cdd28f1c9b6
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-5-condition-5-cooperative-user-cancellation-abortsignal:
+  en: a0e5c3afcec0e325
+  zh: 25bc380132b729a5
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-6-condition-6-suspended-human-approval:
+  en: d6cf707b2f148f5d
+  zh: 925b395b23440c64
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-7-condition-7-terminal-model-errors-and-malformed-asts:
+  en: 8458ac7dc352a99b
+  zh: 52411e3a02f9837b
+/chapter-22-build-a-minimal-agent-loop-from-scratch/3-seven-stopping-conditions-and-failure-defenses/3-8-combined-termination-decision-matrix:
+  en: 651b63022a4ce5a6
+  zh: 64fdb2507abd6433
+/chapter-22-build-a-minimal-agent-loop-from-scratch/4-implement-a-production-grade-typescript-agent-loop:
+  en: 9d9d39747300c0ca
+  zh: 96345b89d6be98bd
+/chapter-22-build-a-minimal-agent-loop-from-scratch/4-implement-a-production-grade-typescript-agent-loop/4-1-core-types-and-interfaces:
+  en: f064655e696cb5b0
+  zh: f331c0fb3b7d7e06
+/chapter-22-build-a-minimal-agent-loop-from-scratch/4-implement-a-production-grade-typescript-agent-loop/4-2-complete-agent-loop-implementation:
+  en: c56c4a9f7dd751ed
+  zh: 659339fdd048dfb8
+/chapter-22-build-a-minimal-agent-loop-from-scratch/4-implement-a-production-grade-typescript-agent-loop/4-3-unit-tests-for-seven-termination-paths-and-edge-cases:
+  en: 1560056e1217eb60
+  zh: fe751b21a58b30ed
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow:
+  en: 21fbc88809a580a2
+  zh: 261e3dc7ab04ae35
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow/5-1-react-observe-reason-and-act-one-step-at-a-time:
+  en: 079a44f433283d8d
+  zh: 7d9e11a6ce0300fd
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow/5-2-plan-and-execute-plan-globally-execute-tasks-replan-when-needed:
+  en: 9d7930beae521415
+  zh: 9e5081fa4f229a1e
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow/5-3-deterministic-workflow-dag:
+  en: 8066a31d2415e944
+  zh: 577a5649f5d7c02b
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow/5-4-production-architecture-a-hierarchical-hybrid:
+  en: c3de3c9aa3b1a569
+  zh: 9c1a7ec52864242d
+/chapter-22-build-a-minimal-agent-loop-from-scratch/5-three-architectures-react-plan-and-execute-and-workflow/5-5-comparison-table:
+  en: f0d414e0b110c5cd
+  zh: 6302601e54bd63ea
+/chapter-22-build-a-minimal-agent-loop-from-scratch/6-exercise-inject-three-crashes-and-reconcile-the-wal:
+  en: 7e7506fe661f8674
+  zh: fa03105e038181e1
+/chapter-22-build-a-minimal-agent-loop-from-scratch/6-exercise-inject-three-crashes-and-reconcile-the-wal/6-1-three-crash-windows:
+  en: bac06d2df3e7b676
+  zh: 3da74a672138b794
+/chapter-22-build-a-minimal-agent-loop-from-scratch/6-exercise-inject-three-crashes-and-reconcile-the-wal/6-2-event-sourced-wal-and-reconciliation-engine:
+  en: feb18518e90e3609
+  zh: 4b82033fbca0ff31
+/chapter-22-build-a-minimal-agent-loop-from-scratch/6-exercise-inject-three-crashes-and-reconcile-the-wal/6-3-fault-injection-test-and-verification:
+  en: 59d774dcd42c7b46
+  zh: d85d53c6a69a37cb
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics:
+  en: 5a146afde4c1d58b
+  zh: f4d8f86f79fecca3
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-1-cancellation-does-not-reach-child-processes-and-network-handles:
+  en: 3f51cd2ef8ce3cf6
+  zh: 511b2a528222e1bb
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-2-truncated-nested-json-causes-an-unbounded-paid-retry-loop:
+  en: 47d1411cee0e13ee
+  zh: 2bf492445b43fc7a
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-3-oversized-tool-results-overwhelm-attention-and-context:
+  en: 984f9f2e56119835
+  zh: 10d773af3e0f7170
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-4-concurrent-tools-race-and-execute-out-of-order:
+  en: 231c3b63261c1609
+  zh: 5c32469af99079f8
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-5-off-by-one-token-budgets-waste-paid-output:
+  en: 143c7727d40d7eed
+  zh: 60e892dad16aa274
+/chapter-22-build-a-minimal-agent-loop-from-scratch/7-production-failure-modes-and-diagnostics/7-6-production-metrics-and-golden-signals:
+  en: 1c5c99bbba480135
+  zh: 6decdf3d8937b443
+/chapter-22-build-a-minimal-agent-loop-from-scratch/8-summary-and-exercises:
+  en: 503b519e5e1156f2
+  zh: 36e62d29190cb9ec
+/chapter-22-build-a-minimal-agent-loop-from-scratch/8-summary-and-exercises/8-1-architecture-recap:
+  en: be37fbede5974089
+  zh: f4398f6cb9b06c00
+/chapter-22-build-a-minimal-agent-loop-from-scratch/8-summary-and-exercises/8-2-hands-on-exercises:
+  en: dd6b2946b2f230bc
+  zh: d267e9704aa78445

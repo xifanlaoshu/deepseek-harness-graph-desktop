@@ -1,8 +1,25 @@
+---
+description: "Use immutable graph revisions, deterministic execution rules, and durable projections to plan and inspect multi-agent DAG runs. This page describes the persistent graph domain and its runtime boundaries."
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph`
 
 English | [中文](README.zh.md)
 
-New `graph/submission` records carry Host-resolved `GraphRevisionLineage`. Its branded logical-task id, `new_task`, `analysis_refactor`, or `execution_correction` classification, trigger evidence, typed relationships, success criteria, and structural node differences explain why the immutable Revision exists. New Graphs start separate task lanes, ordinary revisions record `refactors` or `corrects` against their parent, and Campaign dependencies record `depends_on` across lanes. Replay accepts older records without lineage and leaves their provenance explicitly unknown; it never invents historical intent.
+## Summary
+
+Define and inspect immutable DAG revisions, durable run evidence, and Campaign batches for multi-agent work. The package owns graph validation and replay; a separate scheduler and Worker Providers execute runs.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
+New `graph/submission` records carry Host-resolved `GraphRevisionLineage`. Its branded logical-task id, `new_task`, `analysis_refactor`, or `execution_correction` classification, trigger evidence, typed relationships, success criteria, and structural node differences explain why the immutable Revision exists. New Graphs start separate task lanes, ordinary revisions record `refactors` or `corrects` against their parent, and Campaign dependencies record `depends_on` across lanes. Replay accepts older records without lineage and leaves their trigger classification explicitly unknown; it never invents historical intent.
 
 `dsh-graph` owns the durable vocabulary and replay rules for graph-mode multi-agent orchestration. It provides editable software-engineering role defaults, immutable DAG revisions, initial run checkpoints plus incremental run updates, deterministic conditional edges, downstream invalidation, and the `graph` session projection.
 
@@ -22,8 +39,19 @@ Conditions inspect published predecessor JSON through a path and one of `exists`
 
 Execution-policy millisecond fields cannot exceed `MAX_GRAPH_TIMER_MS` (`2_147_483_647`), the largest delay Node timers accept without clamping or rejecting. Domain validation rejects larger durable configurations before a Host constructs a timer.
 
-Human and controller operations are versioned durable records. Each record binds a stable operation id to an exact graph, design revision, run generation, optional node attempt, authenticated actor, ingress, bounded reason, applied or no-op result, resulting generation or revision, and the node ids invalidated or reused by the change. Substitute node output is validated against the node schema and retained both in the control record and node state with its control provenance. Projection replay rejects conflicting duplicate ids, invalid provenance, and control records that address an impossible revision or future generation.
+Human and controller operations are versioned durable records. Each record binds a stable operation id to an exact graph, design revision, run generation, optional node attempt, authenticated actor, ingress, bounded reason, applied or no-op result, resulting generation or revision, and the node ids invalidated or reused by the change. Substitute node output is validated against the node schema and retained both in the control record and node state with its control-event reference. Projection replay rejects conflicting duplicate ids, invalid source references, and control records that address an impossible revision or future generation.
 
+<a id="dev-note"></a>
+## Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Graph revision planning

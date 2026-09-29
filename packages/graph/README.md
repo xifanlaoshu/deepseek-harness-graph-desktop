@@ -1,6 +1,26 @@
+---
+description: "Choose Graph packages for durable DAG planning, execution, coordination, worker assignment, resource tracking, and artifact transport. This group map links each capability to its package."
+kind: "package-group"
+---
+
 # Graph
 
 English | [中文](README.zh.md)
+
+## Summary
+
+Use the Graph package family to compose durable multi-agent DAG planning, execution, coordination, capacity tracking, and artifact handling. Choose providers independently to match deployment needs.
+
+## Table of Contents
+
+- [Package map](#package-map)
+- [Composition](#composition)
+- [Dev Note](#dev-note)
+
+-----
+
+<a id="package-map"></a>
+## Package map
 
 The graph group owns durable, editable DAG orchestration for multi-agent work. The [subsystem reference](../../docs/subsystems/graph.md) lists its Cordis services.
 
@@ -21,4 +41,17 @@ The graph group owns durable, editable DAG orchestration for multi-agent work. T
 | [`dsh-graph-scheduler`](graph-scheduler/README.md) | Provider-neutral fenced ownership of whole Graph runs | `graphScheduler` |
 | [`dsh-graph-scheduler-sqlite`](graph-scheduler-sqlite/README.md) | Cross-process run leases and persistent fencing counters | `graphScheduler` |
 
+<a id="composition"></a>
+## Composition
+
 The scheduler requires one named worker provider and can run without external coordination, run ownership, or live resource telemetry. Production compositions mount a run-ownership Provider so only one Host can advance a restored run. A deployment that requires cross-agent control-plane state mounts exactly one coordination provider; the LoopX provider fails loud when its configured goal or peer roster is unavailable. Static Graph limits remain hard ceilings when a resource provider is mounted.
+
+<a id="dev-note"></a>
+## Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>

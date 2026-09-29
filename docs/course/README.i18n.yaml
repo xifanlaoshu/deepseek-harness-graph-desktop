@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/README.md
-README.md: 388838fde53a9125ba71efafe87216bec990a484
-README.zh.md: 78c24c498e78a84effaff56cf9f898b3916c5528
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition:
+  en: f1445c2f678ebbd9
+  zh: c9eef71b62610fbb
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path:
+  en: fe6a880a13eed543
+  zh: a178554e97aa284f
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path/stage-one-ai-modeling-fundamentals-and-mathematical-intuition-chapters-01-02:
+  en: 658fd14c79f25cde
+  zh: d7c88a3efd584155
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path/stage-two-harness-core-architecture-and-runtime-chapters-03-20:
+  en: 27129f1f24caf9cb
+  zh: fdbfc167edaa64a0
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path/stage-three-advanced-agent-engineering-and-production-practice-chapters-21-30:
+  en: 17471fe8bea910a1
+  zh: 6fe9ba2ad31dde0e
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path/stage-four-project-practice-and-failure-diagnosis-chapters-31-34:
+  en: 989996fb3e7c829c
+  zh: b2a63e0c10cc98c1
+/deepseek-harness-in-depth-technical-course-complete-mastery-edition/contents-and-learning-path/stage-five-comprehensive-graduation-assessment-chapter-35:
+  en: 7ab160a6416c41bb
+  zh: 0d6ad63b90bff7b0

@@ -1,6 +1,592 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 20-terminology-reference.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/20-terminology-reference.md
-20-terminology-reference.md: 7c0aab09037cd0a4faff8ad9cc2ad22eee6a7712
-20-terminology-reference.zh.md: c9b79253c4f9d07de4fb252da9c3477e82b30249
+/chapter-20-terminology-reference:
+  en: 9ac1877fefb214d8
+  zh: 76d10b9f6b24f5da
+/chapter-20-terminology-reference/architecture-map-of-the-terms:
+  en: 48ec20aa24455440
+  zh: aa5cb3c88213116d
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations:
+  en: 5749628b98751185
+  zh: 1aaebf9fa1cab77b
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-1-llm-large-language-model:
+  en: 2202df5bc760ac08
+  zh: b13db1728e3c55f5
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-1-llm-large-language-model/standard-definition:
+  en: 7127494ef1d575e8
+  zh: 36d5c457dd80b9d9
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-1-llm-large-language-model/software-engineering-distributed-systems-analogy:
+  en: ab1482198758bdee
+  zh: 102598afae4a1d06
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-1-llm-large-language-model/where-to-find-it-in-deepseek-harness:
+  en: d2c915eeadb8a484
+  zh: f11118db8964e39c
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-1-llm-large-language-model/common-misconceptions-and-pitfalls:
+  en: 9f45400e606d4de9
+  zh: 03af925f365c6c76
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-2-token:
+  en: 476c208c245d8669
+  zh: 4e1801790fa5bb7d
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-2-token/standard-definition:
+  en: a8b0d59099890cd7
+  zh: 60c13a87c15f5b7e
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-2-token/software-engineering-distributed-systems-analogy:
+  en: b0fa384b59859435
+  zh: 18c8695c2e10b034
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-2-token/where-to-find-it-in-deepseek-harness:
+  en: 52e2dc050a10862b
+  zh: 3a43fa2ac704e3ea
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-2-token/common-misconceptions-and-pitfalls:
+  en: 9dad19be0a613d68
+  zh: cef2151128171839
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-3-embedding:
+  en: 3696cd43fd13d177
+  zh: f3db7ea6037d2048
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-3-embedding/standard-definition:
+  en: 12237d9b72ae52a2
+  zh: 2ad7d15e8756c2f9
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-3-embedding/software-engineering-distributed-systems-analogy:
+  en: d7e8b0fa6cf8ca85
+  zh: 1c508e724f3583d2
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-3-embedding/where-to-find-it-in-deepseek-harness:
+  en: 18a77fd5f0d2e3d3
+  zh: 2f1a4ca6c680de13
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-3-embedding/common-misconceptions-and-pitfalls:
+  en: 9eddfe2d6823a2a8
+  zh: 4b20b58762ffd04a
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-4-context-window:
+  en: efef3b1fa9dbfc2e
+  zh: 99f6d343143a12e8
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-4-context-window/standard-definition:
+  en: 6a690001186a5561
+  zh: c970b9daf57ea80d
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-4-context-window/software-engineering-distributed-systems-analogy:
+  en: 68ce7a2ad5fcf4c2
+  zh: e6be22a79258e0eb
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-4-context-window/where-to-find-it-in-deepseek-harness:
+  en: d8184eba801d96be
+  zh: 8711fa645f5b93b2
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-4-context-window/common-misconceptions-and-pitfalls:
+  en: 89298e3f2a4e9a2e
+  zh: 1de5c35679c5ab1f
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-5-kv-cache:
+  en: 9b983c4b79276762
+  zh: b4d124ff8baf59d7
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-5-kv-cache/standard-definition:
+  en: 607f1b31a41dc194
+  zh: 30b7698e9ef2aeb2
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-5-kv-cache/software-engineering-distributed-systems-analogy:
+  en: e0b5a669695aad4d
+  zh: 9c05a838e2eeb949
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-5-kv-cache/where-to-find-it-in-deepseek-harness:
+  en: 80d1e78f7a89820a
+  zh: 885f17eb4f7ed4f2
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-5-kv-cache/common-misconceptions-and-pitfalls:
+  en: 52a9570eb403fb57
+  zh: 21be9df0a770f9f8
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-6-mla-multi-head-latent-attention:
+  en: 33e85d6a43f42c78
+  zh: 4b72dbccd3d0ce33
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-6-mla-multi-head-latent-attention/standard-definition:
+  en: 18c1fb17c636415d
+  zh: 2999f8c1d6c1e963
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-6-mla-multi-head-latent-attention/software-engineering-distributed-systems-analogy:
+  en: 29d8d6328a6a472f
+  zh: 3e37ea0e69fbb0c6
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-6-mla-multi-head-latent-attention/where-to-find-it-in-deepseek-harness:
+  en: c1cffa980c72836c
+  zh: 45890c66c0c9bfc3
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-6-mla-multi-head-latent-attention/common-misconceptions-and-pitfalls:
+  en: cc96e3fe64bf4e56
+  zh: 5ed8c0d1927a021e
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-7-flashattention:
+  en: f3861922f5af228d
+  zh: f3861922f5af228d
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-7-flashattention/standard-definition:
+  en: f9fdd3de0c6349b5
+  zh: 495d1fec764c82ba
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-7-flashattention/software-engineering-distributed-systems-analogy:
+  en: 576a69e4528be808
+  zh: 6602d45ed8e06090
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-7-flashattention/where-to-find-it-in-deepseek-harness:
+  en: 9d81af94d8fe5825
+  zh: 57ad9c31a975a270
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-7-flashattention/common-misconceptions-and-pitfalls:
+  en: 75af67406fe95613
+  zh: 824c47f44f8d52da
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-8-swiglu:
+  en: 6b96db7c376a54fd
+  zh: 6b96db7c376a54fd
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-8-swiglu/standard-definition:
+  en: 4362fb5e4a2ef265
+  zh: 4761a67ad990356d
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-8-swiglu/software-engineering-distributed-systems-analogy:
+  en: c1a78d78c98dc0ba
+  zh: fe96b13098b2b659
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-8-swiglu/where-to-find-it-in-deepseek-harness:
+  en: c20317907c26cb5c
+  zh: a36e61e4febd519b
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-9-rope-rotary-position-embedding:
+  en: bd1a36ec33bbc792
+  zh: 7ea20d835eb66007
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-9-rope-rotary-position-embedding/standard-definition:
+  en: 90a02acaf45af4b0
+  zh: 457e03d95a8146ac
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-9-rope-rotary-position-embedding/software-engineering-distributed-systems-analogy:
+  en: b08c95ae0b20205e
+  zh: d2994ce656e9e3b0
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-10-dpo-direct-preference-optimization:
+  en: 3ef3d61c84b694d6
+  zh: e398ff61dc43a7af
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-10-dpo-direct-preference-optimization/standard-definition:
+  en: a496d1290381d89b
+  zh: 33268bcc22abce0a
+/chapter-20-terminology-reference/part-i-ai-and-llm-foundations/1-10-dpo-direct-preference-optimization/software-engineering-distributed-systems-analogy:
+  en: 7d96ee4de181a5f7
+  zh: ae604ed24c11bfaa
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime:
+  en: 11bda11266a71086
+  zh: 535ca6378cc6951b
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-1-agent:
+  en: cbed1c3786bad33e
+  zh: b0191f6a88e77d16
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-1-agent/standard-definition:
+  en: 2972c68e3ce24c07
+  zh: 4aede7892ec4e298
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-1-agent/software-engineering-distributed-systems-analogy:
+  en: 7a47c85f6dc73de8
+  zh: 599271b56cb31179
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-1-agent/where-to-find-it-in-deepseek-harness:
+  en: aead2786b25a7d72
+  zh: f0a21ba7d5a5646f
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-1-agent/common-misconceptions-and-pitfalls:
+  en: 17e629ffd8624518
+  zh: 8137f6f9f56467e1
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-2-harness:
+  en: 243120a700e4f02c
+  zh: 914dc988a3bd75ef
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-2-harness/standard-definition:
+  en: 40f099a3d9507a59
+  zh: 6b4eaecff2e8effa
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-2-harness/software-engineering-distributed-systems-analogy:
+  en: 12da7ef25800a927
+  zh: 5f146815a391e1c6
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-2-harness/where-to-find-it-in-deepseek-harness:
+  en: 818faeadca68248a
+  zh: 074ca50eb8870bac
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-3-react-reasoning-acting-decision-loop:
+  en: 087eac4a0708146d
+  zh: 7d5045f8829d84c6
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-3-react-reasoning-acting-decision-loop/standard-definition:
+  en: 324317722f761ca0
+  zh: 959549ca9d32cf7a
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-3-react-reasoning-acting-decision-loop/software-engineering-distributed-systems-analogy:
+  en: cc20c02001c5ba62
+  zh: bc3ca85478c8346b
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-3-react-reasoning-acting-decision-loop/where-to-find-it-in-deepseek-harness:
+  en: 00bab4b362d9826e
+  zh: 2ba12a5380e99975
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-4-function-calling-tool-call:
+  en: 52bb4fb74bee67b3
+  zh: 983ebdbb161a7c08
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-4-function-calling-tool-call/standard-definition:
+  en: df33f749c8637418
+  zh: b61609c8eeda0673
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-4-function-calling-tool-call/software-engineering-distributed-systems-analogy:
+  en: e17231deffab1523
+  zh: 4b6a6ccd0a0ce7b7
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-4-function-calling-tool-call/where-to-find-it-in-deepseek-harness:
+  en: a15465b9e15d6960
+  zh: bcce3ea25ce4fc71
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-4-function-calling-tool-call/common-misconceptions-and-pitfalls:
+  en: 5646db64c0dae01a
+  zh: dcdce405c9c18265
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-5-turn:
+  en: 6701325db4f7c627
+  zh: 0a72de104b8ba6fb
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-5-turn/standard-definition:
+  en: 29e0ce398d0ebb45
+  zh: 807140b612bbe588
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-5-turn/software-engineering-distributed-systems-analogy:
+  en: 15de276025fc7f36
+  zh: c133a2d0eb7c84db
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-5-turn/where-to-find-it-in-deepseek-harness:
+  en: bd7fa2c40e333450
+  zh: 251aadd034871fb5
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-6-step:
+  en: 74af471b7198a591
+  zh: c750213086e20f81
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-6-step/standard-definition:
+  en: 5027c3971de57201
+  zh: 944c3180b879f133
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-6-step/software-engineering-distributed-systems-analogy:
+  en: 7b7e2e7fd80708d5
+  zh: a7988841b5223b77
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-6-step/where-to-find-it-in-deepseek-harness:
+  en: 4f911f91572a8ad0
+  zh: e2e98e68cfb47894
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-7-inbox:
+  en: edcf864f14602686
+  zh: bedf2622c6fdbf74
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-7-inbox/standard-definition:
+  en: 39deec536fc4ad1b
+  zh: 970e8825a84824e3
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-7-inbox/software-engineering-distributed-systems-analogy:
+  en: 80d24194af8c244a
+  zh: e3fd5530004cfb70
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-7-inbox/where-to-find-it-in-deepseek-harness:
+  en: caa57240080a46c8
+  zh: bdda70e7969dbaf4
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-8-consumed-work:
+  en: b8736bbeca0ee6df
+  zh: 1c8c60517234ac72
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-8-consumed-work/standard-definition:
+  en: 3e485edce2ecc0c7
+  zh: 4e7ff6a035199260
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-8-consumed-work/software-engineering-distributed-systems-analogy:
+  en: e200ec1894150681
+  zh: cc59927ae6f1820d
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-8-consumed-work/where-to-find-it-in-deepseek-harness:
+  en: 905d1f42a5570f25
+  zh: 789c73c126177a88
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-9-session-event-and-event-sourcing:
+  en: 2e60c522cd808801
+  zh: 022e5f8765d958f2
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-9-session-event-and-event-sourcing/standard-definition:
+  en: 090ea76aac0271b8
+  zh: ab181487b31dc65e
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-9-session-event-and-event-sourcing/software-engineering-distributed-systems-analogy:
+  en: e8484e364576e888
+  zh: 1125c6f68f5836be
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-9-session-event-and-event-sourcing/where-to-find-it-in-deepseek-harness:
+  en: d0273bcc48e19e28
+  zh: b9054215f40c0438
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-9-session-event-and-event-sourcing/common-misconceptions-and-pitfalls:
+  en: edeaa6df4af81209
+  zh: 028ea8929cb6cb9d
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-10-projection-and-derivemessages:
+  en: 11ce30449bd649ba
+  zh: 8a20537c84185ed5
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-10-projection-and-derivemessages/standard-definition:
+  en: 05369da405d3c949
+  zh: 9363593fcbc50954
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-10-projection-and-derivemessages/software-engineering-distributed-systems-analogy:
+  en: 272bb7ed88f98aa8
+  zh: c6273380e87eb57a
+/chapter-20-terminology-reference/part-ii-agent-state-machines-and-the-harness-runtime/2-10-projection-and-derivemessages/where-to-find-it-in-deepseek-harness:
+  en: 3b07ac6673bf6bbe
+  zh: 1367e0fd12656b2a
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries:
+  en: 16b1ea0ffa95efa2
+  zh: 200be54cc9ab2162
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-1-plugin:
+  en: 3b35abad2ef3fe5d
+  zh: 3dba6f2bec0154af
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-1-plugin/standard-definition:
+  en: c30501fbb83fb0bf
+  zh: 3fef3442d989b074
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-1-plugin/software-engineering-distributed-systems-analogy:
+  en: 1c7302410c650b70
+  zh: bc657b96a02438e3
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-1-plugin/where-to-find-it-in-deepseek-harness:
+  en: 5bdd1f8541680736
+  zh: 7ecb8629fe14097d
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-2-service:
+  en: 9fe75699afacc015
+  zh: eea215262c77e493
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-2-service/standard-definition:
+  en: 48c9fe05ac9a687e
+  zh: 8cedc6a475b5c749
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-2-service/software-engineering-distributed-systems-analogy:
+  en: 55e6da16b4b5d23e
+  zh: a5128a70a190c751
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-3-provider:
+  en: 5814329b258513b1
+  zh: 559e54e150dda28a
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-3-provider/standard-definition:
+  en: b7e6758338d8a78e
+  zh: 8536f9286009699d
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-3-provider/software-engineering-distributed-systems-analogy:
+  en: 3007960852a95be7
+  zh: d4cb6e2f1eea8f54
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-3-provider/where-to-find-it-in-deepseek-harness:
+  en: 22f8233dadcf47e1
+  zh: a756944840843200
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-4-consumer:
+  en: d2ad76885899235c
+  zh: 16d095962c182e51
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-4-consumer/standard-definition:
+  en: 36ad3f11afafe297
+  zh: 31cdab8a018ac7f1
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-4-consumer/software-engineering-distributed-systems-analogy:
+  en: c370c989120b329b
+  zh: 7a9900e57331ad51
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-5-scope-and-context:
+  en: 9b6f44165c682b48
+  zh: 07eabaf892d301e4
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-5-scope-and-context/standard-definition:
+  en: 7f1025cb43fcc422
+  zh: 730db8e654da5023
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-5-scope-and-context/software-engineering-distributed-systems-analogy:
+  en: 0b73d01fe2b53555
+  zh: 1fbbbc698f83a686
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-5-scope-and-context/where-to-find-it-in-deepseek-harness:
+  en: 254bacb99390bef2
+  zh: c34bcd4cc6fff5b1
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-6-waterfall-event:
+  en: a98860bf0b287e80
+  zh: a5ad71215b6b0540
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-6-waterfall-event/standard-definition:
+  en: 1a8bfbdabd304a03
+  zh: f50efbe8e6aef81e
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-6-waterfall-event/software-engineering-distributed-systems-analogy:
+  en: 1d2cd88e94a7ab4d
+  zh: e0e4ed51b0f8a380
+/chapter-20-terminology-reference/part-iii-cordis-plugins-dependency-injection-and-monorepo-boundaries/3-6-waterfall-event/where-to-find-it-in-deepseek-harness:
+  en: b57e09f4c90286f0
+  zh: f52b0eb85e4f111d
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology:
+  en: 53715d0f936c5dd5
+  zh: 1fabd23b13c2e0b9
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-1-graph-mode:
+  en: a95171af43914411
+  zh: 6bc3a398abedf5d0
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-1-graph-mode/standard-definition:
+  en: 31513c7f6fae8b24
+  zh: 80f0f9b6a30b66c9
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-1-graph-mode/software-engineering-distributed-systems-analogy:
+  en: a5d545c7e3020374
+  zh: a4fe540d1919daf5
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-1-graph-mode/where-to-find-it-in-deepseek-harness:
+  en: 25a93b3de0e40521
+  zh: 0beae6c6b892bb97
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-2-campaign:
+  en: fdc7e86888aae76e
+  zh: 5284fe6df322a798
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-2-campaign/standard-definition:
+  en: 9a91e2ad1b22ca19
+  zh: 7cc2018e0c98dbd2
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-2-campaign/software-engineering-distributed-systems-analogy:
+  en: fb8e68c6e48ed419
+  zh: 7edf0c9f11808ef4
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-2-campaign/where-to-find-it-in-deepseek-harness:
+  en: 1dfa073607fa9367
+  zh: 176199dbd71f5afa
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-3-batch:
+  en: bf14f891e227097b
+  zh: 9fa564077efd4074
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-3-batch/standard-definition:
+  en: 9b9fa34ee11c4077
+  zh: e43ef8695e5afc55
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-3-batch/software-engineering-distributed-systems-analogy:
+  en: 5dbbfa2b0ccd1c23
+  zh: b378e8a96ad7874f
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-3-batch/where-to-find-it-in-deepseek-harness:
+  en: c358df2b63826f76
+  zh: f67c93bb829854cf
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-4-revision:
+  en: bf13ff6c4ffbfd89
+  zh: 294f13e163950da6
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-4-revision/standard-definition:
+  en: ad18f1d33fa7e67b
+  zh: 6dd37b705ea3c0d1
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-4-revision/software-engineering-distributed-systems-analogy:
+  en: af8fd0312078a76a
+  zh: 6077569fa0433c26
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-4-revision/where-to-find-it-in-deepseek-harness:
+  en: 860c1265d7cd44be
+  zh: 7072483b801ab3bd
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-5-lineage:
+  en: b6c9a956c58cee06
+  zh: 4e9ee2d73f10551e
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-5-lineage/standard-definition:
+  en: a8e98e846b158722
+  zh: 3a43736a9ee3cb97
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-5-lineage/software-engineering-distributed-systems-analogy:
+  en: 3e6e1174c9d449ef
+  zh: b6e2d352064dd77f
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-5-lineage/where-to-find-it-in-deepseek-harness:
+  en: 7ea0c222d636845c
+  zh: 22f714292009e32b
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-6-run:
+  en: dc4c5e8c57308736
+  zh: fefd73344d854d74
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-6-run/standard-definition:
+  en: 4147b30c8678ec8a
+  zh: 4c0baecab4b4387e
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-6-run/software-engineering-distributed-systems-analogy:
+  en: af377bf4d4cc8b22
+  zh: 4d3c6650e444a979
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-6-run/where-to-find-it-in-deepseek-harness:
+  en: 3afd00cbc70d025b
+  zh: 5c18f7cd839f8b81
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-7-generation:
+  en: 3aecbe45aec2b6c0
+  zh: dc76fe251aaf3335
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-7-generation/standard-definition:
+  en: 951d7e8dd1bc3c6c
+  zh: 3fc5bdc26a42ad71
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-7-generation/software-engineering-distributed-systems-analogy:
+  en: c112adf0481cb12f
+  zh: e674e7159fdd9d84
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-7-generation/where-to-find-it-in-deepseek-harness:
+  en: 7473efcff431f4cb
+  zh: ddff1d0d95bf4955
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-8-activation:
+  en: 9920e290e0b47a4d
+  zh: ecefe6139a480b36
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-8-activation/standard-definition:
+  en: 246cd88879f48488
+  zh: d2e7a568722f1a07
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-8-activation/software-engineering-distributed-systems-analogy:
+  en: 7a3cf84f88968bae
+  zh: a39e16174ebf3ca1
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-9-attempt:
+  en: 52235d841261bf34
+  zh: b97f226a294931df
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-9-attempt/standard-definition:
+  en: 1fd1de53c1cbb8e4
+  zh: 6065418f739c99f9
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-9-attempt/software-engineering-distributed-systems-analogy:
+  en: 97eedfb904de3b03
+  zh: 73eeb740c7a2a1de
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-9-attempt/where-to-find-it-in-deepseek-harness:
+  en: c471a152aee10b26
+  zh: 611ddd1a67211afb
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-10-environment-checkpoint:
+  en: 96feaaa066b1aeca
+  zh: a26f6c3548411619
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-10-environment-checkpoint/standard-definition:
+  en: 32d6413a14dc44bd
+  zh: 9f4fc9a75a047ed7
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-10-environment-checkpoint/software-engineering-distributed-systems-analogy:
+  en: 224cce1c16a03f64
+  zh: b30e9bd5d2c622bb
+/chapter-20-terminology-reference/part-iv-graph-mode-and-task-orchestration-topology/4-10-environment-checkpoint/where-to-find-it-in-deepseek-harness:
+  en: d504aaf810e487eb
+  zh: 241341b465858bae
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination:
+  en: 97b72a6dc8a7aa90
+  zh: 53ecf133c864061d
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-1-loopx:
+  en: a9312bfce7cee529
+  zh: 79fb0a1dbf212f68
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-1-loopx/standard-definition:
+  en: a564341f102f57e5
+  zh: 78312ed2e7a8280a
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-1-loopx/software-engineering-distributed-systems-analogy:
+  en: ef3497f554931100
+  zh: 8255370854fa34b6
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-2-claim:
+  en: 06d14a23ea127c6f
+  zh: 8dcabca8ca28318d
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-2-claim/standard-definition:
+  en: c8ca3a4431ccd651
+  zh: 6aac45e55114920b
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-2-claim/software-engineering-distributed-systems-analogy:
+  en: 1e75d222b1428443
+  zh: 5c3fd7216d31dea4
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-2-claim/where-to-find-it-in-deepseek-harness:
+  en: 1d16d18d787fd024
+  zh: 4e3e857f460c3dc5
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-3-lease:
+  en: 8b851c3212d9237d
+  zh: 170fc5194c019c4c
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-3-lease/standard-definition:
+  en: 837abba3ba3abb0b
+  zh: 015c5562e3b15045
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-3-lease/software-engineering-distributed-systems-analogy:
+  en: d7dc51e68424066a
+  zh: c646b8730c1184b3
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-3-lease/where-to-find-it-in-deepseek-harness:
+  en: 740ced1a414daa47
+  zh: ea84cdc642ac1cb3
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-4-fencing-token:
+  en: 8c2c55ff8f8b30f3
+  zh: ee54c633129ea74a
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-4-fencing-token/standard-definition:
+  en: c943ae7f34de3adb
+  zh: 7e8b3d4bbadee6aa
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-4-fencing-token/software-engineering-distributed-systems-analogy:
+  en: af1508e493e7eabf
+  zh: 743dd4b19f67a52f
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-4-fencing-token/where-to-find-it-in-deepseek-harness:
+  en: 034e9aa11692d59b
+  zh: 84e7f523dfda7946
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-4-fencing-token/common-misconceptions-and-pitfalls:
+  en: e5353de10ef710e4
+  zh: 6c8a89fc53893881
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-5-settlement:
+  en: a30cfdec21cfc0fc
+  zh: a3ad95710118f40d
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-5-settlement/standard-definition:
+  en: 1779be8fab199579
+  zh: c51e575464b46aa5
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-5-settlement/software-engineering-distributed-systems-analogy:
+  en: 3472098f8b05a407
+  zh: 7b000383894cb26d
+/chapter-20-terminology-reference/part-v-loopx-and-distributed-coordination/5-5-settlement/where-to-find-it-in-deepseek-harness:
+  en: 09373aef5eaa5d41
+  zh: 7f4da7969f84544e
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension:
+  en: b0376807a4ab8364
+  zh: cc7f7fb62991b51a
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-1-spill:
+  en: 1d912dd0885fb52c
+  zh: 15ee1c302807447f
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-1-spill/standard-definition:
+  en: 180cc347d3e87a8d
+  zh: 98a58681815d0e43
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-1-spill/software-engineering-distributed-systems-analogy:
+  en: d2ff742759fc2b6e
+  zh: 0984fedfe7a5957a
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-1-spill/where-to-find-it-in-deepseek-harness:
+  en: 942c6eba02a1b7d1
+  zh: 61d46b7335b55089
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-2-sandbox-landlock-seatbelt:
+  en: b5fb95351997ef48
+  zh: 17ed7259b51ef5e2
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-2-sandbox-landlock-seatbelt/standard-definition:
+  en: 4bff6ec5d3bdf098
+  zh: 16f981430b896566
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-2-sandbox-landlock-seatbelt/software-engineering-distributed-systems-analogy:
+  en: 57e8874849fe4c2e
+  zh: c859855ff055e63f
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-2-sandbox-landlock-seatbelt/where-to-find-it-in-deepseek-harness:
+  en: 19c9265fc25a8bd5
+  zh: dfe36c9a5071103e
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-3-rag-retrieval-augmented-generation:
+  en: bd82b8a6476890e1
+  zh: 05b8f0223f422fc9
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-3-rag-retrieval-augmented-generation/standard-definition:
+  en: 551602fef262b392
+  zh: c001f01b258a9e13
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-3-rag-retrieval-augmented-generation/software-engineering-distributed-systems-analogy:
+  en: feaf224c02bf26cc
+  zh: 56584a6c5a0834e5
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-3-rag-retrieval-augmented-generation/where-to-find-it-in-deepseek-harness:
+  en: 377cce9944d00bda
+  zh: 6186998049338b0d
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-4-subagent-and-sandboxmodecap:
+  en: 8e2ddd4a8ec880e3
+  zh: f3a37e5424d6f8b5
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-4-subagent-and-sandboxmodecap/standard-definition:
+  en: 23d56536d326b354
+  zh: 53d0b8fb54ad2a67
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-4-subagent-and-sandboxmodecap/software-engineering-distributed-systems-analogy:
+  en: 16da1aa565adf896
+  zh: e396e982a38b5c9c
+/chapter-20-terminology-reference/part-vi-production-facilities-for-isolation-storage-and-extension/6-4-subagent-and-sandboxmodecap/where-to-find-it-in-deepseek-harness:
+  en: 94b3c8d20462a6a0
+  zh: 2617c96cb18482e5
+/chapter-20-terminology-reference/quick-reference-table-core-terms-and-systems-analogies:
+  en: cf34b9355c862b49
+  zh: 001e00c528fd808d
+/chapter-20-terminology-reference/production-grade-typed-defenses-fencing-tokens-and-causal-barriers:
+  en: 8da2caba4530b0a5
+  zh: eab7d437a40d3f18
+/chapter-20-terminology-reference/summary-and-next-steps:
+  en: 63dd2cd643918b60
+  zh: bcc065f6d15a6c33

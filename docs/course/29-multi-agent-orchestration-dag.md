@@ -48,7 +48,7 @@ The following table relates AI orchestration concepts to established computer-sy
 | **Directed edge** | **Makefile / Ninja dependency rule** | Declares data and control dependencies as a partial order | Cycles, dangling references, false dependencies |
 | **Write roots (`writeRoots`)** | **Page-table isolation / mount namespace** | The relative paths a worker is allowed to write | Unauthorized writes, concurrent conflicts, directory traversal |
 | **Controller** | **Distributed scheduling coordinator** | Classifies intent, creates a minimal immutable DAG, dispatches work, and reconciles outcomes | Split-brain control, oversized controller prompts, invented schedules |
-| **Immutable revision** | **Git commit snapshot (Git Commit Tree / Merkle DAG)** | Each graph-topology change produces a new immutable, globally increasing revision | In-place mutation breaks replay and provenance |
+| **Immutable revision** | **Git commit snapshot (Git Commit Tree / Merkle DAG)** | Each graph-topology change produces a new immutable, globally increasing revision | In-place mutation breaks replay and source-event links |
 | **Campaign / Batch** | **Multi-stage transaction** | Divides a long goal into independent batches with an immutable prefix and extensible tail | Cross-batch context explosion and ghost historical nodes |
 
 ### 1.2 Physical Limits of a Serial Agent and Three Failure Barriers

@@ -39,6 +39,10 @@ import { cytoscapeColor } from './cytoscapeColor.ts'
 import { graphCanvasNodeTypography, graphFontFamily } from './graphTypography.ts'
 import css from './GraphAction.module.css'
 
+function cytoscapeLabelExpression(): string {
+  return ['data(', 'label', ')'].join('')
+}
+
 /** Full props for the session-header Graph Mode action. */
 export type GraphActionProps = PropsRuntime<'conversation.session.header.actions'>
   & InjectFace<GraphActionInjected>
@@ -176,6 +180,21 @@ function replaceModelCap(config: GraphModeConfig, role: GraphRole, maxParallel: 
         maxParallel,
       }],
     },
+  }
+}
+
+function phaseLabel(t: GraphActionProps['t'], phase: string): string {
+  switch (phase) {
+    case 'pending': return t('node.phase.pending')
+    case 'queued': return t('node.phase.queued')
+    case 'running': return t('node.phase.running')
+    case 'succeeded': return t('node.phase.succeeded')
+    case 'failed': return t('node.phase.failed')
+    case 'awaiting_user': return t('node.phase.awaiting_user')
+    case 'blocked': return t('node.phase.blocked')
+    case 'canceled': return t('node.phase.canceled')
+    case 'exhausted': return t('node.phase.exhausted')
+    default: return phase
   }
 }
 
@@ -329,8 +348,8 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
       ...config,
       roles: [...config.roles, {
         id: `specialist-${String(index)}` as GraphRole['id'],
-        label: `Specialist ${String(index)}`,
-        description: 'Owns a user-defined specialist task.',
+        label: t('role.specialistLabel', { number: index }),
+        description: t('role.specialistDescription'),
         controller: false,
         enabled: true,
         model: {},
@@ -571,7 +590,7 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
       {models.error === null ? null : <p role="status">{t('model.error', { message: models.error })}</p>}
       {config.roles.map((role, index) => (
         <fieldset key={index} className={css.role}>
-          <legend>{role.label}{role.controller ? ' · controller' : ''}</legend>
+          <legend>{role.label}{role.controller ? ` · ${t('role.controllerMarker')}` : ''}</legend>
           <div className={css.roleGrid}>
             <label>
               {t('roleId')}
@@ -688,7 +707,7 @@ export function GraphRoleEditor({ config, models, setConfig, t }: {
                 {t('workerProvider')}
                 <input
                   value={role.workerProvider ?? ''}
-                  placeholder="local"
+                  placeholder={t('worker.localPlaceholder')}
                   onChange={(event) => {
                     const workerProvider = event.target.value
                     updateRole(role, (current) => {
@@ -755,18 +774,18 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
   return (
     <aside className={css.details}>
       <p>{node.objective}</p>
-      <p className={css.phase}>{run?.phase ?? 'pending'} · {node.roleId}</p>
+      <p className={css.phase}>{phaseLabel(t, run?.phase ?? 'pending')} · {node.roleId}</p>
       {run?.resourceWait === undefined ? null : <p>
-        <strong>Resource wait:</strong> {run.resourceWait.reason} · {run.resourceWait.providerId}/{run.resourceWait.model}
+        <strong>{t('node.resourceWait')}:</strong> {run.resourceWait.reason} · {run.resourceWait.providerId}/{run.resourceWait.model}
       </p>}
       {node.workspace === undefined ? null : <p>
-        <strong>{t('node.workspace')}:</strong> {node.workspace.mode} · R[{node.workspace.readRoots.join(', ')}]
-        {' · '}W[{node.workspace.writeRoots.join(', ')}]
+        <strong>{t('node.workspace')}:</strong> {node.workspace.mode} · {t('node.readRoots')}: [{node.workspace.readRoots.join(', ')}]
+        {' · '}{t('node.writeRoots')}: [{node.workspace.writeRoots.join(', ')}]
       </p>}
       <h4>{t('node.budget')}</h4>
       <pre>{JSON.stringify(node.executionBudget, null, 2)}</pre>
       <h4>{t('node.schema')}</h4>
-      <p>{node.outputSchema.id} · v{node.outputSchema.version} · ≤ {node.outputSchema.maxBytes.toLocaleString()} bytes</p>
+      <p>{node.outputSchema.id} · {t('node.schemaVersion', { version: node.outputSchema.version })} · {t('node.schemaMaxBytes', { bytes: node.outputSchema.maxBytes.toLocaleString() })}</p>
       <pre>{JSON.stringify(node.outputSchema.schema, null, 2)}</pre>
       {node.expansion === undefined && node.subgraph === undefined
         && !(revision?.edges.some(edge => edge.to === node.id && edge.kind === 'conditional') ?? false)
@@ -778,7 +797,7 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
           {(revision?.edges.filter(edge => edge.to === node.id && edge.kind === 'conditional') ?? []).map((edge) => {
             const group = revision?.branchGroups.find(item => item.id === edge.branchGroupId)
             return <p key={`${edge.from}:${edge.to}`}>
-              {edge.from} → {edge.to} · {edge.branchGroupId}/{group?.mode ?? 'unknown'} · {JSON.stringify(edge.condition)}
+              {edge.from} → {edge.to} · {edge.branchGroupId}/{group?.mode ?? t('node.phase.unknown')} · {JSON.stringify(edge.condition)}
             </p>
           })}
         </>}
@@ -791,12 +810,12 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
       {run === undefined || (run.reusedFrom === undefined && run.suppliedByControlId === undefined && run.invalidatedBy === undefined)
         ? null
         : <>
-          <h4>{t('node.provenance')}</h4>
+          <h4>{t('node.source')}</h4>
           {run.reusedFrom === undefined
             ? null
-            : <p>reused from {run.reusedFrom.runId}/{run.reusedFrom.generationId}/{run.reusedFrom.nodeId}</p>}
-          {run.suppliedByControlId === undefined ? null : <p>supplied by {run.suppliedByControlId}</p>}
-          {run.invalidatedBy === undefined ? null : <p>invalidated by {run.invalidatedBy.join(', ')}</p>}
+            : <p>{t('node.reusedFrom', run.reusedFrom)}</p>}
+          {run.suppliedByControlId === undefined ? null : <p>{t('node.suppliedBy', { controlId: run.suppliedByControlId })}</p>}
+          {run.invalidatedBy === undefined ? null : <p>{t('node.invalidatedBy', { revisions: run.invalidatedBy.join(', ') })}</p>}
         </>}
       {run?.output === undefined ? null : <>
         <h4>{t('output')}</h4><p>{run.output.summary}</p>
@@ -819,7 +838,7 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
                   </button>
                 ))}
               </div>}
-              <span>#{attempt.number} · {attempt.error?.message ?? (attempt.finishedAt === undefined ? 'running' : 'completed')}</span>
+              <span>#{attempt.number} · {attempt.error?.message ?? t(attempt.finishedAt === undefined ? 'node.phase.running' : 'node.phase.completed')}</span>
               <time>{new Date(attempt.startedAt).toLocaleString()} → {attempt.finishedAt === undefined ? '…' : new Date(attempt.finishedAt).toLocaleString()}</time>
               {attempt.error === undefined ? null : <code>{attempt.error.code}</code>}
               {attempt.loopxClaimId === undefined ? null : <code>{attempt.loopxClaimId}</code>}
@@ -864,7 +883,7 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
       {checkpoints.length === 0 ? null : <>
         <h4>{t('node.checkpoints')}</h4>
         {checkpoints.map(item => <div key={item.id} className={css.attempt}>
-          <span>{item.kind} · iteration {item.iteration} · {item.status}</span>
+          <span>{item.kind} · {t('node.checkpointIteration', { iteration: item.iteration })} · {item.status}</span>
           <span>{item.reason}</span>
           {item.issues?.map(issue => <code key={issue.id}>{issue.severity}: {issue.id} — {issue.summary}</code>)}
         </div>)}
@@ -872,7 +891,7 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
       {operations.length === 0 ? null : <>
         <h4>{t('node.operations')}</h4>
         {operations.map(item => <div key={item.eventId} className={css.attempt}>
-          <span>{item.stage} · epoch {item.ownerEpoch}</span>
+          <span>{item.stage} · {t('node.operationEpoch', { epoch: item.ownerEpoch })}</span>
           <time>{new Date(item.at).toLocaleString()}</time>
           {item.detail === undefined ? null : <span>{item.detail}</span>}
           {item.externalReferences.map(reference => <code key={`${reference.kind}:${reference.provider}:${reference.id}`}>
@@ -883,7 +902,7 @@ function NodeDetails({ node, run, graphRun, revision, operations, settlements, c
       {settlements.length === 0 ? null : <>
         <h4>{t('node.settlements')}</h4>
         {settlements.map(item => <div key={`${item.id}:${item.attempt}`} className={css.attempt}>
-          <span>{item.kind} · attempt {item.attempt} · {item.outcome}</span>
+          <span>{item.kind} · {t('node.settlementAttempt', { attempt: item.attempt })} · {item.outcome}</span>
           <time>{new Date(item.completedAt ?? item.requestedAt).toLocaleString()}</time>
           {item.evidence === undefined ? null : <span>{item.evidence}</span>}
           {item.error === undefined ? null : <code>{item.error.code}: {item.error.message}</code>}
@@ -899,13 +918,14 @@ function graphNodePresentation(
   run: GraphRun | undefined,
   mode: 'design' | 'execution',
   palette: GraphPalette,
+  t: GraphActionProps['t'],
 ): { label: string; color: string } {
   const phase = run?.nodes[node.id]?.phase ?? 'pending'
   const color = mode === 'design' ? palette.business : phase === 'succeeded' ? palette.success
     : phase === 'running' ? palette.business
       : ['failed', 'blocked', 'exhausted'].includes(phase) ? palette.error
         : phase === 'awaiting_user' ? palette.warning : palette.pending
-  return { label: `${node.title}\n${node.roleId} · ${mode === 'design' ? node.kind : phase}`, color }
+  return { label: `${node.title}\n${node.roleId} · ${mode === 'design' ? node.kind : phaseLabel(t, phase)}`, color }
 }
 
 interface GraphPalette {
@@ -969,14 +989,14 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
       ...headless ? { headless: true, styleEnabled: false } : { container: container.current },
       elements: [
         ...currentRevision.nodes.map(node => ({
-          data: { id: node.id, ...graphNodePresentation(node, runRef.current, mode, palette) },
+          data: { id: node.id, ...graphNodePresentation(node, runRef.current, mode, palette, t) },
         })),
         ...currentRevision.edges.map((edge, index) => ({
           data: {
             id: `edge-${String(index)}`,
             source: edge.from,
             target: edge.to,
-            label: edge.kind === 'conditional' ? edge.branchGroupId ?? 'condition' : '',
+            label: edge.kind === 'conditional' ? edge.branchGroupId ?? t('node.condition') : '',
           },
           classes: edge.kind,
         })),
@@ -992,9 +1012,9 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
         transform: (_node, position) => ({ x: position.y, y: position.x }),
       },
       style: [
-        { selector: 'node', style: { 'background-color': 'data(color)', 'border-color': palette.background, 'border-width': 2, color: palette.labelInverted, label: 'data(label)', ...graphCanvasNodeTypography, 'text-wrap': 'wrap', 'text-max-width': '150px', width: 176, height: 58, shape: 'round-rectangle', 'text-valign': 'center', 'text-halign': 'center' } },
+        { selector: 'node', style: { 'background-color': 'data(color)', 'border-color': palette.background, 'border-width': 2, color: palette.labelInverted, label: cytoscapeLabelExpression(), ...graphCanvasNodeTypography, 'text-wrap': 'wrap', 'text-max-width': '150px', width: 176, height: 58, shape: 'round-rectangle', 'text-valign': 'center', 'text-halign': 'center' } },
         { selector: 'node:selected', style: { 'border-color': palette.selected, 'border-width': 4, 'overlay-opacity': 0 } },
-        { selector: 'edge', style: { ...graphCanvasEdgeGeometry, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', label: 'data(label)', color: palette.label, 'font-family': graphFontFamily, 'font-size': 10, 'text-background-color': palette.background, 'text-background-opacity': 0.9, 'text-background-padding': '3px' } },
+        { selector: 'edge', style: { ...graphCanvasEdgeGeometry, 'line-color': palette.border, 'target-arrow-color': palette.border, 'target-arrow-shape': 'triangle', label: cytoscapeLabelExpression(), color: palette.label, 'font-family': graphFontFamily, 'font-size': 10, 'text-background-color': palette.background, 'text-background-opacity': 0.9, 'text-background-padding': '3px' } },
         { selector: 'edge.conditional', style: { 'line-style': 'dashed', 'line-color': palette.conditional, 'target-arrow-color': palette.conditional } },
       ],
       minZoom: 0.35,
@@ -1038,7 +1058,7 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
       instance.batch(() => {
         for (const node of revisionRef.current.nodes) {
           const element = instance.getElementById(node.id)
-          if (element.nonempty()) element.data(graphNodePresentation(node, run, mode, graphPalette(container.current as HTMLDivElement)))
+          if (element.nonempty()) element.data(graphNodePresentation(node, run, mode, graphPalette(container.current as HTMLDivElement), t))
         }
       })
     }
@@ -1077,7 +1097,7 @@ function GraphCanvas({ revision, run, selected, select, mode, t }: {
       className={css.canvas}
       role="application"
       tabIndex={0}
-      aria-label="Directed acyclic task graph"
+      aria-label={t('node.taskGraphAria')}
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { event.preventDefault(); focusNode(1) }
         if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') { event.preventDefault(); focusNode(-1) }
@@ -1099,13 +1119,15 @@ function effectiveRoute(node: GraphNode, run: GraphRun | undefined, fallback: Gr
   return `${role?.label ?? roleId} · ${worker} · ${route}${model.reasoningEffort === undefined ? '' : ` · ${model.reasoningEffort}`}`
 }
 
-function elapsed(state: GraphNodeRun | undefined): string {
+function elapsed(state: GraphNodeRun | undefined, t: GraphActionProps['t']): string {
   const first = state?.attempts[0]?.startedAt
   if (first === undefined) return '—'
   const last = state?.attempts.at(-1)
   const end = last?.finishedAt ?? Date.now()
   const seconds = Math.max(0, Math.round((end - first) / 1_000))
-  return seconds < 60 ? `${String(seconds)}s` : `${String(Math.floor(seconds / 60))}m ${String(seconds % 60)}s`
+  return seconds < 60
+    ? t('node.elapsedSeconds', { seconds })
+    : t('node.elapsed', { minutes: Math.floor(seconds / 60), seconds: seconds % 60 })
 }
 
 function ExecutionRecords({ revision, run, config, selected, select, t }: {
@@ -1136,10 +1158,10 @@ function ExecutionRecords({ revision, run, config, selected, select, t }: {
             className={css.record}
             onClick={() => { select(node.id) }}
           >
-            <span className={css.recordTitle}><strong>{node.title}</strong><small>{node.kind} · {state?.phase ?? 'pending'}</small></span>
+            <span className={css.recordTitle}><strong>{node.title}</strong><small>{node.kind} · {phaseLabel(t, state?.phase ?? 'pending')}</small></span>
             <span className={css.recordMeta}>{effectiveRoute(node, run, config)}</span>
             <span className={css.recordResult}>{state?.output?.summary ?? state?.attempts.at(-1)?.error?.message ?? t('record.noResult')}</span>
-            <span className={css.recordFooter}><time>{elapsed(state)}</time><IconChevronRightOutline14 size={14} /></span>
+            <span className={css.recordFooter}><time>{elapsed(state, t)}</time><IconChevronRightOutline14 size={14} /></span>
           </button>
         )
       })}
@@ -1313,7 +1335,8 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
   const applySuppliedOutput = (): void => {
     if (selectedNode === undefined) return
     try {
-      operate('supply-output', { nodeId: selectedNode.id, output: JSON.parse(suppliedOutput) as unknown })
+      const output: unknown = JSON.parse(suppliedOutput)
+      operate('supply-output', { nodeId: selectedNode.id, output })
     } catch {
       setControlError('Substitute node output must be valid JSON.')
     }
@@ -1334,7 +1357,7 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
   return (
     <div className={css.root}>
       <button type="button" className={css.trigger} aria-haspopup="dialog" aria-expanded={open} onClick={() => { setOpen(value => !value) }}>
-        Graph{summary === '' ? '' : ` · ${summary}`}
+        {t('trigger')}{summary === '' ? '' : ` · ${summary}`}
       </button>
       {open
         ? (
@@ -1434,9 +1457,9 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                                 <strong>{batch.title}</strong>
                                 <small>{t(`campaign.status.${batch.status}`)}</small>
                               </span>
-                              <span className={css.campaignMetric}>p{planRevision} · {execution === undefined
+                              <span className={css.campaignMetric}>{t('campaign.planShort', { revision: planRevision })} · {execution === undefined
                                 ? t('campaign.notStarted')
-                                : `r${execution.revision} · ${execution.settlementIds.length} ${t('campaign.settlements')}`}</span>
+                                : `${t('node.revision', { revision: execution.revision })} · ${execution.settlementIds.length} ${t('campaign.settlements')}`}</span>
                             </button>
                           })}
                         </div>
@@ -1462,7 +1485,7 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                               setSelected(undefined)
                             }}>
                               {revisions.map(item => (
-                                <option key={item.revision} value={item.revision}>r{item.revision}</option>
+                                <option key={item.revision} value={item.revision}>{t('node.revision', { revision: item.revision })}</option>
                               ))}
                             </select>
                             {latestRevision !== undefined && revision.revision < latestRevision.revision && latestRun !== undefined
@@ -1573,7 +1596,7 @@ export function GraphAction({ useProjection, useModels, loadModels, saveConfig, 
                                     <strong>{item.action}</strong>
                                     <span>{item.actor.kind}:{item.actor.id} · {item.source}</span>
                                     <span>
-                                      g{item.expectedGeneration} → {item.resultingGeneration ?? item.expectedGeneration}
+                                      {t('node.graphGeneration', { generation: item.expectedGeneration })} → {t('node.graphGeneration', { generation: item.resultingGeneration ?? item.expectedGeneration })}
                                       {' · '}{item.result.outcome}
                                     </span>
                                     <time>{new Date(item.completedAt).toLocaleString()}</time>

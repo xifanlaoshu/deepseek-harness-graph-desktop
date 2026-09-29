@@ -45,6 +45,8 @@ export class DesktopUpdateCoordinator {
    * @param updater - Process-owned Electron updater, replaceable at the network/platform test boundary.
    * @param enabled - Whether this process has a packaged update source.
    * @param currentVersion - Actual installed application version.
+   * @param downloadResult - Once per completed download attempt, including platform preparation failures.
+   * @param updatesEnabled - Whether this packaged product permits feed checks and transfers.
    */
   constructor(
     private readonly publish: (state: DesktopUpdateState) => DesktopUpdateState,
@@ -52,6 +54,8 @@ export class DesktopUpdateCoordinator {
     private readonly updater: AppUpdater = autoUpdater,
     private readonly enabled: () => boolean = () => app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml')),
     private readonly currentVersion: () => string = () => app.getVersion(),
+    private readonly downloadResult?: (success: boolean, reason?: string) => void,
+    private readonly updatesEnabled = true,
   ) {
     if (updater === autoUpdater) {
       // electron-updater omits this internal transport property from its public declarations.
@@ -83,6 +87,7 @@ export class DesktopUpdateCoordinator {
    */
   async check(manual = false): Promise<DesktopUpdateState> {
     this.assertLive()
+    if (!this.updatesEnabled) return this.current
     if (this.downloadOperation !== undefined || this.installOperation !== undefined || this.downloaded) return this.current
     if (!manual && this.current.phase === 'error' && this.current.failedOperation === 'download') return this.current
     this.checkOperation ??= Promise.resolve().then(() => this.doCheck())
@@ -98,6 +103,7 @@ export class DesktopUpdateCoordinator {
    */
   async download(version: string): Promise<DesktopUpdateState> {
     this.assertLive()
+    if (!this.updatesEnabled) throw new Error('desktop update: downloads are disabled for this application')
     if (this.downloaded || this.installOperation !== undefined) return this.current
     this.downloadOperation ??= Promise.resolve().then(async () => {
       await this.checkOperation
@@ -108,9 +114,11 @@ export class DesktopUpdateCoordinator {
       try {
         await this.updater.downloadUpdate()
         if (!this.downloaded) throw new Error('desktop update: platform preparation did not report readiness')
+        this.downloadResult?.(true)
         return this.setState({ phase: 'ready', version })
       } catch (error) {
         this.downloaded = false
+        this.downloadResult?.(false, error instanceof DesktopUpdatePreparationError ? error.kind : 'download_failed')
         return this.setState(this.failure(error, 'download'))
       }
     }).finally(() => { this.downloadOperation = undefined })
@@ -124,6 +132,7 @@ export class DesktopUpdateCoordinator {
    */
   async install(version: string): Promise<DesktopUpdateState> {
     this.assertLive()
+    if (!this.updatesEnabled) throw new Error('desktop update: installation is disabled for this application')
     if (!this.downloaded || this.downloadOperation !== undefined || version !== this.candidate) throw new Error('desktop update: confirmed target is not ready')
     this.installOperation ??= Promise.resolve().then(async () => {
       this.setState({ phase: 'installing', version })

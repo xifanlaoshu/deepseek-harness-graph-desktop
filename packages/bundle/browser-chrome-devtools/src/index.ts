@@ -8,7 +8,8 @@
  */
 
 import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
+import { existsSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import * as McpClient from '@deepseek-ai/dsh-mcp-client'
@@ -44,8 +45,10 @@ export interface Config {
   browserMode: typeof BROWSER_MODES[number]
   /** HTTP endpoint used only in `external` mode. */
   browserUrl: string
-  /** Installed Chrome release channel selected in `managed` mode. */
+  /** Installed Chrome release channel selected when `chromeExecutablePath` is empty. */
   chromeChannel: typeof CHROME_CHANNELS[number]
+  /** Optional absolute path to an existing Chrome executable; supported only in `managed` mode. */
+  chromeExecutablePath: string
   /** Launch managed Chrome without a visible window. */
   headless: boolean
   /** Give each MCP child a temporary profile removed when Chrome closes. */
@@ -82,6 +85,7 @@ export const Config: z<Config> = z.object({
   browserMode: z.union(BROWSER_MODES).default('managed'),
   browserUrl: z.string().default('http://127.0.0.1:9222'),
   chromeChannel: z.union(CHROME_CHANNELS).default('stable'),
+  chromeExecutablePath: z.string().default(''),
   headless: z.boolean().default(false),
   isolatedProfile: z.boolean().default(true),
   startMaximized: z.boolean().default(true),
@@ -113,9 +117,21 @@ export function resolveServerEntry(): string {
  * @returns an executable and arguments for the pinned Chrome DevTools MCP server.
  */
 export function resolveMcpConfig(config: Config): StdioConfig {
+  const chromeExecutablePath = config.chromeExecutablePath
+  if (config.browserMode === 'external' && chromeExecutablePath !== '') {
+    throw new Error('browser-chrome-devtools: chromeExecutablePath is only available in managed mode')
+  }
+  if (chromeExecutablePath !== '') {
+    if (!isAbsolute(chromeExecutablePath)) {
+      throw new Error('browser-chrome-devtools: chromeExecutablePath must be an absolute path')
+    }
+    if (!existsSync(chromeExecutablePath) || !statSync(chromeExecutablePath).isFile()) {
+      throw new Error(`browser-chrome-devtools: chromeExecutablePath must name an existing file: ${JSON.stringify(chromeExecutablePath)}`)
+    }
+  }
   const browserArgs = config.browserMode === 'managed'
     ? [
-      `--channel=${config.chromeChannel}`,
+      ...(chromeExecutablePath === '' ? [`--channel=${config.chromeChannel}`] : [`--executablePath=${chromeExecutablePath}`]),
       `--headless=${String(config.headless)}`,
       `--isolated=${String(config.isolatedProfile)}`,
       ...config.startMaximized && !config.headless ? ['--chrome-arg=--start-maximized'] : [],

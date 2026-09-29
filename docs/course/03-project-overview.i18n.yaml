@@ -1,6 +1,190 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 03-project-overview.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/03-project-overview.md
-03-project-overview.md: 5979aa80f2626f1c9cad5791c30a0617848c2fca
-03-project-overview.zh.md: c591d0bb5c6e979e69dba775ec9da021d3f821ac
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology:
+  en: 044faf7c08c22985
+  zh: 6393b5d1eed93872
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems:
+  en: 14d4aa91d34621ef
+  zh: cc293399d482a403
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-1-the-monolithic-agent-problem-anti-patterns-from-autogpt-to-langchain:
+  en: baa396efefcc7de1
+  zh: e2729567e7710394
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-2-mapping-to-systems-programming-microkernels-and-ioc-containers:
+  en: 12062adf4de88e94
+  zh: 19b736120ac8a218
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-3-cordis-plugin-trees-microkernel-dependency-injection-and-scope-topology:
+  en: 7a5d08a3d7c0baf0
+  zh: 9da9c91e41dc0bc1
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-3-cordis-plugin-trees-microkernel-dependency-injection-and-scope-topology/1-declarative-services-and-dependency-injection:
+  en: 4aa89f8d7f6d4605
+  zh: 8eb22d570936b446
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-3-cordis-plugin-trees-microkernel-dependency-injection-and-scope-topology/2-disposable-effects-and-the-disposal-model:
+  en: 60fbae92785e01f4
+  zh: 47a06c105dfb3c49
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-1-why-plugins-architectural-evolution-and-a-mental-model-for-agent-systems/3-1-3-cordis-plugin-trees-microkernel-dependency-injection-and-scope-topology/3-three-event-dispatch-modes-with-explicit-control-flow-semantics:
+  en: 848e84b65e382f37
+  zh: f8072d3911e9fe2b
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow:
+  en: 4e9b00cbc6c8c0ca
+  zh: d5da5a867c60dac2
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-1-entry-1-dsh-profile-headless-one-shot-cli-batch-runner:
+  en: ecac2a05841cef23
+  zh: f5738d6db36605df
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-1-entry-1-dsh-profile-headless-one-shot-cli-batch-runner/1-use-cases-and-system-limits:
+  en: e25de687872f1483
+  zh: 6ae9388901e96285
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-1-entry-1-dsh-profile-headless-one-shot-cli-batch-runner/2-package-dependencies-and-configuration-overlay-patches:
+  en: c095e562c51cd7dc
+  zh: fc16fc278a4c79fe
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-1-entry-1-dsh-profile-headless-one-shot-cli-batch-runner/3-end-to-end-execution-sequence-and-data-flow:
+  en: 0109efa5458e1df4
+  zh: 9940a834f8f10f8f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-2-entry-2-dsh-profile-web-two-host-client-cordis-trees-and-an-interactive-app:
+  en: 9f33bee6a709106b
+  zh: 920eac61ab1bb5e3
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-2-entry-2-dsh-profile-web-two-host-client-cordis-trees-and-an-interactive-app/1-two-tree-cordis-architecture:
+  en: a5c57baff7bcdeae
+  zh: 3d7902368dda7eef
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-2-entry-2-dsh-profile-web-two-host-client-cordis-trees-and-an-interactive-app/2-typert-type-graph-reflection-and-the-cross-process-rpc-gateway:
+  en: 67da04e9edaf00d8
+  zh: 795037ab739b62e4
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-2-entry-2-dsh-profile-web-two-host-client-cordis-trees-and-an-interactive-app/3-state-synchronization-event-sourced-frontend-projection:
+  en: c21b0607c8cd516b
+  zh: d73b501b8397205d
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-2-entry-2-dsh-profile-web-two-host-client-cordis-trees-and-an-interactive-app/4-extensible-frontend-ui-slots:
+  en: 835add9f8d377c55
+  zh: 4ac5b08d66399ab3
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-3-entry-3-acp-agent-client-protocol-automation-and-sdk-interprocess-calls:
+  en: 19586e1c9bd02abd
+  zh: 7b1089d58b500aed
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-3-entry-3-acp-agent-client-protocol-automation-and-sdk-interprocess-calls/1-protocol-background-and-role:
+  en: 3faeb6decfff6fcd
+  zh: 8143c5592d7c1885
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-3-entry-3-acp-agent-client-protocol-automation-and-sdk-interprocess-calls/2-sdk-architecture-and-interprocess-communication:
+  en: 1faef5d47ad556a9
+  zh: fb15875870d1414e
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-3-entry-3-acp-agent-client-protocol-automation-and-sdk-interprocess-calls/3-cross-process-backpressure-and-cancellation-propagation:
+  en: 9795c325d6413254
+  zh: 83a6ca4cf5177b25
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-2-three-entry-topologies-and-runtime-data-flow/3-2-4-comparing-the-three-entry-points:
+  en: 351d01871d4820c3
+  zh: 576b427cf6e394c3
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small:
+  en: 0d030305ae2fa0dd
+  zh: 20245264f7f2450f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-1-formal-definition-of-the-state-driven-turn-step-driver:
+  en: e90b03971d13c358
+  zh: a7d05fbb5107d3cb
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-2-responsibilities-of-the-minimal-loop-in-source-code:
+  en: 5a048e716b07b842
+  zh: f8ef4655ed18e256
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it:
+  en: 7b93d32f23116b23
+  zh: e05063c50e4c50e8
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it/1-plan-and-todo-management-through-an-event-hook:
+  en: ca5287bedc8cdc72
+  zh: 97bd07cf9eb4a5f1
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it/2-context-compaction-through-an-event-hook:
+  en: 482259ffdbbe3cba
+  zh: fff7a68df6fadfa0
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it/3-guard-and-sandbox-through-an-event-hook:
+  en: 2439a5f30b78ceea
+  zh: 295a9c2805ec1885
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it/4-multi-agent-task-graphs-graph-mode-through-an-event-hook:
+  en: 92b3d8dd4c9ffaea
+  zh: b40fb476c691b42a
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-3-core-design-principle-why-the-agent-loop-must-stay-general-and-small/3-3-3-how-five-core-capabilities-extend-the-agent-loop-without-modifying-it/5-external-distributed-coordination-loopx-through-an-event-hook:
+  en: e66f4c257ad66e54
+  zh: 3d4d0455a545e5c0
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout:
+  en: b8b8bd8394125b91
+  zh: 4f78b7299920f1ce
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout/3-4-1-five-layer-architecture-diagram:
+  en: b67f4a0f4c681c0e
+  zh: 666e23eaff7b0510
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout/3-4-2-core-event-flow-and-lifecycle-sequence:
+  en: 40ae3e436c8ea0d5
+  zh: 27af93ae218bb115
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout/3-4-3-core-data-structures-and-message-examples:
+  en: 0a40bb3c30bfaa2c
+  zh: 7024f44fcbf38c2d
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout/3-4-3-core-data-structures-and-message-examples/1-persisted-assistant-message-event-structure:
+  en: 2e5b23666f32ef20
+  zh: b848bf9b773fa1b8
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-4-architecture-layers-message-flow-and-data-layout/3-4-3-core-data-structures-and-message-examples/2-acp-json-rpc-frame-examples:
+  en: 8fda1cfb03f44791
+  zh: bbdf4874e945aee3
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-5-production-oriented-exercise-write-and-mount-a-security-audit-and-context-enrichment-plugin:
+  en: 22e4d6f1726448ca
+  zh: d33f848c2ced645b
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-5-production-oriented-exercise-write-and-mount-a-security-audit-and-context-enrichment-plugin/3-5-1-requirements:
+  en: 45fffeeff7c571fd
+  zh: 3fd335c0fedae587
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-5-production-oriented-exercise-write-and-mount-a-security-audit-and-context-enrichment-plugin/3-5-2-complete-typescript-implementation:
+  en: a7d4ea54c4988123
+  zh: 5142c5f16cf14a43
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-5-production-oriented-exercise-write-and-mount-a-security-audit-and-context-enrichment-plugin/3-5-3-plugin-configuration-and-yaml-patch-example:
+  en: d9b082974e76582b
+  zh: c107d39bfc563d97
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting:
+  en: a688a70106eb5c11
+  zh: 2aa9623b0177562d
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-1-failure-1-omitting-next-in-a-waterfall-event-leaves-a-request-hung:
+  en: ae92e34286a8d959
+  zh: bd9d4b09d97eaf52
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-1-failure-1-omitting-next-in-a-waterfall-event-leaves-a-request-hung/1-symptom:
+  en: 99e1e36ee3c7ee06
+  zh: 0fcf7a74f10fa74d
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-1-failure-1-omitting-next-in-a-waterfall-event-leaves-a-request-hung/2-root-cause:
+  en: 9b823c7183cc07f8
+  zh: b767b80253eb3782
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-1-failure-1-omitting-next-in-a-waterfall-event-leaves-a-request-hung/3-diagnosis-and-fix:
+  en: 752bcc798ff1543d
+  zh: 56ab924a5d4fe56a
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-2-failure-2-acp-channel-backpressure-causes-an-out-of-memory-crash:
+  en: c2469e4fa41c3983
+  zh: b4006f0cb645ff2a
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-2-failure-2-acp-channel-backpressure-causes-an-out-of-memory-crash/1-symptom:
+  en: 74c25555d8e1a895
+  zh: 20f2c57dbe25cf2f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-2-failure-2-acp-channel-backpressure-causes-an-out-of-memory-crash/2-root-cause:
+  en: a22d6196b5efe5e7
+  zh: 4613b57b7f6dea36
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-2-failure-2-acp-channel-backpressure-causes-an-out-of-memory-crash/3-diagnosis-and-fix:
+  en: dbe6da8a05011e05
+  zh: 06ee821303ef2a3f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-3-failure-3-unreleased-plugin-effects-leak-memory-and-state-across-hot-reloads:
+  en: 0ff20fbcce3393f0
+  zh: 4f79737e49156abd
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-3-failure-3-unreleased-plugin-effects-leak-memory-and-state-across-hot-reloads/1-symptom:
+  en: 104c5059e3ebff33
+  zh: f0b2c45dc5d6fe51
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-3-failure-3-unreleased-plugin-effects-leak-memory-and-state-across-hot-reloads/2-root-cause:
+  en: 0851ef1828f50740
+  zh: 2519936015914b82
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-3-failure-3-unreleased-plugin-effects-leak-memory-and-state-across-hot-reloads/3-diagnosis-and-fix:
+  en: 33c317b8e0e801af
+  zh: 9fdab6dd270d04fa
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-4-failure-4-an-async-operation-without-an-abortsignal-writes-after-cancellation:
+  en: e7bd58eed83ee684
+  zh: b1e99210cf8f7d63
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-4-failure-4-an-async-operation-without-an-abortsignal-writes-after-cancellation/1-symptom:
+  en: 5a520268ae7c4f15
+  zh: 686d32f6e52ddce7
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-4-failure-4-an-async-operation-without-an-abortsignal-writes-after-cancellation/2-root-cause:
+  en: 440752ba30819975
+  zh: 38eda3d185d4c99f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-6-production-pitfalls-and-troubleshooting/3-6-4-failure-4-an-async-operation-without-an-abortsignal-writes-after-cancellation/3-diagnosis-and-fix:
+  en: ad7355333eab41f0
+  zh: 2973983aeda16778
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-7-summary-and-questions:
+  en: 1912ba2e0daf896e
+  zh: 5f4066eaa1a18d4f
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-7-summary-and-questions/key-takeaways:
+  en: 3d28ab54bd9f8aa3
+  zh: baf3a7d6f020dc56
+/chapter-03-what-this-project-is-plugin-architecture-and-runtime-topology/3-7-summary-and-questions/questions-for-further-study:
+  en: 84e05b0d143a060d
+  zh: 726a0103468fb00f

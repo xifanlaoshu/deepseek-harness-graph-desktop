@@ -20,7 +20,7 @@ export interface GraphCoordinationContractHarness {
 const role = {
   id: 'engineer', label: 'Engineer', description: 'implements', controller: false, enabled: true,
   model: {}, prompt: 'implement', maxParallel: 1,
-} as unknown as GraphRole
+} as GraphRole
 
 const graph = {
   graphId: 'contract-graph', revision: 1, objective: 'ship', createdAt: 1, userInput: 'ship',
@@ -29,7 +29,7 @@ const graph = {
     acceptanceCriteria: ['done'], maxAttempts: 1, weight: 1,
   }],
   edges: [],
-} as unknown as GraphRevision
+} as never as GraphRevision
 
 const request = (): GraphCoordinationRequest => ({
   protocolVersion: 3,

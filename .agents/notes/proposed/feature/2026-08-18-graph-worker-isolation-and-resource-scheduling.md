@@ -24,7 +24,7 @@ Each executable node receives one workspace mode: read-only snapshot, isolated c
 
 Nodes declare normalized read roots, write roots, generated artifacts, and optional merge strategy. Submission validation rejects overlapping writable roots among concurrently eligible nodes unless a declared integration node serializes them. Runtime observation compares actual file mutations with the declaration; an undeclared write fails the node or enters approval according to policy. File ownership is path-based coordination, not a claim that semantic merges are conflict-free.
 
-Successful isolated work produces a content-addressed artifact manifest containing hashes, modes, relative paths, provenance, and size. A dedicated integration node applies patches or merges work into the target workspace under an exclusive lease and records conflicts as structured output. Canceling a worker stops future execution but does not pretend already published filesystem or external mutations were rolled back.
+Successful isolated work produces a content-addressed artifact manifest containing hashes, modes, relative paths, source node IDs, and size. A dedicated integration node applies patches or merges work into the target workspace under an exclusive lease and records conflicts as structured output. Canceling a worker stops future execution but does not pretend already published filesystem or external mutations were rolled back.
 
 ## Live model-resource scheduling
 

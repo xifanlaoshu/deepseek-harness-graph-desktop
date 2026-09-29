@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "platform": "Win_x64",
+  "revision": 1706936,
+  "sourceCommit": "fc790a92d0a01c671877d30ed0365d03da4dc937",
+  "archive": {
+    "url": "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win_x64/1706936/chrome-win.zip",
+    "size": 358636394,
+    "sha256": "2056a17887dbd55e09555ff10ac168d4625630a3ecbcc3664a60d7d31b8d04e0"
+  },
+  "license": {
+    "url": "https://raw.githubusercontent.com/chromium/chromium/fc790a92d0a01c671877d30ed0365d03da4dc937/LICENSE",
+    "size": 1536,
+    "sha256": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
+  }
+}

@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-graph/README.md
-README.md: 5cc53e70f3cf94a8c6714fbcb2484d1caa1427f0
-README.zh.md: 477057412aeb2de805dd4402b70bb2af3826c151
+/:
+  en: be3f16d825796059
+  zh: d92828467ed72f35
+/deepseek-ai-dsh-client-ui-graph:
+  en: 25497e2c3e109b28
+  zh: ca6fd392929369c8
+/deepseek-ai-dsh-client-ui-graph/summary:
+  en: 4ea3a8ec8f52baa2
+  zh: b5d85b89d7e40a09
+/deepseek-ai-dsh-client-ui-graph/table-of-contents:
+  en: 257701b6850ffbfd
+  zh: 72586816b3e20737
+/deepseek-ai-dsh-client-ui-graph/use-this-package:
+  en: 286e6758915ed4d3
+  zh: 28f482a185a6034e
+/deepseek-ai-dsh-client-ui-graph/understand-the-implementation:
+  en: 83753367cb4468cc
+  zh: 87bd844d6e220d6c
+/deepseek-ai-dsh-client-ui-graph/dev-note:
+  en: 89cb8a66f861f754
+  zh: da3c607150e0cf1c
+/deepseek-ai-dsh-client-ui-graph/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-client-ui-graph/model-experience/graph-panel-and-settings:
+  en: 4db5f76f2a0360bd
+  zh: a98262d3680f7385
+/deepseek-ai-dsh-client-ui-graph/model-experience/graph-panel-and-settings/what-the-model-sees:
+  en: 0083b8f785e0a516
+  zh: a43d0c781ee5624f
+/deepseek-ai-dsh-client-ui-graph/model-experience/graph-panel-and-settings/token-effect:
+  en: a9accf30f04abe2e
+  zh: 6fa3c416b40afc00
+/deepseek-ai-dsh-client-ui-graph/model-experience/graph-panel-and-settings/kv-cache-effect:
+  en: 5dde36b4c7065bc0
+  zh: 27412b3cf243450d
+/deepseek-ai-dsh-client-ui-graph/known-limitations-and-deferred-work:
+  en: b6c5a72f2a4a8e05
+  zh: cbbeb9e0a7ad482f

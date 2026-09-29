@@ -1,6 +1,5 @@
 import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   GraphAttemptId,
   GraphControlOperationId,
@@ -21,6 +20,7 @@ import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import * as RemoteWorker from '../src/index.ts'
+import { createWorkerTestParent } from '../../graph-worker/tests/parent.ts'
 
 class RemoteStub implements SubagentProvider {
   readonly name = 'transport'
@@ -49,7 +49,7 @@ class RemoteStub implements SubagentProvider {
   }
 }
 
-const assignment = (sourceRoot: string): GraphWorkerAssignment => ({
+const assignment = (sourceRoot: string, parent: GraphWorkerAssignment['parent']): GraphWorkerAssignment => ({
   protocolVersion: 1,
   workId: GraphWorkId('work-1'),
   operationId: GraphControlOperationId('operation-1'),
@@ -59,7 +59,7 @@ const assignment = (sourceRoot: string): GraphWorkerAssignment => ({
   generationId: GraphRunGenerationId('generation-1'),
   ownerEpoch: 1,
   fencingToken: 1,
-  parent: { id: SessionId('parent'), options: {}, session: { header: { cwd: sourceRoot } } } as unknown as Agent,
+  parent,
   node: {
     id: GraphNodeId('node-1'), title: 'Analyze', objective: 'Analyze.', kind: 'analysis', roleId: GraphRoleId('analyst'),
     acceptanceCriteria: ['Return evidence.'], outputSchema: defaultGraphOutputSchema(), maxAttempts: 1, weight: 1,
@@ -85,7 +85,7 @@ runGraphWorkerProviderContract('remote', async (scenario: GraphWorkerContractSce
   return {
     runtime: mountedWorker.ctx.graphWorkers,
     providerName: 'remote',
-    assignment: assignment(resolve('contract-local-workspace')),
+    assignment: assignment(resolve('contract-local-workspace'), mountedWorker.parent),
     dispose: async () => { await mountedWorker.ctx.fiber.dispose() },
   }
 })
@@ -95,6 +95,7 @@ async function mounted(stub: RemoteStub, artifacts?: GraphArtifactProvider) {
   await ctx.plugin(SubagentRuntime).await()
   ctx.subagents.registerProvider(stub)
   await ctx.plugin(GraphWorkerRuntime).await()
+  const testParent = await createWorkerTestParent(ctx, SessionId('parent'))
   if (artifacts !== undefined) {
     await ctx.plugin(GraphArtifactRuntime).await()
     ctx.graphArtifacts.register(artifacts)
@@ -106,14 +107,14 @@ async function mounted(stub: RemoteStub, artifacts?: GraphArtifactProvider) {
     maxArtifactBytes: 1_000,
     ...artifacts === undefined ? {} : { artifactProvider: artifacts.name },
   }).await()
-  return { ctx, cwd }
+  return { ctx, cwd, parent: testParent }
 }
 
 describe('remote Graph Worker provider', () => {
   it('adapts strict JSON output from an out-of-process subagent route', async () => {
     const stub = new RemoteStub('{"summary":"done","artifacts":[]}')
-    const { ctx, cwd } = await mounted(stub)
-    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace')))
+    const { ctx, cwd, parent } = await mounted(stub)
+    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace'), parent))
 
     await expect(run.result).resolves.toMatchObject({ outcome: 'completed', structured: { summary: 'done', artifacts: [] } })
     expect(stub.request?.workspaceCwd).toBe(cwd)
@@ -124,14 +125,14 @@ describe('remote Graph Worker provider', () => {
   })
 
   it('rejects unstructured completion at the remote wire boundary', async () => {
-    const { ctx } = await mounted(new RemoteStub('not json'))
-    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace')))
+    const { ctx, parent } = await mounted(new RemoteStub('not json'))
+    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace'), parent))
     await expect(run.result).resolves.toMatchObject({ outcome: 'error', error: { code: 'GRAPH_WORKER_REMOTE_JSON' } })
   })
 
   it('forwards cooperative cancellation through the assignment signal', async () => {
-    const { ctx } = await mounted(new RemoteStub('', true))
-    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace')))
+    const { ctx, parent } = await mounted(new RemoteStub('', true))
+    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace'), parent))
     await run.cancel('user canceled', new AbortController().signal)
     await expect(run.result).resolves.toMatchObject({ outcome: 'aborted' })
   })
@@ -160,9 +161,9 @@ describe('remote Graph Worker provider', () => {
       materialize: async request => ({ paths: request.manifest.entries.map(entry => entry.path), totalBytes: request.manifest.totalBytes }),
       reconcile: async () => ({ status: 'retained', evidence: 'remote artifact retained' }),
     }
-    const { ctx } = await mounted(new RemoteStub('{"summary":"done","artifacts":["build.zip"]}'), transport)
+    const { ctx, parent } = await mounted(new RemoteStub('{"summary":"done","artifacts":["build.zip"]}'), transport)
     expect(ctx.graphWorkers.list()[0]?.capabilities.artifactManifest).toBe(true)
-    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace')))
+    const run = await ctx.graphWorkers.start('remote', assignment(resolve('local-workspace'), parent))
     await expect(run.result).resolves.toMatchObject({
       outcome: 'completed',
       artifactManifest: { entries: [{ path: 'build.zip' }] },
@@ -170,8 +171,8 @@ describe('remote Graph Worker provider', () => {
   })
 
   it('reconciles an attached remote Worker by canceling its exact run', async () => {
-    const { ctx } = await mounted(new RemoteStub('', true))
-    const work = assignment(resolve('local-workspace'))
+    const { ctx, parent } = await mounted(new RemoteStub('', true))
+    const work = assignment(resolve('local-workspace'), parent)
     const run = await ctx.graphWorkers.start('remote', work)
     await expect(ctx.graphWorkers.reconcile('remote', {
       protocolVersion: 1,

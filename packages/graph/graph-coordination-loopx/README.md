@@ -1,6 +1,23 @@
+---
+description: "Connect Graph coordination to LoopX claims, peer observations, and goal state. Use this reference to configure the provider and understand its required external roster."
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph-coordination-loopx`
 
 English | [中文](README.zh.md)
+
+## Summary
+
+Connect Graph coordination to LoopX worker claims and peer evidence. The provider requires its configured LoopX goal and peer roster to remain available.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
 
 LoopX CLI Service Provider for [`dsh-graph-coordination`](../graph-coordination/README.md). It verifies one configured existing goal during graph preparation, lazily creates a LoopX todo only when the scheduler makes a node ready, claims it with the role's registered peer id, and supplies a bounded public-safe claim observation. A hard-lease acquisition failure before Worker dispatch clears the Provider's soft claim and leaves the todo as a non-executable blocker, so a write-scope conflict cannot strand claimed work. Each hard-lease renewal advances the LoopX lease version; the Provider returns and persists that fenced identity so terminal writeback uses the current CAS version. Reconciliation accepts a higher lease token for the same Claim as forward renewal, while a replaced Claim, lower token, or same-token Lease mismatch remains a conflict. Progress, cancellation, claims, lease renewals, and settlements enter a schema-version-2 SQLite projection keyed by physical Activation, with stable cursors and idempotent sequences. Restart settlement reads the Todo id from the durable Claim rather than a process-local map. Terminal writes serialize per Activation, so an unrelated Activation can settle while another is waiting. Every CLI operation also has an intrinsic deadline. Success completes the todo with public-safe evidence and `no_followup`; terminal failure turns it into a blocker. Graph admission remains the authority for model concurrency, so this Provider does not apply LoopX heartbeat quota, vision, scheduler, or worktree policy to session-local node execution.
 
@@ -23,7 +40,9 @@ Before invoking `loopx todo claim`, the Provider checks both its durable termina
 
 `goalId` and every role used by a graph must already exist in the selected LoopX registry. `executable`, `executableArgs`, `transport`, `pathStyle`, `registry`, `graceMs`, `leaseTtlSeconds`, and `operationTimeoutMs` configure external coordination. `transport: process` starts the configured CLI command for each operation. `transport: persistent` starts one provider-owned stdio broker through the configured launcher; `brokerPythonExecutable` and the required `brokerCommand` name Python and LoopX inside that execution environment. The broker serializes CLI operations, preserves per-operation timeout, cancellation, and output bounds, stops every owned command during disposal, and starts afresh after an unexpected exit. Caller cancellation rejects only that operation even while a broker stdin write is pending; stdin failures reject active operations instead of escaping as process-level stream errors. It never retries an uncertain LoopX mutation. `stdoutMaxBytes` and `stderrMaxBytes` bound collected CLI output; the stdout default is 8 MiB so a large but valid `todo list` response remains parseable, and an exceeded limit produces an explicit size diagnostic instead of a misleading JSON error. A node with precise relative `workspace.writeRoots` protects those roots and their descendants in its LoopX lease; `writeScopes` is the fallback for nodes without precise ownership or with whole-workspace ownership. Read-only nodes receive an Activation-specific non-overlapping coordination scope. `journalPath`, `journalBusyTimeoutMs`, `journalMode`, and `journalEventWindow` configure the local durable event projection; `:memory:` is accepted only for explicitly ephemeral deployments and tests. `watchReconnectAttempts` and `watchReconnectDelayMs` bound transport retries within the caller's cancellation and operation deadlines. The Provider rejects an unrelated schema version, malformed claim/event/terminal JSON, a non-contiguous cursor, and progress whose sequence, evidence, or cursor does not match its event. It fails graph submission if the CLI, goal, or peer binding is unavailable and never silently drops coordination.
 
-For a Windows host with LoopX installed in WSL, persistent transport keeps one WSL launcher connection and its helper process tree for the Provider lifetime. Put only the distribution and execution selector in `executableArgs`; `brokerCommand` names the LoopX executable inside WSL. `pathStyle: wsl` converts the registry and per-operation working directories.
+On Windows, `mode: managed` uses private bundled Python, Node.js, and LoopX paths supplied by the Desktop Host. It assigns a stable goal and peer id per canonical project and enabled graph role, stores bindings and LoopX registry files below the application's DSH home, and shares one native persistent broker while keeping project registries and SQLite journals separate. Only `prepare` may create a goal; observe and reconcile never do. Incomplete bindings are inspected and completed after restart without replacing a previously ready missing goal. The Host validates the bundled files before injecting the provider into Graph Mode and waits for Graph consumers before stopping the broker. Managed mode does not use WSL or a user-installed LoopX. These deployment paths are Host-owned, not project `.env` settings.
+
+For an external Windows provider with LoopX installed in WSL, persistent transport keeps one WSL launcher connection and its helper process tree for the Provider lifetime. Put only the distribution and execution selector in `executableArgs`; `brokerCommand` names the LoopX executable inside WSL. `pathStyle: wsl` converts the registry and per-operation working directories.
 
 ```yaml
     executable: wsl.exe
@@ -34,6 +53,18 @@ For a Windows host with LoopX installed in WSL, persistent transport keeps one W
     pathStyle: wsl
 ```
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because LoopX validates its own goal, todo, claim, and evidence state.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### LoopX worker observation

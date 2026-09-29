@@ -1,9 +1,20 @@
 /** Authenticated HTTP client implementation of the remote Graph Worker Provider. @module */
 
 import { z } from 'zod'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import {
+  GraphAttemptId,
+  GraphControlOperationId,
+  GraphRunGenerationId,
+  GraphRunId,
+  GraphWorkId,
+} from '@deepseek-ai/dsh-graph'
+import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import {
+  GraphArtifactManifestId,
   GraphWorkerId,
   GraphWorkspaceAllocationId,
+  type GraphArtifactManifest,
   type GraphWorkerAssignment,
   type GraphWorkerCapabilities,
   type GraphWorkerProvider,
@@ -61,7 +72,13 @@ const workspaceSchema = z.object({
   baseContentHash: z.string().max(4_000).optional(),
 }).strict()
 
-const contentBlockSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('type', [
+type WireContentBlock =
+  | { readonly type: 'text'; readonly text: string }
+  | { readonly type: 'reasoning'; readonly text: string }
+  | { readonly type: 'image'; readonly attachment: { readonly attachmentId: string; readonly mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; readonly bytes: number; readonly width: number; readonly height: number; readonly name?: string | undefined } }
+  | { readonly type: 'tool-call'; readonly id: string; readonly name: string; readonly arguments: string }
+
+const contentBlockSchema: z.ZodType<WireContentBlock> = z.lazy(() => z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }).strict(),
   z.object({ type: z.literal('reasoning'), text: z.string() }).strict(),
   z.object({
@@ -76,12 +93,6 @@ const contentBlockSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('type', 
     }).strict(),
   }).strict(),
   z.object({ type: z.literal('tool-call'), id: nonEmpty, name: nonEmpty, arguments: z.string() }).strict(),
-  z.object({
-    type: z.literal('tool-result'),
-    toolCallId: nonEmpty,
-    content: z.array(contentBlockSchema),
-    isError: z.boolean().optional(),
-  }).strict(),
 ]))
 
 const artifactManifestSchema = z.object({
@@ -184,8 +195,63 @@ function workspace(value: z.infer<typeof workspaceSchema>): GraphWorkspaceAlloca
   }
 }
 
+function contentBlock(value: z.infer<typeof contentBlockSchema>): ContentBlock {
+  switch (value.type) {
+    case 'text':
+    case 'reasoning':
+      return value
+    case 'image':
+      return {
+        type: 'image',
+        attachment: {
+          attachmentId: brandString<Extract<ContentBlock, { type: 'image' }>['attachment']['attachmentId']>(value.attachment.attachmentId),
+          mediaType: value.attachment.mediaType,
+          bytes: value.attachment.bytes,
+          width: value.attachment.width,
+          height: value.attachment.height,
+          ...(value.attachment.name === undefined ? {} : { name: value.attachment.name }),
+        },
+      }
+    case 'tool-call':
+      return {
+        ...value,
+        id: brandString<Extract<ContentBlock, { type: 'tool-call' }>['id']>(value.id),
+      }
+  }
+}
+
+function artifactManifest(value: z.infer<typeof artifactManifestSchema>): GraphArtifactManifest {
+  return {
+    ...value,
+    id: GraphArtifactManifestId(value.id),
+    workId: GraphWorkId(value.workId),
+    operationId: GraphControlOperationId(value.operationId),
+    attemptId: GraphAttemptId(value.attemptId),
+    runId: GraphRunId(value.runId),
+    generationId: GraphRunGenerationId(value.generationId),
+    entries: value.entries.map(({ baseSha256, ...entry }) => ({
+      ...entry,
+      ...baseSha256 === undefined ? {} : { baseSha256 },
+    })),
+  }
+}
+
 function result(value: z.infer<typeof resultSchema>): GraphWorkerResult {
-  return value as unknown as GraphWorkerResult
+  return {
+    outcome: value.outcome,
+    output: value.output.map(contentBlock),
+    ...(value.structured === undefined ? {} : { structured: value.structured }),
+    ...(value.childSessionId === undefined ? {} : { childSessionId: value.childSessionId }),
+    ...(value.artifactManifest === undefined ? {} : { artifactManifest: artifactManifest(value.artifactManifest) }),
+    ...(value.error === undefined ? {} : {
+      error: {
+        code: value.error.code,
+        message: value.error.message,
+        ...(value.error.retryable === undefined ? {} : { retryable: value.error.retryable }),
+        ...(value.error.retryAfterMs === undefined ? {} : { retryAfterMs: value.error.retryAfterMs }),
+      },
+    }),
+  }
 }
 
 function abortError(signal: AbortSignal, fallback: string): Error {

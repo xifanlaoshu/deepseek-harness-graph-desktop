@@ -13,6 +13,13 @@ import type {
   GraphArtifactReconcileResult,
 } from '@deepseek-ai/dsh-graph-artifacts'
 import {
+  GraphAttemptId,
+  GraphControlOperationId,
+  GraphRunGenerationId,
+  GraphRunId,
+  GraphWorkId,
+} from '@deepseek-ai/dsh-graph'
+import {
   GraphArtifactManifestId,
   type GraphArtifactManifest,
 } from '@deepseek-ai/dsh-graph-worker'
@@ -156,7 +163,19 @@ export class HttpGraphArtifactProvider implements GraphArtifactProvider {
       },
       files: ordered,
     }, request.signal))
-    return { ...parsed, id: GraphArtifactManifestId(parsed.id) } as unknown as GraphArtifactManifest
+    return {
+      ...parsed,
+      id: GraphArtifactManifestId(parsed.id),
+      workId: GraphWorkId(parsed.workId),
+      operationId: GraphControlOperationId(parsed.operationId),
+      attemptId: GraphAttemptId(parsed.attemptId),
+      runId: GraphRunId(parsed.runId),
+      generationId: GraphRunGenerationId(parsed.generationId),
+      entries: parsed.entries.map(({ baseSha256, ...entry }) => ({
+        ...entry,
+        ...baseSha256 === undefined ? {} : { baseSha256 },
+      })),
+    }
   }
 
   /** Download, verify, and atomically materialize every manifest file locally. */

@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-structured-graph-control-flow-and-subgraphs.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-structured-graph-control-flow-and-subgraphs.md
-2026-08-18-structured-graph-control-flow-and-subgraphs.md: 77a6f8ae3c4252262844948602d3d06369d3c295
-2026-08-18-structured-graph-control-flow-and-subgraphs.zh.md: 24bd9fab0840b0edfe5d618a17b62cc1a86245b9
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs:
+  en: f9eed6c16df9ea80
+  zh: 1f34fee688b1536e
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/problem:
+  en: ca7ec2932bb64b6e
+  zh: c6b70f259e0bac62
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/proposal:
+  en: 325573281374fe0a
+  zh: d9872a45abbc05f3
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/dynamic-expansion-and-nested-subgraphs:
+  en: 8adb69cf1e3f1418
+  zh: ec9678efc9c2b332
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/review-repair-and-termination:
+  en: e56fa941f485f003
+  zh: bfe93b2228619366
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/alternatives-considered:
+  en: 022f9d9964cc9471
+  zh: 98c8e2530e4def8e
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/acceptance-criteria:
+  en: 6c8161eb79751b98
+  zh: ac5932900120f803
+/agent-note-structured-graph-control-flow-and-bounded-subgraphs/risks:
+  en: 992efe2feacb4a4b
+  zh: abb2cd0e236975a5

@@ -1,6 +1,7 @@
 /** LoopX CLI provider for graph-worker coordination. @module @deepseek-ai/dsh-graph-coordination-loopx */
 
-import { resolve } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { GraphActivationId, GraphNode, GraphRevision, GraphRole } from '@deepseek-ai/dsh-graph'
@@ -19,16 +20,20 @@ import type {
   GraphCoordinationRequest,
   GraphCoordinationSettlement,
 } from '@deepseek-ai/dsh-graph-coordination'
-import type {} from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { PersistentLoopxBroker } from './broker.ts'
 import { LoopxCoordinationJournal } from './journal.ts'
+import { ManagedLoopxBindingStore, validateManagedLoopxRoots } from './managed.ts'
+import type { ManagedLoopxBinding, ManagedLoopxBindingOperations } from './managed.ts'
 
 /** Deployment binding to one existing LoopX goal and its registered peer ids. */
 export interface Config {
+  /** External fixed-goal compatibility mode or per-project managed LoopX goals. */
+  readonly mode?: 'external' | 'managed'
   /** Existing LoopX guided-goal identity that owns graph todos. */
-  readonly goalId: string
+  readonly goalId?: string
   /** Graph role id to pre-registered LoopX peer-agent id mapping. */
-  readonly roleAgents: Record<string, string>
+  readonly roleAgents?: Record<string, string>
   /** LoopX CLI command or executable path. */
   readonly executable?: string
   /** Arguments inserted after the executable and before LoopX CLI arguments. */
@@ -37,8 +42,28 @@ export interface Config {
   readonly transport?: 'process' | 'persistent'
   /** Python executable inside the persistent broker's execution environment. */
   readonly brokerPythonExecutable?: string
+  /** Launch the persistent broker directly with its Python executable. */
+  readonly brokerDirectPython?: boolean
   /** LoopX executable inside the persistent broker's execution environment. */
   readonly brokerCommand?: string
+  /** Arguments that precede LoopX CLI arguments for the broker command. */
+  readonly brokerCommandArgs?: string[]
+  /** Explicit environment inherited by the broker and its CLI children. */
+  readonly brokerEnv?: Readonly<Record<string, string>>
+  /** Working directory for the long-lived broker process. */
+  readonly brokerCwd?: string
+  /** Absolute installed Python interpreter for managed native Windows mode. */
+  readonly pythonExecutable?: string
+  /** Absolute immutable LoopX wheel launcher.py path for managed mode. */
+  readonly launcherPath?: string
+  /** Absolute private Node executable used by LoopX's effect runtime. */
+  readonly nodeExecutable?: string
+  /** Writable private root for per-project binding records. */
+  readonly bindingsRoot?: string
+  /** Writable private root for per-project LoopX registry and state data. */
+  readonly runtimeRoot?: string
+  /** Writable parent for this provider's unique broker TEMP/TMP directory. */
+  readonly tempRoot?: string
   /** Path syntax expected by the LoopX process. */
   readonly pathStyle?: 'native' | 'wsl'
   /** Optional LoopX registry path passed to every CLI invocation. */
@@ -73,13 +98,24 @@ class LoopxCommandError extends Error {}
 
 /** LoopX provider configuration schema. */
 export const Config: z<Config> = z.object({
-  goalId: z.string().required(),
-  roleAgents: z.dict(z.string()).required(),
+  mode: z.union(['external', 'managed'] as const).default('external'),
+  goalId: z.string(),
+  roleAgents: z.dict(z.string()),
   executable: z.string().default('loopx'),
   executableArgs: z.array(z.string()).default([]),
   transport: z.union(['process', 'persistent'] as const).default('process'),
   brokerPythonExecutable: z.string().default('python3'),
+  brokerDirectPython: z.boolean().default(false),
   brokerCommand: z.string(),
+  brokerCommandArgs: z.array(z.string()).default([]),
+  brokerEnv: z.dict(z.string()),
+  brokerCwd: z.string(),
+  pythonExecutable: z.string(),
+  launcherPath: z.string(),
+  nodeExecutable: z.string(),
+  bindingsRoot: z.string(),
+  runtimeRoot: z.string(),
+  tempRoot: z.string(),
   pathStyle: z.union(['native', 'wsl'] as const).default('native'),
   registry: z.string(),
   graceMs: z.natural().min(1).max(60_000).default(10_000),
@@ -107,6 +143,18 @@ const record = (value: unknown, operation: string): JsonRecord => {
   return value as JsonRecord
 }
 
+type FixedGoalConfig = Config & { readonly goalId: string; readonly roleAgents: Record<string, string> }
+/** Fully specified Windows-only managed LoopX runtime configuration. */
+export type ManagedConfig = Config & {
+  readonly mode: 'managed'
+  readonly pythonExecutable: string
+  readonly launcherPath: string
+  readonly nodeExecutable: string
+  readonly bindingsRoot: string
+  readonly runtimeRoot: string
+  readonly tempRoot: string
+}
+
 const actionKind = (node: GraphNode): string => {
   switch (node.kind) {
     case 'verification': return 'validate'
@@ -118,17 +166,18 @@ const actionKind = (node: GraphNode): string => {
 }
 
 /** LoopX-backed coordination over one pre-existing guided goal. */
-export class LoopxGraphCoordination extends GraphCoordination {
-  static inject = ['subprocess']
-
+export class LoopxCoordinationClient {
+  private readonly subprocess: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>
   private readonly goalId: string
   private readonly roleAgents: Readonly<Record<string, string>>
   private readonly executable: string
   private readonly executableArgs: readonly string[]
   private readonly transport: 'process' | 'persistent'
   private readonly broker: PersistentLoopxBroker | undefined
+  private readonly ownsBroker: boolean
   private readonly pathStyle: 'native' | 'wsl'
   private readonly registry: string | undefined
+  private readonly runtimeRoot: string | undefined
   private readonly graceMs: number
   private readonly operationTimeoutMs: number
   private readonly stdoutMaxBytes: number
@@ -153,9 +202,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
   private readonly watchReconnectDelayMs: number
   private readonly settlementTails = new Map<GraphActivationId, Promise<void>>()
 
-  /** Construct the provider without mutating LoopX state. */
-  constructor(ctx: Context, config: Config) {
-    super(ctx)
+  /**
+   * Construct one per-goal client without mutating LoopX state.
+   * @param subprocess - Execution-world process capability.
+   * @param config - One existing LoopX goal and its peer bindings.
+   */
+  constructor(subprocess: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>, config: FixedGoalConfig, sharedBroker?: PersistentLoopxBroker) {
     if (!config.goalId.trim()) throw new Error('LoopX graph coordination requires goalId')
     if (Object.keys(config.roleAgents).length === 0) throw new Error('LoopX graph coordination requires roleAgents')
     this.goalId = config.goalId
@@ -165,6 +217,7 @@ export class LoopxGraphCoordination extends GraphCoordination {
     this.transport = config.transport ?? 'process'
     this.pathStyle = config.pathStyle ?? 'native'
     this.registry = config.registry
+    this.runtimeRoot = config.runtimeRoot
     this.graceMs = config.graceMs ?? 10_000
     this.operationTimeoutMs = config.operationTimeoutMs ?? 60_000
     this.stdoutMaxBytes = config.stdoutMaxBytes ?? 8_388_608
@@ -179,17 +232,23 @@ export class LoopxGraphCoordination extends GraphCoordination {
     if (this.transport === 'persistent' && !config.brokerCommand?.trim()) {
       throw new Error('LoopX persistent transport requires brokerCommand')
     }
-    this.broker = this.transport === 'persistent'
-      ? new PersistentLoopxBroker(ctx, {
+    this.subprocess = subprocess
+    this.broker = sharedBroker ?? (this.transport === 'persistent'
+      ? new PersistentLoopxBroker(subprocess, {
         launcher: this.executable,
         launcherArgs: this.executableArgs,
         pythonExecutable: config.brokerPythonExecutable ?? 'python3',
+        ...(config.brokerDirectPython === undefined ? {} : { directPython: config.brokerDirectPython }),
         command: config.brokerCommand as string,
+        ...(config.brokerCommandArgs === undefined ? {} : { commandArgs: config.brokerCommandArgs }),
+        ...(config.brokerEnv === undefined ? {} : { env: config.brokerEnv }),
+        ...(config.brokerCwd === undefined ? {} : { cwd: config.brokerCwd }),
         graceMs: this.graceMs,
         startTimeoutMs: this.operationTimeoutMs,
         diagnosticMaxBytes: this.stderrMaxBytes,
       })
-      : undefined
+      : undefined)
+    this.ownsBroker = sharedBroker === undefined
     this.journal = new LoopxCoordinationJournal(
       this.goalId,
       journalPath === ':memory:' ? journalPath : resolve(journalPath),
@@ -197,16 +256,24 @@ export class LoopxGraphCoordination extends GraphCoordination {
       config.journalMode ?? 'wal',
       this.journalEventWindow,
     )
-    ctx.effect(() => async () => {
-      try {
-        await this.broker?.dispose()
-      } finally {
-        this.journal.close()
-      }
-    }, 'graph-coordination-loopx: broker and durable event journal')
   }
 
-  /** Validate role bindings and confirm that the configured LoopX goal is readable. */
+  /** Close the owned broker and local journal. */
+  async dispose(): Promise<void> {
+    try {
+      if (this.ownsBroker) await this.broker?.dispose()
+    } finally {
+      this.journal.close()
+    }
+  }
+
+  /**
+   * Validate role bindings and confirm that the configured LoopX goal is readable.
+   * @param graph Graph revision whose node roles will use LoopX.
+   * @param roles Roles enabled for the graph run.
+   * @param cwd Canonical project working directory.
+   * @param signal Signal that cancels the operation.
+   */
   async prepare(graph: GraphRevision, roles: readonly GraphRole[], cwd: string, signal: AbortSignal): Promise<void> {
     const enabledRoles = new Set(roles.filter(role => role.enabled).map(role => role.id))
     for (const node of graph.nodes) {
@@ -227,7 +294,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     return [...new Set(workspace.writeRoots.flatMap(root => [root, `${root}/**`]))]
   }
 
-  /** Create and claim the node's todo only when the graph schedules that node. */
+  /**
+   * Create and claim the node's todo only when the graph schedules that node.
+   * @param request Graph node and activation to claim.
+   * @param signal Signal that cancels the operation.
+   * @returns The coordination claim and its current disposition.
+   */
   async claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim> {
     this.hydrate(request.activationId)
     const agentId = this.agentFor(request.role.id)
@@ -323,7 +395,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     return result
   }
 
-  /** Renew the exact LoopX hard task lease and preserve its fencing version. */
+  /**
+   * Renew the exact LoopX hard task lease and preserve its fencing version.
+   * @param request Lease identity and fencing version to renew.
+   * @param signal Signal that cancels the operation.
+   * @returns The renewed lease state or the reason renewal was rejected.
+   */
   async heartbeat(request: GraphCoordinationHeartbeat, signal: AbortSignal): Promise<GraphCoordinationHeartbeatResult> {
     this.hydrate(request.activationId)
     const claim = this.requireLease(request)
@@ -354,7 +431,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     }
   }
 
-  /** Read cached exact references and refresh an existing lease from LoopX. */
+  /**
+   * Read cached exact references and refresh an existing lease from LoopX.
+   * @param request Graph activation and expected claim references.
+   * @param signal Signal that cancels the operation.
+   * @returns The current observation for the activation.
+   */
   async observe(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation> {
     signal.throwIfAborted()
     this.hydrate(request.activationId)
@@ -454,7 +536,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     return this.localObservation(request)
   }
 
-  /** Poll LoopX evidence before returning the ordered local protocol suffix. */
+  /**
+   * Poll LoopX evidence before returning the ordered local protocol suffix.
+   * @param request Graph activation and expected claim references.
+   * @param signal Signal that cancels the operation.
+   * @returns The latest observation and ordered local protocol suffix.
+   */
   async watch(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation> {
     let failure: unknown
     for (let attempt = 0; attempt <= this.watchReconnectAttempts; attempt += 1) {
@@ -480,7 +567,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     throw failure
   }
 
-  /** Append an idempotent ordered public-safe progress note to the LoopX todo. */
+  /**
+   * Append an idempotent ordered public-safe progress note to the LoopX todo.
+   * @param request Progress event and its activation identity.
+   * @param signal Signal that cancels the operation.
+   * @returns The stable cursor assigned to the progress event.
+   */
   async publishProgress(request: GraphCoordinationProgress, signal: AbortSignal): Promise<{ readonly cursor: string }> {
     this.hydrate(request.activationId)
     const claim = this.requireLease(request)
@@ -504,7 +596,11 @@ export class LoopxGraphCoordination extends GraphCoordination {
     return { cursor: event.cursor }
   }
 
-  /** Record one node result and its LoopX lifecycle effects without interleaving settlements. */
+  /**
+   * Record one node result and its LoopX lifecycle effects without interleaving settlements.
+   * @param request Node outcome and settlement identity.
+   * @param signal Signal that cancels the operation.
+   */
   async settle(request: GraphCoordinationSettlement, signal: AbortSignal): Promise<void> {
     await this.serializeSettlement(request.activationId, signal, async () => {
       this.hydrate(request.activationId)
@@ -542,7 +638,11 @@ export class LoopxGraphCoordination extends GraphCoordination {
     })
   }
 
-  /** Record a cooperative cancellation request without accepting terminal state. */
+  /**
+   * Record a cooperative cancellation request without accepting terminal state.
+   * @param request Cancellation request and its activation identity.
+   * @param signal Signal that cancels the operation.
+   */
   async cancel(request: GraphCoordinationCancellation, signal: AbortSignal): Promise<void> {
     this.hydrate(request.activationId)
     const claim = this.requireLease(request)
@@ -563,7 +663,12 @@ export class LoopxGraphCoordination extends GraphCoordination {
     ))
   }
 
-  /** Compare Graph expectations with the exact cached and LoopX-observed claim. */
+  /**
+   * Compare Graph expectations with the exact cached and LoopX-observed claim.
+   * @param request Expected activation state and graph revision.
+   * @param signal Signal that cancels the operation.
+   * @returns The reconciliation result for the activation.
+   */
   async reconcile(request: GraphCoordinationReconcileRequest, signal: AbortSignal): Promise<GraphCoordinationReconcileResult> {
     const observation = await this.observe(request, signal)
     if (observation.status === 'absent') return { status: 'absent', observation, evidence: 'LoopX has no known Graph-tagged claim' }
@@ -812,6 +917,7 @@ export class LoopxGraphCoordination extends GraphCoordination {
     const deadline = AbortSignal.timeout(this.operationTimeoutMs)
     const operationSignal = AbortSignal.any([signal, deadline])
     const cliArgs = [
+      ...this.runtimeRoot === undefined ? [] : ['--runtime-root', this.runtimePath(this.runtimeRoot)],
       ...this.registry === undefined ? [] : ['--registry', this.runtimePath(this.registry)],
       '--format', 'json', ...args,
     ]
@@ -837,9 +943,9 @@ export class LoopxGraphCoordination extends GraphCoordination {
       stdoutLossy = result.stdoutLossy
       if (result.timedOut) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} timed out after ${String(this.operationTimeoutMs)}ms`)
     } else {
-      this.resolvedExecutable ??= this.ctx.subprocess.resolveExecutable(this.executable, undefined, operationSignal)
+      this.resolvedExecutable ??= this.subprocess.resolveExecutable(this.executable, undefined, operationSignal)
       const executable = await this.resolvedExecutable
-      const handle = this.ctx.subprocess.spawn({
+      const handle = this.subprocess.spawn({
         argv: [executable, ...this.executableArgs, ...cliArgs],
         cwd,
         stdio: {
@@ -871,10 +977,409 @@ export class LoopxGraphCoordination extends GraphCoordination {
       throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} returned invalid JSON`)
     }
     try {
-      return record(parsed, args.slice(0, 2).join(' '))
+      const response = record(parsed, args.slice(0, 2).join(' '))
+      if (response['ok'] === false) {
+        const reason = typeof response['error'] === 'string' ? response['error'] : 'operation was not accepted'
+        throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} failed: ${reason}`)
+      }
+      return response
+    } catch (error) {
+      if (error instanceof LoopxCommandError) throw error
+      throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} returned an invalid response`, { cause: error })
+    }
+  }
+}
+
+interface ManagedRuntime {
+  readonly config: ManagedConfig
+  readonly roots: ReturnType<typeof validateManagedLoopxRoots>
+  readonly tempDirectory: string
+  readonly env: Readonly<Record<string, string>>
+}
+
+function validateManagedRuntime(config: Config): ManagedRuntime {
+  if (process.platform !== 'win32') throw new Error('managed LoopX mode requires the native Windows Job subprocess runtime')
+  const required = (name: keyof ManagedConfig): string => {
+    const value = config[name]
+    if (typeof value !== 'string' || !isAbsolute(value)) throw new Error(`managed LoopX ${name} must be an absolute path`)
+    return resolve(value)
+  }
+  const pythonExecutable = required('pythonExecutable')
+  const launcherPath = required('launcherPath')
+  const nodeExecutable = required('nodeExecutable')
+  const bindingsRoot = required('bindingsRoot')
+  const runtimeRoot = required('runtimeRoot')
+  const tempRoot = required('tempRoot')
+  for (const [name, path] of [['pythonExecutable', pythonExecutable], ['launcherPath', launcherPath], ['nodeExecutable', nodeExecutable]] as const) {
+    if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`managed LoopX ${name} does not name an installed file`)
+  }
+  const roots = validateManagedLoopxRoots({ bindingsRoot, runtimeRoot })
+  const within = (parent: string, child: string): boolean => {
+    const rel = relative(parent, child)
+    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+  }
+  if ([roots.bindingsRoot, roots.runtimeRoot].some(root => within(root, tempRoot) || within(tempRoot, root))) {
+    throw new Error('managed LoopX TEMP root must be separate from binding and runtime roots')
+  }
+  if (config.goalId !== undefined || config.roleAgents !== undefined) {
+    throw new Error('managed LoopX mode does not accept a fixed goalId or roleAgents mapping')
+  }
+  mkdirSync(roots.bindingsRoot, { recursive: true })
+  mkdirSync(roots.runtimeRoot, { recursive: true })
+  mkdirSync(tempRoot, { recursive: true })
+  const tempDirectory = mkdtempSync(join(tempRoot, 'loopx-broker-'))
+  const env: Record<string, string> = {
+    PATH: [dirname(nodeExecutable), dirname(pythonExecutable)].join(delimiter),
+    TEMP: tempDirectory,
+    TMP: tempDirectory,
+    LOOPX_USAGE_PING: '0',
+  }
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot !== undefined) env['SystemRoot'] = systemRoot
+  return {
+    config: Object.assign({}, config, {
+      mode: 'managed', pythonExecutable, launcherPath, nodeExecutable,
+      bindingsRoot: roots.bindingsRoot, runtimeRoot: roots.runtimeRoot, tempRoot,
+    }) as ManagedConfig,
+    roots,
+    tempDirectory,
+    env,
+  }
+}
+
+class ManagedLoopxProjects {
+  private readonly store: ManagedLoopxBindingStore
+  private readonly broker: PersistentLoopxBroker
+  private readonly config: ManagedConfig
+  private readonly subprocess: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>
+  private readonly clients = new Map<string, LoopxCoordinationClient>()
+  private readonly operationTimeoutMs: number
+  private readonly stdoutMaxBytes: number
+  private readonly stderrMaxBytes: number
+  private readonly graceMs: number
+  private readonly tempDirectory: string
+
+  constructor(subprocess: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>, runtime: ManagedRuntime) {
+    this.config = runtime.config
+    this.subprocess = subprocess
+    this.store = new ManagedLoopxBindingStore(runtime.roots)
+    this.operationTimeoutMs = this.config.operationTimeoutMs ?? 60_000
+    this.stdoutMaxBytes = this.config.stdoutMaxBytes ?? 8_388_608
+    this.stderrMaxBytes = this.config.stderrMaxBytes ?? 1_048_576
+    this.graceMs = this.config.graceMs ?? 10_000
+    this.tempDirectory = runtime.tempDirectory
+    this.broker = new PersistentLoopxBroker(subprocess, {
+      pythonExecutable: this.config.pythonExecutable,
+      directPython: true,
+      command: this.config.pythonExecutable,
+      commandArgs: [this.config.launcherPath],
+      env: runtime.env,
+      cwd: this.config.runtimeRoot,
+      graceMs: this.graceMs,
+      startTimeoutMs: this.operationTimeoutMs,
+      diagnosticMaxBytes: this.stderrMaxBytes,
+    })
+  }
+
+  async prepare(graph: GraphRevision, roles: readonly GraphRole[], cwd: string, signal: AbortSignal): Promise<void> {
+    const enabled = roles.filter(role => role.enabled).map(role => role.id)
+    const binding = await this.store.prepare(cwd, enabled, this.operations(signal))
+    const client = this.client(binding)
+    await client.prepare(graph, roles, cwd, signal)
+  }
+
+  async findClient(cwd: string): Promise<LoopxCoordinationClient | undefined> {
+    const binding = await this.store.find(cwd)
+    if (binding === undefined) return undefined
+    if (binding.phase !== 'ready') throw new Error('managed LoopX project binding is still initializing; prepare must complete first')
+    return this.client(binding)
+  }
+
+  async dispose(): Promise<void> {
+    const results = await Promise.allSettled([...this.clients.values()].map(client => client.dispose()))
+    let brokerFailure: unknown
+    let brokerStopped = false
+    try {
+      await this.broker.dispose()
+      brokerStopped = true
+    } catch (error) {
+      brokerFailure = error
+    }
+    if (brokerStopped) {
+      try {
+        rmSync(this.tempDirectory, { recursive: true, force: false })
+      } catch (error) {
+        if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) {
+          brokerFailure = brokerFailure === undefined ? error : new AggregateError([brokerFailure, error], 'LoopX broker shutdown and TEMP cleanup failed')
+        }
+      }
+    }
+    const failures: unknown[] = []
+    for (const result of results) if (result.status === 'rejected') failures.push(result.reason)
+    if (brokerFailure !== undefined) failures.push(brokerFailure)
+    if (failures.length > 0) throw new AggregateError(failures, 'managed LoopX resources failed to dispose')
+  }
+
+  private client(binding: ManagedLoopxBinding): LoopxCoordinationClient {
+    const existing = this.clients.get(binding.project)
+    if (existing !== undefined) return existing
+    const roleAgents = Object.fromEntries(Object.entries(binding.roleAgents))
+    const client = new LoopxCoordinationClient(this.subprocess, {
+      mode: 'external',
+      goalId: binding.goalId,
+      roleAgents,
+      executable: this.config.pythonExecutable,
+      executableArgs: [this.config.launcherPath],
+      transport: 'persistent',
+      brokerPythonExecutable: this.config.pythonExecutable,
+      brokerDirectPython: true,
+      brokerCommand: this.config.pythonExecutable,
+      brokerCommandArgs: [this.config.launcherPath],
+      brokerEnv: this.brokerEnvironment(),
+      brokerCwd: this.config.runtimeRoot,
+      registry: binding.registryPath,
+      runtimeRoot: binding.runtimeRoot,
+      pathStyle: 'native',
+      journalPath: join(binding.runtimeRoot, 'graph-coordination.sqlite'),
+      operationTimeoutMs: this.operationTimeoutMs,
+      stdoutMaxBytes: this.stdoutMaxBytes,
+      stderrMaxBytes: this.stderrMaxBytes,
+      graceMs: this.graceMs,
+      ...this.config.leaseTtlSeconds === undefined ? {} : { leaseTtlSeconds: this.config.leaseTtlSeconds },
+      ...this.config.writeScopes === undefined ? {} : { writeScopes: this.config.writeScopes },
+      ...this.config.journalBusyTimeoutMs === undefined ? {} : { journalBusyTimeoutMs: this.config.journalBusyTimeoutMs },
+      ...this.config.journalMode === undefined ? {} : { journalMode: this.config.journalMode },
+      ...this.config.journalEventWindow === undefined ? {} : { journalEventWindow: this.config.journalEventWindow },
+      ...this.config.watchReconnectAttempts === undefined ? {} : { watchReconnectAttempts: this.config.watchReconnectAttempts },
+      ...this.config.watchReconnectDelayMs === undefined ? {} : { watchReconnectDelayMs: this.config.watchReconnectDelayMs },
+    }, this.broker)
+    this.clients.set(binding.project, client)
+    return client
+  }
+
+  private brokerEnvironment(): Readonly<Record<string, string>> {
+    return {
+      PATH: [dirname(this.config.nodeExecutable), dirname(this.config.pythonExecutable)].join(delimiter),
+      TEMP: this.tempDirectory,
+      TMP: this.tempDirectory,
+      LOOPX_USAGE_PING: '0',
+      ...process.env['SystemRoot'] === undefined ? {} : { SystemRoot: process.env['SystemRoot'] },
+    }
+  }
+
+  private operations(signal: AbortSignal): ManagedLoopxBindingOperations {
+    return {
+      inspect: binding => Promise.resolve(this.inspect(binding)),
+      bootstrap: async (binding) => {
+        await this.runCli(binding, binding.project, signal, [
+          'bootstrap', '--project', binding.project, '--goal-id', binding.goalId,
+          '--objective', 'Coordinate DeepSeek Harness graph work for this project.',
+          '--state-file', binding.stateFile, '--role', 'controller', '--no-global-sync',
+        ])
+      },
+      registerAgent: async (binding, agentId) => {
+        await this.runCli(binding, binding.project, signal, [
+          'configure-goal', '--goal-id', binding.goalId, '--registered-agent', agentId, '--execute',
+        ])
+      },
+    }
+  }
+
+  private inspect(binding: ManagedLoopxBinding): { readonly project: string; readonly agents: readonly string[] } | undefined {
+    if (!existsSync(binding.registryPath)) return undefined
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(readFileSync(binding.registryPath, 'utf8'))
+    } catch (error) {
+      throw new Error('managed LoopX registry JSON could not be read', { cause: error })
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('managed LoopX registry must be a JSON object')
+    const rawGoals = (parsed as Record<string, unknown>)['goals']
+    if (!Array.isArray(rawGoals)) throw new Error('managed LoopX registry goals must be a list')
+    const goals: readonly unknown[] = rawGoals
+    const goal = goals.find(item => typeof item === 'object' && item !== null && !Array.isArray(item)
+      && (item as Record<string, unknown>)['id'] === binding.goalId)
+    if (goal === undefined) return undefined
+    if (typeof goal !== 'object' || goal === null || Array.isArray(goal)) throw new Error('managed LoopX registry goal entry is invalid')
+    const entry = goal as Record<string, unknown>
+    if (typeof entry['repo'] !== 'string') throw new Error('managed LoopX goal registry entry has no project path')
+    const agents: string[] = []
+    const coordination = entry['coordination']
+    const spawnPolicy = entry['spawn_policy']
+    const candidates: readonly unknown[] = [
+      typeof coordination === 'object' && coordination !== null && !Array.isArray(coordination)
+        ? (coordination as Record<string, unknown>)['registered_agents'] : undefined,
+      entry['registered_agents'],
+      typeof spawnPolicy === 'object' && spawnPolicy !== null && !Array.isArray(spawnPolicy)
+        ? (spawnPolicy as Record<string, unknown>)['registered_agents'] : undefined,
+    ]
+    for (const candidate of candidates) {
+      const registered: readonly unknown[] = Array.isArray(candidate) ? candidate : candidate === undefined ? [] : [candidate]
+      for (const raw of registered) {
+        const agent = typeof raw === 'string' ? raw : typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+          ? (raw as Record<string, unknown>)['id'] ?? (raw as Record<string, unknown>)['agent_id'] ?? (raw as Record<string, unknown>)['name']
+          : undefined
+        if (typeof agent === 'string' && agent.trim() && !agents.includes(agent)) agents.push(agent)
+      }
+    }
+    return { project: entry['repo'], agents }
+  }
+
+  private async runCli(binding: ManagedLoopxBinding, cwd: string, signal: AbortSignal, args: readonly string[]): Promise<void> {
+    const deadline = AbortSignal.timeout(this.operationTimeoutMs)
+    const operationSignal = AbortSignal.any([signal, deadline])
+    const result = await this.broker.run(
+      cwd,
+      ['--runtime-root', binding.runtimeRoot, '--registry', binding.registryPath, '--format', 'json', ...args],
+      this.operationTimeoutMs,
+      this.stdoutMaxBytes,
+      this.stderrMaxBytes,
+      operationSignal,
+    )
+    signal.throwIfAborted()
+    if (deadline.aborted || result.timedOut) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} timed out`)
+    if (result.exitCode !== 0) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} failed (${String(result.exitCode)}): ${result.stderr || result.stdout}`)
+    if (result.stdoutLossy) throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} response exceeded stdoutMaxBytes=${String(this.stdoutMaxBytes)}`)
+    let response: Record<string, unknown>
+    try {
+      response = record(JSON.parse(result.stdout), args.slice(0, 2).join(' '))
     } catch (error) {
       throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} returned an invalid response`, { cause: error })
     }
+    if (response['ok'] !== true) {
+      const reason = typeof response['error'] === 'string' ? response['error'] : 'operation was not accepted'
+      throw new LoopxCommandError(`LoopX ${args.slice(0, 2).join(' ')} failed: ${reason}`)
+    }
+  }
+}
+
+/** Cordis Service Provider for fixed external goals or isolated managed project goals. */
+export class LoopxGraphCoordination extends GraphCoordination {
+  static inject = ['subprocess']
+
+  private readonly client: LoopxCoordinationClient | undefined
+  private readonly managed: ManagedLoopxProjects | undefined
+
+  /** Construct the LoopX provider after validating fixed or managed configuration. */
+  constructor(ctx: Context, config: Config) {
+    const managedRuntime = config.mode === 'managed' ? validateManagedRuntime(config) : undefined
+    if (managedRuntime === undefined && (!config.goalId?.trim() || config.roleAgents === undefined)) {
+      throw new Error('external LoopX mode requires goalId and roleAgents')
+    }
+    if (managedRuntime === undefined && Object.keys(config.roleAgents as Record<string, string>).length === 0) {
+      throw new Error('LoopX graph coordination requires roleAgents')
+    }
+    super(ctx)
+    if (managedRuntime === undefined) {
+      this.client = new LoopxCoordinationClient(ctx.subprocess, config as FixedGoalConfig)
+      this.managed = undefined
+    } else {
+      this.client = undefined
+      this.managed = new ManagedLoopxProjects(ctx.subprocess, managedRuntime)
+    }
+    ctx.effect(() => async () => {
+      const failures: unknown[] = []
+      try {
+        await this.quiesceConsumers()
+      } catch (error) {
+        failures.push(error)
+      }
+      try {
+        if (this.managed !== undefined) await this.managed.dispose()
+        else await this.client?.dispose()
+      } catch (error) {
+        failures.push(error)
+      }
+      if (failures.length > 0) throw new AggregateError(failures, 'LoopX coordination provider shutdown failed')
+    }, 'graph-coordination-loopx: quiesce consumers before owned processes and journals')
+  }
+
+  /** Validate bindings and prepare the project goal only when this operation is explicitly requested. */
+  prepare(graph: GraphRevision, roles: readonly GraphRole[], cwd: string, signal: AbortSignal): Promise<void> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).prepare(graph, roles, cwd, signal)
+      : this.managed.prepare(graph, roles, cwd, signal)
+  }
+
+  /** Claim one scheduled node and return its bounded provider observation. */
+  claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).claim(request, signal)
+      : this.managed.findClient(request.cwd).then((client) => {
+        if (client === undefined) throw new Error('managed LoopX project has no prepared binding')
+        return client.claim(request, signal)
+      })
+  }
+
+  /** Renew the fenced lease for one exact claim. */
+  heartbeat(request: GraphCoordinationHeartbeat, signal: AbortSignal): Promise<GraphCoordinationHeartbeatResult> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).heartbeat(request, signal)
+      : this.managed.findClient(request.cwd).then((client) => {
+        if (client === undefined) throw new Error('managed LoopX project has no prepared binding')
+        return client.heartbeat(request, signal)
+      })
+  }
+
+  /** Observe one work item without acquiring it or creating project data. */
+  async observe(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation> {
+    if (this.managed === undefined) return await (this.client as LoopxCoordinationClient).observe(request, signal)
+    const client = await this.managed.findClient(request.cwd)
+    signal.throwIfAborted()
+    return client === undefined ? { status: 'absent', cursor: '0', events: [], compacted: false } : await client.observe(request, signal)
+  }
+
+  /** Watch one work item for ordered progress after the supplied cursor. */
+  async watch(request: GraphCoordinationObserveRequest, signal: AbortSignal): Promise<GraphCoordinationObservation> {
+    if (this.managed === undefined) return await (this.client as LoopxCoordinationClient).watch(request, signal)
+    const client = await this.managed.findClient(request.cwd)
+    signal.throwIfAborted()
+    return client === undefined ? { status: 'absent', cursor: '0', events: [], compacted: false } : await client.watch(request, signal)
+  }
+
+  /** Publish bounded progress for one live claim. */
+  publishProgress(request: GraphCoordinationProgress, signal: AbortSignal): Promise<{ readonly cursor: string }> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).publishProgress(request, signal)
+      : this.managed.findClient(request.cwd).then((client) => {
+        if (client === undefined) throw new Error('managed LoopX project has no prepared binding')
+        return client.publishProgress(request, signal)
+      })
+  }
+
+  /** Persist terminal evidence for one live claim. */
+  settle(request: GraphCoordinationSettlement, signal: AbortSignal): Promise<void> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).settle(request, signal)
+      : this.managed.findClient(request.cwd).then((client) => {
+        if (client === undefined) throw new Error('managed LoopX project has no prepared binding')
+        return client.settle(request, signal)
+      })
+  }
+
+  /** Request cooperative cancellation for one live claim. */
+  cancel(request: GraphCoordinationCancellation, signal: AbortSignal): Promise<void> {
+    return this.managed === undefined
+      ? (this.client as LoopxCoordinationClient).cancel(request, signal)
+      : this.managed.findClient(request.cwd).then((client) => {
+        if (client === undefined) throw new Error('managed LoopX project has no prepared binding')
+        return client.cancel(request, signal)
+      })
+  }
+
+  /** Reconcile Graph state without creating a managed LoopX goal. */
+  async reconcile(request: GraphCoordinationReconcileRequest, signal: AbortSignal): Promise<GraphCoordinationReconcileResult> {
+    if (this.managed === undefined) return await (this.client as LoopxCoordinationClient).reconcile(request, signal)
+    const client = await this.managed.findClient(request.cwd)
+    signal.throwIfAborted()
+    if (client === undefined) {
+      return {
+        status: 'absent',
+        observation: { status: 'absent', cursor: '0', events: [], compacted: false },
+        evidence: 'managed project binding is absent',
+      }
+    }
+    return await client.reconcile(request, signal)
   }
 }
 

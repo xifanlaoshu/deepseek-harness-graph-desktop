@@ -184,7 +184,7 @@ export interface SessionEventMap {
 When external plugins such as `@deepseek-ai/dsh-compaction` or `@deepseek-ai/dsh-hook-protocol` introduce new facts, they extend that interface in their own module declarations:
 
 ```typescript
-// 在 packages/plugins/compaction/src/types.ts 中扩展
+// 在 packages/compaction/compaction/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'compaction/start': { compactionId: string; targetRange: { start: number; end: number } }
@@ -193,7 +193,7 @@ declare module '@deepseek-ai/dsh-session' {
   }
 }
 
-// 在 packages/plugins/hook-protocol/src/types.ts 中扩展
+// 在 packages/hooks/hook-protocol/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'hook/invoked': { hookName: string; handlerId: string; payload: JsonValue }
@@ -326,7 +326,7 @@ export function deriveEventMessage(event: SessionEvent): Message | null {
 }
 ```
 
-### 3.3 The `SurfaceManager` state machine and provenance assertions
+### 3.3 The `SurfaceManager` state machine and source-event assertions
 
 `SurfaceManager` performs **two-phase propose-and-commit validation** before an event enters the log, keeping the surface topology valid at all times.
 
@@ -427,7 +427,7 @@ export class SurfaceManager implements SessionSurface {
     }
 
     if (op === 'append') {
-      this.assertProvenance(event, [])
+      this.assertSourceEventReferences(event, [])
       return { kind: 'append', seq: expectedSeq }
     }
 
@@ -446,7 +446,7 @@ export class SurfaceManager implements SessionSurface {
 
     const shadowedSeqs = this._nodes.slice(startIdx, endIdx + 1)
     // 因果追溯校验：replace 节点必须在 sourceEventSeqs 中显式声明所有被它遮蔽的节点
-    this.assertProvenance(event, shadowedSeqs)
+    this.assertSourceEventReferences(event, shadowedSeqs)
 
     return {
       kind: 'replace',
@@ -459,14 +459,14 @@ export class SurfaceManager implements SessionSurface {
     }
   }
 
-  private assertProvenance(event: SessionEvent, shadowedSeqs: readonly number[]): void {
+  private assertSourceEventReferences(event: SessionEvent, shadowedSeqs: readonly number[]): void {
     const raw = event as SessionEvent & { sourceEventSeqs?: number[] }
     const sources = new Set<number>(raw.sourceEventSeqs ?? [])
 
     // 检查是否有前向引用非法序号（引用了未来尚未发生的事件）
     for (const src of sources) {
       if (src >= event.seq) {
-        throw new Error(`Provenance violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
+        throw new Error(`Source event reference violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
       }
     }
 
@@ -1137,7 +1137,7 @@ Use these ten indicators to review the architecture of an agent session system y
 - [ ] **Strict sequence continuity**: Does the system enforce $\text{seq} = 0, 1, 2, \dots, N-1$ and refuse to load a log as soon as it finds a gap?
 - [ ] **Pure projection**: Is `deriveMessages()` side-effect-free? Does it avoid sending residual empty-content messages to the model?
 - [ ] **Independent surface index**: Does context compaction maintain the surface index through a declarative `replace` operator instead of modifying or truncating the underlying factual log?
-- [ ] **Complete provenance**: Does every surface replacement declare all shadowed predecessor nodes in `sourceEventSeqs`?
+- [ ] **Complete source-event references**: Does every surface replacement declare all shadowed predecessor nodes in `sourceEventSeqs`?
 - [ ] **Asynchronous batching**: Does persistence use a bounded coalescing window like `SessionWriteBehind`? Can high-frequency streaming block the main event loop?
 - [ ] **Multi-frame compression**: Does the on-disk format use concatenated Zstandard frames or a comparable format to combine high compression with incremental tail appends?
 - [ ] **Torn-tail truncation**: On restart, can `scanZstdFrames` or line-by-line JSON scanning locate and truncate partially written bytes before decompression?

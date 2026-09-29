@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-artifacts-fs/README.md
-README.md: ee63479e0add6c92d04e885085234fd2c52cd34a
-README.zh.md: fafbf5afaf820f2c0aeb9f98cae8b15208094cdb
+/:
+  en: 49a5a0c434f3b2d7
+  zh: b2ddc94602497a0e
+/deepseek-ai-dsh-graph-artifacts-fs:
+  en: 1b7c69c589867b0c
+  zh: 95535271d4a594e4
+/deepseek-ai-dsh-graph-artifacts-fs/summary:
+  en: a1867a863eaeef50
+  zh: 0b9a8bab44d75238
+/deepseek-ai-dsh-graph-artifacts-fs/table-of-contents:
+  en: b89fa794de62bec3
+  zh: c69d48d09172838d
+/deepseek-ai-dsh-graph-artifacts-fs/configuration:
+  en: 047f0348e50f6ec5
+  zh: ab806f9dc01bc780
+/deepseek-ai-dsh-graph-artifacts-fs/safety:
+  en: 81b623516c064cc2
+  zh: 20f52eead9e76a1c
+/deepseek-ai-dsh-graph-artifacts-fs/dev-note:
+  en: f6f2e167b18b9999
+  zh: 7c0c8776cd45a8b5
+/deepseek-ai-dsh-graph-artifacts-fs/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-artifacts-fs/model-experience/filesystem-artifacts:
+  en: 9a205b6b13a9badb
+  zh: 341f12a36e47e8fd
+/deepseek-ai-dsh-graph-artifacts-fs/model-experience/filesystem-artifacts/what-the-model-sees:
+  en: 37c23aaca1fc71f1
+  zh: 492e1ca3712138bd
+/deepseek-ai-dsh-graph-artifacts-fs/model-experience/filesystem-artifacts/token-effect:
+  en: 3e3c88db46076720
+  zh: cdb2b444bcb02b6b
+/deepseek-ai-dsh-graph-artifacts-fs/model-experience/filesystem-artifacts/kv-cache-effect:
+  en: 60835eca1cee4e0e
+  zh: 31bf067488edb4d6
+/deepseek-ai-dsh-graph-artifacts-fs/known-limitations-and-deferred-work:
+  en: 241c95ba767f8d67
+  zh: 10178268a2424708

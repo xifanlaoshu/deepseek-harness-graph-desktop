@@ -387,7 +387,7 @@ Force-killing threads or processes can leave locks and resources behind. Harness
 #### 4. Complete TypeScript Example: State-Machine Driver
 
 ```typescript
-// packages/core/agent-loop/src/driver.ts
+// packages/core/agent-loop/src/agent.ts
 
 import { Context } from '../../cordis-mini/src/container.js';
 
@@ -625,7 +625,7 @@ Harness applies strict rules to durable storage:
 #### 4. Complete TypeScript Example: Event Sourcing and Projection
 
 ```typescript
-// packages/core/session/src/session.ts
+// packages/core/session/src/index.ts
 
 export type SessionEventType =
   | 'turn/start'
@@ -783,14 +783,14 @@ Hard-coding filesystem writes or shell commands into business logic is dangerous
                                          | 实现接口
 +-----------------------------------------------------------------------------------+
 | 2. Service Provider (具体能力提供方实现包)                                         |
-|    - packages/provider/fs-local: 基于 Node.js 本地文件系统实现                    |
-|    - packages/provider/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
+|    - packages/fs/fs-local: 基于 Node.js 本地文件系统实现                    |
+|    - packages/fs/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
 +-----------------------------------------------------------------------------------+
                                          ^
                                          | 消费注入 (ctx.fs)
 +-----------------------------------------------------------------------------------+
 | 3. Consumer / Tools (面向大模型的工具消费包)                                      |
-|    - packages/tools/fs-tools: 向模型暴露 read_file / write_file 工具 DSL          |
+|    - packages/fs/tool-fs: 向模型暴露 read_file / write_file 工具 DSL          |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -829,7 +829,7 @@ Layer 4 applies three defenses when executing model-generated commands and argum
 #### 4. Complete TypeScript Example: Controlled Tool Pipeline
 
 ```typescript
-// packages/core/tools/src/pipeline.ts
+// packages/core/tools/src/index.ts
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -996,7 +996,7 @@ When integrating an external multi-agent coordinator such as LoopX, the two plan
 #### 4. Complete TypeScript Example: Fenced Storage and Reconciliation
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -1253,7 +1253,7 @@ The worker did not attach a scheduler-issued, monotonically increasing `Fencing 
 Use an atomic-write adapter that validates fencing tokens:
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -1308,7 +1308,7 @@ Just before power loss, a third-party plugin may have called an unsynchronized l
 Introduce an atomic queued-write barrier and startup reconciliation for sequence gaps in the session layer:
 
 ```typescript
-// packages/core/session/src/persistence-repair.ts
+// packages/core/session/src/repair.ts
 
 import { SessionEvent } from './session.js';
 

@@ -1,6 +1,23 @@
+---
+description: "使用不可变图修订、确定性执行规则和持久化投影来规划并检查多代理 DAG 运行。本文介绍持久化图领域及其运行边界。"
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph`
 
 [English](README.md) | 中文
+
+## 概述
+
+为多代理工作定义并检查不可变 DAG 修订、持久化运行证据和 Campaign 批次。此软件包负责图验证与重放；运行由独立的调度器和 Worker 提供方执行。
+
+## 目录
+
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
 
 新的 `graph/submission` 记录会携带由 Host 解析的 `GraphRevisionLineage`。其中品牌化逻辑任务 ID、`new_task`、`analysis_refactor` 或 `execution_correction` 分类、触发证据、类型化关系、成功条件和结构节点差异会说明该不可变 Revision 为什么存在。新 Graph 启动独立任务泳道；普通修订通过 `refactors` 或 `corrects` 指向父修订；Campaign 依赖通过 `depends_on` 跨泳道连接。回放接受没有 lineage 的旧记录并明确保留“来源未知”，不会虚构历史意图。
 
@@ -24,6 +41,17 @@ Host 插件在追加 `graph/change` 前用 `validateGraphRevision()` 校验主�
 
 人工与主控操作是带版本的持久记录。每条记录把稳定操作 ID 与精确任务图、设计 Revision、运行 Generation、可选节点 Attempt、经认证的操作者、入口来源、有长度上限的原因、`applied` 或 `no-op` 结果、产生的 Generation 或 Revision，以及本次变更失效或复用的节点 ID 绑定。替代节点输出必须通过节点 Schema 校验，并同时保存在控制记录和节点状态中，且保留其控制操作来源。投影回放会拒绝冲突的重复 ID、无效来源，以及指向不可能 Revision 或未来 Generation 的控制记录。
 
+<a id="dev-note"></a>
+## 开发备注
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 任务图修订规划
@@ -40,6 +68,6 @@ Host 插件在追加 `graph/change` 前用 `validateGraphRevision()` 校验主�
 
 设置未变时，稳定的角色目录可以在主控轮次之间复用前缀；创建新任务图或激活新修订时，当前任务图标识会发生变化。
 
-## 已知限制与待完成工作
+## 已知限制与待完成工作 <a id="known-limitations-and-deferred-work"></a>
 
 - 本包提供持久领域与投影，不负责执行。Graph Mode 主控、本地调度器、LoopX 适配器、Host API 和画布 UI 分属独立插件，使部署可以分别替换这些角色。静态并发上限可以降低 OOM 风险，但没有提供方或操作系统资源遥测时无法保证内存安全。

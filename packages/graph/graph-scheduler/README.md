@@ -1,6 +1,23 @@
+---
+description: "Grant exclusive, fenced ownership of durable Graph runs to one Host at a time. This reference distinguishes whole-run leases from node-level worker claims."
+kind: "package-reference"
+---
+
 # Graph scheduler
 
 English | [中文](README.zh.md)
+
+## Summary
+
+Grant and renew exclusive ownership of a durable Graph run with expiring leases and monotonic fencing tokens. Choose a Provider that matches the deployment's persistence and transport needs.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
 
 `@deepseek-ai/dsh-graph-scheduler` is the Service Definition for exclusive Graph-run ownership. A Provider atomically grants one expiring lease, renews only the exact lease identity, and rejects stale fencing tokens. This is distinct from node-level LoopX claims: it decides which Host may advance the durable run.
 
@@ -10,6 +27,18 @@ Providers must persist fencing counters beyond lease expiry. A replacement owner
 
 Every Provider runs the shared Scheduler conformance suite. It verifies exact idempotent acquisition, competing-owner exclusion, immutable session identity, minimum-epoch admission, exact heartbeat and release, replacement fencing, and stale-owner rejection. The exported `MemoryGraphSchedulerProvider` supplies the same semantics for single-process compositions without claiming restart durability.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because each mutation validates the current lease identity and fencing token.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Scheduler ownership

@@ -1,13 +1,13 @@
 /** Browser graph surface registration. */
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+import { isJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/client'
@@ -48,6 +48,26 @@ export interface GraphActionInjected {
   readonly openSession: (id: string) => void
 }
 
+function serializedJsonValue(value: object): JsonValue {
+  const serialized = JSON.stringify(value)
+  const parsed: unknown = JSON.parse(serialized)
+  assertJsonValue(parsed)
+  return parsed
+}
+
+function assertJsonValue(value: unknown): asserts value is JsonValue {
+  if (!isJsonValue(value)) throw new TypeError('Graph settings must be JSON-serializable.')
+}
+
+type GraphSessionLookup = Pick<ISessions, 'list' | 'binding'>
+
+function isGraphSessionLookup(value: unknown): value is GraphSessionLookup {
+  return typeof value === 'object' && value !== null
+    && 'binding' in value && typeof value.binding === 'function'
+    && 'list' in value && typeof value.list === 'object' && value.list !== null
+    && 'getSnapshot' in value.list && typeof value.list.getSnapshot === 'function'
+}
+
 /** Required client services. */
 export const inject = [
   'slots', 'sessions', 'remote', 'remote.commands', 'remote.session', 'locale', 'modelDirectories', 'configForms', 'uiWorkspace',
@@ -55,10 +75,13 @@ export const inject = [
 
 /** Register the session-header Graph Mode action. */
 export function apply(ctx: ClientContext): void {
-  const sessions = ctx.get('sessions') as unknown as ISessions
+  const sessionService = ctx.get('sessions')
+  if (!isGraphSessionLookup(sessionService)) throw new TypeError('Graph child actions require the Client sessions service.')
+  const sessions = sessionService
   const graphTemplates = ctx.configForms.get<GraphTemplateSettings>('graph-mode')
   const templateModels = createSnapshotStore<ModelDirectoryState>({
     current: null,
+    pending: null,
     routable: null,
     groups: [],
     failures: [],
@@ -103,15 +126,15 @@ export function apply(ctx: ClientContext): void {
   ): Promise<GraphTemplateSaveResult> => {
     try {
       const operations: SettingsPathOpView[] = [
-        { op: 'set', path: ['roles'], value: template.roles as unknown as JsonValue },
-        { op: 'set', path: ['limits'], value: template.limits as unknown as JsonValue },
-        { op: 'set', path: ['executionPolicy'], value: template.executionPolicy as unknown as JsonValue },
+        { op: 'set', path: ['roles'], value: serializedJsonValue(template.roles) },
+        { op: 'set', path: ['limits'], value: serializedJsonValue(template.limits) },
+        { op: 'set', path: ['executionPolicy'], value: serializedJsonValue(template.executionPolicy) },
         template.controllerResilience === undefined
           ? { op: 'unset', path: ['controllerResilience'] }
           : {
             op: 'set',
             path: ['controllerResilience'],
-            value: template.controllerResilience as unknown as JsonValue,
+            value: serializedJsonValue(template.controllerResilience),
           },
       ]
       if (!await graphTemplates.mutate(operations, expectedRevision)) {

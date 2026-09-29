@@ -1,6 +1,76 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for loopx-graph-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/loopx-graph-integration.md
-loopx-graph-integration.md: 8096dfdb8800fd38af8329e277fcd993afb10b86
-loopx-graph-integration.zh.md: 713bb453f51966eb096ea180121fc8eab8761bbd
+/harness-and-loopx-graph-integration:
+  en: b752975461afc5f5
+  zh: 4f45b587033fab67
+/harness-and-loopx-graph-integration/system-boundary:
+  en: 671b9e2a4768dfef
+  zh: dcda1152f08c8259
+/harness-and-loopx-graph-integration/system-boundary/authority-and-persistence-topology:
+  en: b4b537b883719465
+  zh: 4d28f476093f03da
+/harness-and-loopx-graph-integration/system-boundary/physical-store-inventory:
+  en: 3ff2c9e219fbcc37
+  zh: 30a29c45ffa4da70
+/harness-and-loopx-graph-integration/harness-execution-foundation:
+  en: c33551c1772e06fe
+  zh: 62ccacab7e19e37e
+/harness-and-loopx-graph-integration/graph-mode-components:
+  en: fa4c347053157040
+  zh: ee62b7ff7028fbb1
+/harness-and-loopx-graph-integration/controller-behavior:
+  en: 7d2bccb5b5b1ada4
+  zh: f84b48b8b5dd7523
+/harness-and-loopx-graph-integration/scheduler-and-worker-execution:
+  en: d01c2324a484437e
+  zh: 804851185b3a5daa
+/harness-and-loopx-graph-integration/loopx-control-model:
+  en: 8aba905e1e996cba
+  zh: 7e053a12de6853cb
+/harness-and-loopx-graph-integration/coordination-service:
+  en: 218fff8fb70e9bbf
+  zh: 4e1dae3a8734a0ae
+/harness-and-loopx-graph-integration/end-to-end-sequence:
+  en: a48a46c7d7b9b9c8
+  zh: 7741b43c04608d6c
+/harness-and-loopx-graph-integration/end-to-end-sequence/node-operation-and-external-work-states:
+  en: 65b800dd41a40a17
+  zh: e5600525b39c1a7b
+/harness-and-loopx-graph-integration/end-to-end-sequence/revision-and-operator-control-flow:
+  en: 6d8a64d71f6668de
+  zh: d67463b66d8dc214
+/harness-and-loopx-graph-integration/process-and-transport-behavior:
+  en: 36a2418a513d72ac
+  zh: a833aee807ba2c9e
+/harness-and-loopx-graph-integration/failure-and-cancellation:
+  en: e212b73d488bf8a2
+  zh: 1d08821650454d7c
+/harness-and-loopx-graph-integration/coupling-analysis:
+  en: 349126f622d008be
+  zh: e7597d8af3cda901
+/harness-and-loopx-graph-integration/privacy-and-model-visible-data:
+  en: d872c0efd8e957da
+  zh: ab88cdb62c0d12e3
+/harness-and-loopx-graph-integration/browser-projection-and-control:
+  en: 9f78ac09ab605932
+  zh: 9c3af8b4cc68f374
+/harness-and-loopx-graph-integration/recovery-and-extension-limits:
+  en: 875eb77b75c09418
+  zh: 7b55364e82332dff
+/harness-and-loopx-graph-integration/flow-verification-and-code-review-matrix:
+  en: 3c8773b19d19a491
+  zh: ae4c6558a646f8a5
+/harness-and-loopx-graph-integration/flow-verification-and-code-review-matrix/normal-and-exceptional-paths:
+  en: e9bbaed17024054a
+  zh: ba527afa84f488eb
+/harness-and-loopx-graph-integration/flow-verification-and-code-review-matrix/implemented-recovery-safeguards:
+  en: 0f4d9587654f78bf
+  zh: 36319e49a39ef69d
+/harness-and-loopx-graph-integration/flow-verification-and-code-review-matrix/completion-criteria-for-the-durable-target:
+  en: 47a3930857aaf549
+  zh: 400cd69dbcde8957
+/harness-and-loopx-graph-integration/source-map:
+  en: 63bcd2c44d4620e3
+  zh: 7d157ca3fa3e7482

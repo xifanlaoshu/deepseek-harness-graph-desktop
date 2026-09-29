@@ -1,6 +1,91 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for local-installation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/user/guide/local-installation.md
-local-installation.md: 0f6726a9ed8ee69765288a3e926d04decc65e9cd
-local-installation.zh.md: b285d1a88602b96ff1268972177fb1a27a5109b5
+/install-and-deploy-locally:
+  en: e8886173d74a7561
+  zh: 0aae1a2421612b2a
+/install-and-deploy-locally/execution-rules:
+  en: f0d81952378a19ed
+  zh: 59d51fdf76a4f035
+/install-and-deploy-locally/choose-a-deployment-layout:
+  en: 8029805d92c0ca67
+  zh: 8cead52183f6d8ff
+/install-and-deploy-locally/shared-values-and-acceptance-criteria:
+  en: 85f813a8ac0d92aa
+  zh: d41a00e76220ba36
+/install-and-deploy-locally/windows-wsl:
+  en: f61dc9770999c05b
+  zh: b0cbfeae7c955057
+/install-and-deploy-locally/windows-wsl/1-install-windows-prerequisites:
+  en: b752b3f5ead79029
+  zh: b5fa24a1aff79808
+/install-and-deploy-locally/windows-wsl/2-install-wsl-2-and-loopx:
+  en: d39d4d3f4bd359b7
+  zh: 61650e10b5fab52a
+/install-and-deploy-locally/windows-wsl/3-clone-and-build-dsh:
+  en: 6278d7d1f5e183bb
+  zh: 5f36635e17371cd8
+/install-and-deploy-locally/windows-wsl/4-initialize-the-loopx-goal-and-role-identities:
+  en: 5cbc2a23752143f4
+  zh: b441692fdc5121bf
+/install-and-deploy-locally/windows-wsl/5-enable-the-persistent-wsl-provider:
+  en: 1da5af58e47dfb67
+  zh: 3687fe3ee6419ab1
+/install-and-deploy-locally/windows-wsl/6-install-browser-automation-and-start:
+  en: c2b01851d3d4260f
+  zh: 77bbe721cadced67
+/install-and-deploy-locally/native-windows:
+  en: 6bd36d6dc0610dc7
+  zh: 7225aa694b5f1c74
+/install-and-deploy-locally/native-windows/1-install-clone-and-build:
+  en: b24614008fffb9cd
+  zh: 8ec0a205d4f4bf5e
+/install-and-deploy-locally/native-windows/2-install-the-browser-bundle-and-start:
+  en: 5c552920278b0c08
+  zh: db162ae0426ccbd3
+/install-and-deploy-locally/windows-background-service:
+  en: 9293c7f7df7dc35d
+  zh: b5825e7ce1ba812a
+/install-and-deploy-locally/linux:
+  en: f699346fe317b9c7
+  zh: f278acc4607474f3
+/install-and-deploy-locally/linux/1-install-prerequisites-and-node-js:
+  en: 9fc5b2e4986b8ef0
+  zh: d90a89c7b646d4cb
+/install-and-deploy-locally/linux/2-clone-and-build:
+  en: f412763f2c94b529
+  zh: 0e22e8579f8c515b
+/install-and-deploy-locally/linux/3-install-and-initialize-loopx:
+  en: 65092c3140e84945
+  zh: 2f7f7150224764a9
+/install-and-deploy-locally/linux/4-enable-native-loopx-and-start:
+  en: 449b4b6340e53f0c
+  zh: a5f95563fdd3a0db
+/install-and-deploy-locally/macos:
+  en: 16cf33a83b9aca00
+  zh: 16cf33a83b9aca00
+/install-and-deploy-locally/macos/1-install-prerequisites-and-node-js:
+  en: c99eac8f1515ed39
+  zh: 8035f5873b53c5ff
+/install-and-deploy-locally/macos/2-clone-build-and-configure-loopx:
+  en: a487cd85d50aa775
+  zh: 767cc4c15f277cf5
+/install-and-deploy-locally/macos/3-install-chrome-automation-and-start:
+  en: 02b735a82184d1f7
+  zh: b334041b680658fc
+/install-and-deploy-locally/configure-the-first-model-and-workspace:
+  en: ea1799ed95ca0a3f
+  zh: d51b0a89f0d006a0
+/install-and-deploy-locally/verify-the-installation:
+  en: b56e056763498833
+  zh: bdc2049f521daae9
+/install-and-deploy-locally/upgrade-back-up-and-recover:
+  en: 404e46df2c199074
+  zh: 2dd87e29f2f559d4
+/install-and-deploy-locally/troubleshooting:
+  en: 3e9bec49bb8c41a7
+  zh: 75d9362e30686e03
+/install-and-deploy-locally/installation-receipt:
+  en: e05c6e1c13be65e5
+  zh: 3c760cbb27855bb6

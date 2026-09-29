@@ -50,6 +50,7 @@ describe('runProfile with an application-owned profile', () => {
     const failure = new Error('startup failed')
     const cleanupFailure = new Error('proxy cleanup failed')
     const treeCleanupFailure = new Error('tree cleanup failed')
+    const beforeDispose = vi.fn()
     if (stage === 'tree-cleanup' || stage === 'both-cleanups') dispose.mockRejectedValueOnce(treeCleanupFailure)
     const disposeProxy = vi.fn().mockImplementation(() => stage === 'cleanup' || stage === 'both-cleanups'
       ? Promise.reject(cleanupFailure)
@@ -60,7 +61,7 @@ describe('runProfile with an application-owned profile', () => {
       throw failure
     })
     if (stage === 'composition') vi.mocked(createRuntimeResolution).mockRejectedValueOnce(failure)
-    const profile: Profile = {
+    const profile: Profile = { skippedBundles: [],
       name: 'desktop', dir: home, patchPath: join(home, 'cordis.patch.yml'),
       patches: [], layers: [],
     }
@@ -68,6 +69,7 @@ describe('runProfile with an application-owned profile', () => {
       const application = runProfile({
         environment: createLaunchEnvironmentSnapshot([]), profile: 'desktop', patchFiles: [], args: ['--no-open'],
         resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
+        beforeDispose,
       })
       if (stage === 'both-cleanups') {
         await expect(application).rejects.toMatchObject({ errors: [failure, { errors: [treeCleanupFailure, cleanupFailure] }] })
@@ -81,6 +83,7 @@ describe('runProfile with an application-owned profile', () => {
       expect(disposeProxy).toHaveBeenCalledOnce()
       expect(boot).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
       expect(dispose).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
+      expect(beforeDispose).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
     } finally {
       await ctx.fiber.dispose()
     }
@@ -121,7 +124,7 @@ describe('runProfile with an application-owned profile', () => {
     writeFileSync(profilePatch, '- id: target\n  config: { profile: true, priority: profile }\n')
     writeFileSync(overlay, '- id: target\n  config: { overlay: true, priority: overlay }\n')
     writeFileSync(join(home, 'cordis.yml'), '- id: stale\n')
-    const profile: Profile = {
+    const profile: Profile = { skippedBundles: [],
       name: 'desktop', dir: home, patchPath: profilePatch,
       patches: [{ id: 'target', config: { profile: true, priority: 'profile' } }],
       layers: [{
@@ -171,5 +174,126 @@ describe('runProfile with an application-owned profile', () => {
       await ctx.fiber.dispose()
       process.exitCode = oldExitCode
     }
+  })
+
+  it('waits for beforeDispose once before fiber and proxy cleanup', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-profile-dispose-barrier-'))
+    homes.push(home)
+    mkdirSync(join(home, 'runtime'))
+    writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
+    vi.stubEnv('DSH_HOME', home)
+    vi.spyOn(process, 'on').mockReturnValue(process)
+    const ctx = new Context()
+    ctx.provide('loader', { create: vi.fn() })
+    ctx.provide('hmr', {})
+    const profile: Profile = { skippedBundles: [], name: 'desktop', dir: home,
+      patchPath: join(home, 'cordis.patch.yml'), patches: [], layers: [] }
+    const releaseProxy = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(installProxyFromEnvironment).mockResolvedValue(releaseProxy)
+    vi.mocked(boot).mockImplementation(async (_name, _root, _patches, setup) => {
+      await setup?.(ctx)
+      return ctx
+    })
+    let settle!: () => void
+    const barrier = new Promise<void>((resolve) => { settle = resolve })
+    const order: string[] = []
+    const beforeDispose = vi.fn(async () => { order.push('before-start'); await barrier; order.push('before-end') })
+    const fiberDispose = vi.spyOn(ctx.fiber, 'dispose').mockImplementation(async () => { order.push('fiber') })
+    try {
+      const { shutdown } = await runProfile({
+        environment: createLaunchEnvironmentSnapshot([]), profile: 'desktop', patchFiles: [], args: [], beforeDispose,
+        resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
+      })
+      const stopping = shutdown.shutdown(0)
+      const joined = shutdown.shutdown(0)
+      await Promise.resolve()
+      expect(beforeDispose).toHaveBeenCalledOnce()
+      expect(fiberDispose).not.toHaveBeenCalled()
+      expect(releaseProxy).not.toHaveBeenCalled()
+      settle()
+      await Promise.all([stopping, joined])
+      expect(order).toEqual(['before-start', 'before-end', 'fiber'])
+      expect(fiberDispose).toHaveBeenCalledOnce()
+      expect(releaseProxy).toHaveBeenCalledOnce()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('holds a real profile Loader fiber open until consumer settlement finishes', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-profile-real-dispose-barrier-'))
+    homes.push(home)
+    mkdirSync(join(home, 'runtime'))
+    writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
+    writeFileSync(join(home, 'package.json'), '{"name":"test-profile","version":"1.0.0"}')
+    vi.stubEnv('DSH_HOME', home)
+    vi.spyOn(process, 'on').mockReturnValue(process)
+    vi.mocked(installProxyFromEnvironment).mockResolvedValue(vi.fn().mockResolvedValue(undefined))
+    const realAppBoot = await vi.importActual<typeof import('@deepseek-ai/dsh-app-boot')>('@deepseek-ai/dsh-app-boot')
+    vi.mocked(boot).mockImplementation(realAppBoot.boot)
+    const profile: Profile = { skippedBundles: [], name: 'desktop', dir: home,
+      patchPath: join(home, 'cordis.patch.yml'), patches: [], layers: [] }
+    let entered!: () => void
+    const hookEntered = new Promise<void>((resolve) => { entered = resolve })
+    let settle!: () => void
+    const barrier = new Promise<void>((resolve) => { settle = resolve })
+    const order: string[] = []
+    let shutdown: { shutdown(code: number): Promise<void> } | undefined
+    const oldExitCode = process.exitCode
+    try {
+      const application = await runProfile({ environment: createLaunchEnvironmentSnapshot([]), profile: 'desktop',
+        patchFiles: [], args: [], resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
+        beforeDispose: async (ctx) => {
+          ctx.effect(() => () => { order.push('fiber-disposed') })
+          order.push('consumers-start')
+          entered()
+          await barrier
+          order.push('consumers-settled')
+        },
+      })
+      shutdown = application.shutdown
+      const stopping = application.shutdown.shutdown(0)
+      await hookEntered
+      expect(order).toEqual(['consumers-start'])
+      settle()
+      await stopping
+      expect(order).toEqual(['consumers-start', 'consumers-settled', 'fiber-disposed'])
+    } finally {
+      settle()
+      await shutdown?.shutdown(0).catch(() => undefined)
+      process.exitCode = oldExitCode
+    }
+  })
+
+  it('uses the shared disposer for fail-loud cleanup and preserves cleanup failures', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-profile-fail-loud-dispose-'))
+    homes.push(home)
+    mkdirSync(join(home, 'runtime'))
+    writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
+    vi.stubEnv('DSH_HOME', home)
+    vi.spyOn(process, 'on').mockReturnValue(process)
+    const ctx = new Context()
+    ctx.provide('loader', { create: vi.fn() })
+    ctx.provide('hmr', {})
+    const profile: Profile = { skippedBundles: [], name: 'desktop', dir: home,
+      patchPath: join(home, 'cordis.patch.yml'), patches: [], layers: [] }
+    const releaseProxy = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(installProxyFromEnvironment).mockResolvedValue(releaseProxy)
+    vi.mocked(boot).mockImplementation(async (_name, _root, _patches, setup) => { await setup?.(ctx); return ctx })
+    const hookError = new Error('consumer settlement failed')
+    const fiberError = new Error('fiber cleanup failed')
+    const beforeDispose = vi.fn().mockRejectedValue(hookError)
+    const fiberDispose = vi.spyOn(ctx.fiber, 'dispose').mockRejectedValue(fiberError)
+    try {
+      const result = await runProfile({ environment: createLaunchEnvironmentSnapshot([]), profile: 'desktop',
+        patchFiles: [], args: [], beforeDispose,
+        resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') } })
+      const [, , release] = vi.mocked((await import('@deepseek-ai/dsh-app-boot')).installFailLoud).mock.calls.at(-1)!
+      if (release === undefined) throw new Error('profile boot did not register a release callback')
+      await expect(release()).rejects.toMatchObject({ errors: [hookError, fiberError] })
+      await expect(release()).rejects.toMatchObject({ errors: [hookError, fiberError] })
+      expect(beforeDispose).toHaveBeenCalledOnce()
+      expect(fiberDispose).toHaveBeenCalledOnce()
+      expect(releaseProxy).toHaveBeenCalledOnce()
+      expect(result.shutdown).toBeDefined()
+    } finally { await ctx.fiber.dispose().catch(() => undefined) }
   })
 })

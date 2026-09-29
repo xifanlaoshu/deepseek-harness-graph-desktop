@@ -184,7 +184,7 @@ export interface SessionEventMap {
 当外部插件（例如上下文压缩插件 `@deepseek-ai/dsh-compaction` 或钩子拦截协议 `@deepseek-ai/dsh-hook-protocol`）引入新的事实时，只需在自己的模块声明文件中进行接口叠加：
 
 ```typescript
-// 在 packages/plugins/compaction/src/types.ts 中扩展
+// 在 packages/compaction/compaction/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'compaction/start': { compactionId: string; targetRange: { start: number; end: number } }
@@ -193,7 +193,7 @@ declare module '@deepseek-ai/dsh-session' {
   }
 }
 
-// 在 packages/plugins/hook-protocol/src/types.ts 中扩展
+// 在 packages/hooks/hook-protocol/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'hook/invoked': { hookName: string; handlerId: string; payload: JsonValue }
@@ -326,7 +326,7 @@ export function deriveEventMessage(event: SessionEvent): Message | null {
 }
 ```
 
-### 3.3 `SurfaceManager` 状态机与因果追溯（Provenance）断言
+### 3.3 `SurfaceManager` 状态机与来源事件引用断言
 
 `SurfaceManager` 负责在事件写入日志前进行**两阶段提议-提交校验**，确保 Surface 的拓扑结构在任何时刻都保持合法。
 
@@ -427,7 +427,7 @@ export class SurfaceManager implements SessionSurface {
     }
 
     if (op === 'append') {
-      this.assertProvenance(event, [])
+      this.assertSourceEventReferences(event, [])
       return { kind: 'append', seq: expectedSeq }
     }
 
@@ -446,7 +446,7 @@ export class SurfaceManager implements SessionSurface {
 
     const shadowedSeqs = this._nodes.slice(startIdx, endIdx + 1)
     // 因果追溯校验：replace 节点必须在 sourceEventSeqs 中显式声明所有被它遮蔽的节点
-    this.assertProvenance(event, shadowedSeqs)
+    this.assertSourceEventReferences(event, shadowedSeqs)
 
     return {
       kind: 'replace',
@@ -459,14 +459,14 @@ export class SurfaceManager implements SessionSurface {
     }
   }
 
-  private assertProvenance(event: SessionEvent, shadowedSeqs: readonly number[]): void {
+  private assertSourceEventReferences(event: SessionEvent, shadowedSeqs: readonly number[]): void {
     const raw = event as SessionEvent & { sourceEventSeqs?: number[] }
     const sources = new Set<number>(raw.sourceEventSeqs ?? [])
 
     // 检查是否有前向引用非法序号（引用了未来尚未发生的事件）
     for (const src of sources) {
       if (src >= event.seq) {
-        throw new Error(`Provenance violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
+        throw new Error(`Source event reference violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
       }
     }
 

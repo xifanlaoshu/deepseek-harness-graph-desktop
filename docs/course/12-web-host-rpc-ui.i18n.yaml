@@ -1,6 +1,118 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 12-web-host-rpc-ui.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/12-web-host-rpc-ui.md
-12-web-host-rpc-ui.md: 2a11778a4aa9974158809d691a0ac9a300170b63
-12-web-host-rpc-ui.zh.md: e1c5218427e317fc6508bcdd764b79977a0e3d31
+/chapter-12-web-host-rpc-and-pluggable-ui:
+  en: 08343cbefcd080eb
+  zh: 21af9eb727ff7025
+/chapter-12-web-host-rpc-and-pluggable-ui/1-mapping-systems-concepts-to-the-web-host-and-ui:
+  en: d782ab5c410c2bd5
+  zh: 3867cd6e47a7b341
+/chapter-12-web-host-rpc-and-pluggable-ui/2-separate-cordis-trees-node-js-host-and-browser-client:
+  en: 246f378b6989fb2d
+  zh: ccbba50adaada775
+/chapter-12-web-host-rpc-and-pluggable-ui/2-separate-cordis-trees-node-js-host-and-browser-client/2-1-responsibilities-and-lifecycle-topology:
+  en: 666b51124428d57e
+  zh: a73e0ddc42df687c
+/chapter-12-web-host-rpc-and-pluggable-ui/2-separate-cordis-trees-node-js-host-and-browser-client/2-2-separate-typescript-compiler-faces:
+  en: 76a3f8c27d48abcb
+  zh: d596cf1733f49c34
+/chapter-12-web-host-rpc-and-pluggable-ui/2-separate-cordis-trees-node-js-host-and-browser-client/2-3-pure-projection:
+  en: 41ea79e5377271a5
+  zh: 0d78a201242944a8
+/chapter-12-web-host-rpc-and-pluggable-ui/2-separate-cordis-trees-node-js-host-and-browser-client/2-4-complete-example-bootstrapping-the-client-container-and-plugins:
+  en: d9c7c4b2c44dc0ab
+  zh: 645eb5219c9aa1c8
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs:
+  en: e19863e561edd5ef
+  zh: 15888b9e735b06ce
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs/3-1-declarative-decorators-and-domain-object-mapping:
+  en: 42933effd85c4b80
+  zh: 7748b9fcdd0ee179
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs/3-1-declarative-decorators-and-domain-object-mapping/mapping-domain-objects-to-wire-values-with-typertlookupmap:
+  en: 5555b182ff352316
+  zh: 622665884394ef13
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs/3-2-static-analysis-and-declaration-maps:
+  en: bf5ca0bcd2890156
+  zh: e4c916f23b892584
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs/3-3-serialization-codecs-and-performance-accounting:
+  en: 11f1186b16b37ef7
+  zh: 051103e3b94f195b
+/chapter-12-web-host-rpc-and-pluggable-ui/3-typert-rpc-gateway-from-typescript-declarations-to-type-graphs-and-codecs/3-4-complete-example-typert-rpc-gateway-and-dispatcher:
+  en: 96f55c469469cbcb
+  zh: e57eb841a92f4012
+/chapter-12-web-host-rpc-and-pluggable-ui/4-transport-channels-and-the-four-quadrant-rpc-gateway:
+  en: 975fa3b9746a8ac3
+  zh: 7332c9d7c84627f5
+/chapter-12-web-host-rpc-and-pluggable-ui/4-transport-channels-and-the-four-quadrant-rpc-gateway/4-1-four-message-quadrants-and-branded-rpcid:
+  en: 575f47321f067cf0
+  zh: 48611ca25e6202df
+/chapter-12-web-host-rpc-and-pluggable-ui/4-transport-channels-and-the-four-quadrant-rpc-gateway/4-1-four-message-quadrants-and-branded-rpcid/the-branded-rpcid-echo-invariant:
+  en: af453b33746bdd0c
+  zh: 45861ab3f7ea10a8
+/chapter-12-web-host-rpc-and-pluggable-ui/4-transport-channels-and-the-four-quadrant-rpc-gateway/4-2-http-bridge-a-memory-bounded-adapter-from-node-streams-to-whatwg-fetch:
+  en: b4b65c5e96296e39
+  zh: f137ff36fbe31384
+/chapter-12-web-host-rpc-and-pluggable-ui/4-transport-channels-and-the-four-quadrant-rpc-gateway/4-3-websocket-downlink-two-push-channels:
+  en: 20870c8ec081c822
+  zh: c53c7bb1e71211cc
+/chapter-12-web-host-rpc-and-pluggable-ui/5-client-reactive-state-zustand-immer-and-localized-redraws:
+  en: 6bbe021ee9316d3c
+  zh: 680b4041b72762b7
+/chapter-12-web-host-rpc-and-pluggable-ui/5-client-reactive-state-zustand-immer-and-localized-redraws/5-1-frame-aligned-scheduling-and-its-cost-model:
+  en: 88d338ee1c0bf52a
+  zh: 44af38f27d94984e
+/chapter-12-web-host-rpc-and-pluggable-ui/5-client-reactive-state-zustand-immer-and-localized-redraws/5-2-state-stores-and-the-limit-of-zustand-s-built-in-persist:
+  en: 478c65fe4627582f
+  zh: 7b0c656b3e00192a
+/chapter-12-web-host-rpc-and-pluggable-ui/5-client-reactive-state-zustand-immer-and-localized-redraws/5-2-state-stores-and-the-limit-of-zustand-s-built-in-persist/why-not-use-zustand-s-persist-middleware:
+  en: 4eb942803558bc45
+  zh: 0d4a4bf2392f10d9
+/chapter-12-web-host-rpc-and-pluggable-ui/5-client-reactive-state-zustand-immer-and-localized-redraws/5-3-local-react-redraws-with-selectors:
+  en: 7f1f4665d0edccef
+  zh: 8261dd9f896ad98f
+/chapter-12-web-host-rpc-and-pluggable-ui/6-browser-automation-with-chrome-devtools-mcp:
+  en: be0ebaaf7743429d
+  zh: 78c6e2846486dfb1
+/chapter-12-web-host-rpc-and-pluggable-ui/6-browser-automation-with-chrome-devtools-mcp/6-1-managed-and-external-modes:
+  en: acf398636de46eae
+  zh: 25410f4912643428
+/chapter-12-web-host-rpc-and-pluggable-ui/6-browser-automation-with-chrome-devtools-mcp/6-1-managed-and-external-modes/chrome-136-remote-debugging-protection:
+  en: 429c7220015e745c
+  zh: 843cfdcbc0424269
+/chapter-12-web-host-rpc-and-pluggable-ui/6-browser-automation-with-chrome-devtools-mcp/6-2-concurrent-agents-and-tab-isolation-with-pageidrouting:
+  en: c2658abddc28e367
+  zh: e2770bb584889be8
+/chapter-12-web-host-rpc-and-pluggable-ui/6-browser-automation-with-chrome-devtools-mcp/6-3-safe-workspace-path-translation:
+  en: 099dac3a57c432f0
+  zh: 193b8dc2da49fbce
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis:
+  en: 94f76069179b1ff0
+  zh: dfa2d844ba3311d9
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis/case-1-proxy-reordering-and-rpcid-mismatch-stall-concurrent-requests:
+  en: ae17126b952ee801
+  zh: 4c71082459aa67a8
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis/case-2-no-frame-coalescing-freezes-the-renderer-with-100-000-reasoning-chunks:
+  en: 76a1afbb1c7887d7
+  zh: 6a7df5e2f69d30cf
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis/case-3-zustand-s-default-persist-breaks-scalar-state-and-blanks-the-page:
+  en: 81a59fcf1076d2ea
+  zh: 5fb5cc414794899e
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis/case-4-chrome-136-rejects-remote-debugging-with-the-default-user-data-directory:
+  en: fe8e34e31fb60026
+  zh: 89a16d110ba25f70
+/chapter-12-web-host-rpc-and-pluggable-ui/7-production-failures-and-diagnosis/case-5-unrestricted-mcp-output-paths-contaminate-another-session-s-workspace:
+  en: d897c17e216f39c8
+  zh: 2e775e2e76d78415
+/chapter-12-web-host-rpc-and-pluggable-ui/8-exercises:
+  en: d932c76884af101b
+  zh: 9100d63be71da7af
+/chapter-12-web-host-rpc-and-pluggable-ui/8-exercises/exercise-1-build-a-strongly-typed-full-stack-remote-metrics-service:
+  en: 7ba814eeb219a454
+  zh: 01da7613121e7390
+/chapter-12-web-host-rpc-and-pluggable-ui/8-exercises/exercise-2-add-replay-protection-and-a-timeout-to-an-rpc-interceptor:
+  en: e95de0e362aeb3dc
+  zh: 2124b130a026e011
+/chapter-12-web-host-rpc-and-pluggable-ui/8-exercises/exercise-3-export-pdfs-through-chrome-devtools-mcp-with-sandbox-protection:
+  en: 0c828a4fb40918c8
+  zh: 65ad2c1623674d40

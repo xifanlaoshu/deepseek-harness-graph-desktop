@@ -15,7 +15,7 @@ import threading
 import time
 
 PROTOCOL = 1
-COMMAND = sys.argv[1]
+COMMAND = json.loads(sys.argv[1])
 requests = queue.Queue()
 active = {}
 cancelled = set()
@@ -64,7 +64,7 @@ def execute(request):
         return
     try:
         process = subprocess.Popen(
-            [COMMAND, *request["args"]],
+            [*COMMAND, *request["args"]],
             cwd=request["cwd"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,

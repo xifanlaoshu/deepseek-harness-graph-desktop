@@ -1,6 +1,130 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 19-source-code-tour.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/19-source-code-tour.md
-19-source-code-tour.md: bd9a1f6c397ffeeee9c54180f70862189b4c6063
-19-source-code-tour.zh.md: 9a71577cfddeba111081ef695eb507117fb0992a
+/chapter-19-a-source-reading-route-and-exercises:
+  en: d5353c9998095cf1
+  zh: 5a4b6bfd7d4a33e8
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source:
+  en: 3eb7434805f09604
+  zh: d39054cc7b87c212
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-1-bootstrap-and-composition:
+  en: 6933064af8eb10b8
+  zh: 57f1564bb10d18a2
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-1-bootstrap-and-composition/1-responsibility-and-systems-analogy:
+  en: e6ff4cc28d770bfb
+  zh: 7ffe1ae87c6079dd
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-1-bootstrap-and-composition/2-mathematical-model-configuration-overlay-algebra:
+  en: b14782f5b16e06d0
+  zh: 29de165407fec302
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-1-bootstrap-and-composition/3-key-files-and-reading-notes:
+  en: 0fb5391422d4f79d
+  zh: 6b1fff2707f35c47
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-1-bootstrap-and-composition/4-architecture-flow-and-call-sequence:
+  en: ae703c5c214d3315
+  zh: 7b98dc51996af23e
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-2-the-single-agent-execution-loop:
+  en: 1bf4cbeb200f5bce
+  zh: 61fca414236bbcc4
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-2-the-single-agent-execution-loop/1-responsibility-and-systems-analogy:
+  en: dcbb1b04829e9ef4
+  zh: 4a05d1e9a9c9bc0c
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-2-the-single-agent-execution-loop/2-mathematical-model-autoregressive-generation-and-incremental-event-projection:
+  en: e5432057413b335c
+  zh: 1322b6249440113d
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-2-the-single-agent-execution-loop/3-key-files-and-reading-notes:
+  en: 6fbb3fb22cd07321
+  zh: 39fe06be848ae61f
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-2-the-single-agent-execution-loop/4-one-step-through-the-state-machine:
+  en: bdef682ed45d47bc
+  zh: da76f453c58070ef
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-3-persistence-and-web-projection:
+  en: 747ef5ba85ad8320
+  zh: ab245127a86b1915
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-3-persistence-and-web-projection/1-responsibility-and-systems-analogy:
+  en: 23d134683e02c792
+  zh: 68f21e1dfa19cb48
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-3-persistence-and-web-projection/2-key-files-and-reading-notes:
+  en: 537f1a70fc6c6261
+  zh: a5f2e052f13d84d2
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-4-multi-agent-orchestration-and-coordination:
+  en: 444bce005081545a
+  zh: 7ebbf210c5332496
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-4-multi-agent-orchestration-and-coordination/1-responsibility-and-systems-analogy:
+  en: a5dfd959da3d9d41
+  zh: 98306bfce2c387c6
+/chapter-19-a-source-reading-route-and-exercises/1-a-four-stage-route-through-the-source/stage-4-multi-agent-orchestration-and-coordination/2-key-files-and-reading-notes:
+  en: c3fcfcf675935e08
+  zh: 82cd41cf7169abdb
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises:
+  en: 6d6e22334e799ced
+  zh: 8ecf1a301304936b
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-one-trace-every-event-seq-in-a-headless-run:
+  en: b6fb535675c89f6f
+  zh: ff3bb3eef782ef1e
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-one-trace-every-event-seq-in-a-headless-run/1-objective-and-background:
+  en: 6f02a556d7e7c0fd
+  zh: 97a81cece711eb98
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-one-trace-every-event-seq-in-a-headless-run/2-reasoning-and-mechanism:
+  en: feb53ee7c9b9e1c3
+  zh: f9764f305dd33982
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-one-trace-every-event-seq-in-a-headless-run/3-complete-event-sequence-and-reference-answer:
+  en: a6d239056ba8bf29
+  zh: d8441e5f04d4b362
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-two-write-a-waterfall-listener-that-intercepts-and-rewrites-a-prompt:
+  en: 0d42109fcb28400b
+  zh: 98f690dcdecd5009
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-two-write-a-waterfall-listener-that-intercepts-and-rewrites-a-prompt/1-objective-and-background:
+  en: 77164af19b31bcbb
+  zh: 2940da3d0874c8c7
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-two-write-a-waterfall-listener-that-intercepts-and-rewrites-a-prompt/2-architectural-principle:
+  en: 4d980752c3c2ce46
+  zh: 13b94eb380643d41
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-two-write-a-waterfall-listener-that-intercepts-and-rewrites-a-prompt/3-production-style-typescript-reference:
+  en: 0a1d5ca12c56477a
+  zh: f38ac0abd1d5cf98
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-two-write-a-waterfall-listener-that-intercepts-and-rewrites-a-prompt/4-unit-tests-and-verification:
+  en: 5cbcf3b6fcf595ed
+  zh: f8f0771ac828c3a3
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows:
+  en: 1375260beda8cd94
+  zh: adfc721edda25fa2
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/1-objective-and-background:
+  en: b1719c8ae79ba4ab
+  zh: 6b649da9b1e0d6d3
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/2-the-three-crash-windows:
+  en: 01e35f8b995e2687
+  zh: 0acdbef0f60f1c60
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/2-the-three-crash-windows/window-a-crash-after-assistant-message-but-before-tool-call:
+  en: 4ad29d5a55342bc9
+  zh: 4f98056f7b7852ed
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/2-the-three-crash-windows/window-b-crash-after-tool-call-during-the-disk-write:
+  en: ab477657310d5abf
+  zh: 91f4e0ba34f38912
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/2-the-three-crash-windows/window-c-crash-after-the-write-but-before-tool-result-is-durable:
+  en: 2fced0d188f603ad
+  zh: d4d1d5ac194cb8a6
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-three-recover-a-non-idempotent-file-append-across-three-crash-windows/3-recovery-state-transition-table:
+  en: 6871acce860f51d0
+  zh: 16082b3970a0e8eb
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing:
+  en: e1b0ad5476b5105f
+  zh: 4973b89fa9240a04
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing/1-objective-and-background:
+  en: 00ae5c697affd796
+  zh: 182c37ac3ea3338b
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing/2-structured-graph-campaign-data:
+  en: 63bd9b5a32ecb48a
+  zh: 2196960016d73da3
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing/3-full-identity-derivation-hierarchy:
+  en: fd16b55dfe5233f3
+  zh: 990357ea59221cea
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing/4-identity-and-distributed-coordination-lifecycle-diagram:
+  en: 8e51eb251af55479
+  zh: 8fb7b923ac192dc9
+/chapter-19-a-source-reading-route-and-exercises/2-four-hands-on-exercises/exercise-four-design-a-two-batch-campaign-with-environment-and-browser-testing/5-coordination-with-leases-and-monotonic-fencing-tokens:
+  en: 4490c618aa3d6d5e
+  zh: 0a7a683e26a93a5b
+/chapter-19-a-source-reading-route-and-exercises/3-chapter-summary-and-further-study:
+  en: fcce7cc39441a52c
+  zh: 1798f0e557d85fe5

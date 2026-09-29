@@ -1,6 +1,103 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 07-startup-profiles.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/07-startup-profiles.md
-07-startup-profiles.md: 5cfdd51c075ab8a2814b1f5a3cc7703e45f18a3a
-07-startup-profiles.zh.md: 6153088f382cdb54d73c96f6b9de1e5b1db5b86b
+/chapter-07-startup-profiles-and-configuration-overlays:
+  en: 5a964fb7ecb4eae2
+  zh: 66a989bdb1643a99
+/chapter-07-startup-profiles-and-configuration-overlays/7-1-mental-model-microkernel-boot-and-configuration-layers:
+  en: dd6dbccd7b624e13
+  zh: 4f1ada1486e9d914
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports:
+  en: 86b9d89ebba38311
+  zh: 18004b1fc2f48a2e
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports/7-2-1-minimal-dispatch-in-apps-cli-src-bin-ts:
+  en: f362d84253c99a08
+  zh: 4bebd3f51501810b
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports/7-2-2-commander-adapter-and-pass-through-argument-boundary:
+  en: ae32f4f8679a337f
+  zh: be1cf98b61b136a3
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports/7-2-3-three-tier-environment-precedence-and-bootstrap-only-protection:
+  en: e33e2eaca9c0cff0
+  zh: 6690e447a921a0cf
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports/7-2-3-three-tier-environment-precedence-and-bootstrap-only-protection/security-isbootstraponly-blocklist-filtering:
+  en: f569b1c0903ac384
+  zh: 92bd4057185edc78
+/chapter-07-startup-profiles-and-configuration-overlays/7-2-cli-entry-point-and-dynamic-esm-imports/7-2-4-process-lifecycle-and-the-tty-recovery-watchdog-installfailloud:
+  en: d833c6c0287892da
+  zh: 33d6187e637eb254
+/chapter-07-startup-profiles-and-configuration-overlays/7-3-separating-profiles-from-bundles:
+  en: 7ddd41a7f5e3fb01
+  zh: cf5f0946c2360bf7
+/chapter-07-startup-profiles-and-configuration-overlays/7-3-separating-profiles-from-bundles/7-3-1-two-anchor-module-resolution:
+  en: a6b858d1532ae8c8
+  zh: a61f5ddff583f676
+/chapter-07-startup-profiles-and-configuration-overlays/7-3-separating-profiles-from-bundles/7-3-2-self-healing-flat-module-fallback-directory:
+  en: 7a190c862e6472bc
+  zh: 7fcb79982abb77da
+/chapter-07-startup-profiles-and-configuration-overlays/7-4-the-four-layer-configuration-overlay-chain:
+  en: bf55c24c62dd4912
+  zh: 821a17e0713c2e89
+/chapter-07-startup-profiles-and-configuration-overlays/7-4-the-four-layer-configuration-overlay-chain/7-4-1-formalizing-configuration-overlays-as-semilattice-algebra:
+  en: c340321aa1dc9886
+  zh: 2e79375e93168c64
+/chapter-07-startup-profiles-and-configuration-overlays/7-4-the-four-layer-configuration-overlay-chain/7-4-1-formalizing-configuration-overlays-as-semilattice-algebra/complexity:
+  en: 66c41a20137f7447
+  zh: 4a3a2f6fd9002ce5
+/chapter-07-startup-profiles-and-configuration-overlays/7-4-the-four-layer-configuration-overlay-chain/7-4-2-why-deep-recursive-merging-is-deliberately-excluded:
+  en: 55ae996f462dd119
+  zh: 4077bfeb4829a89b
+/chapter-07-startup-profiles-and-configuration-overlays/7-4-the-four-layer-configuration-overlay-chain/7-4-3-avoiding-object-aliasing-with-structuredclone:
+  en: a92bde238529ccae
+  zh: 0a94194f6d78a0af
+/chapter-07-startup-profiles-and-configuration-overlays/7-5-how-schemastery-validates-configuration:
+  en: cb9b76d0b3a27ebc
+  zh: 224caf40ca1a8d93
+/chapter-07-startup-profiles-and-configuration-overlays/7-5-how-schemastery-validates-configuration/7-5-1-deriving-static-types-and-runtime-schemas-together:
+  en: 974aa99e0b728ddf
+  zh: 8d7c52be8145a71e
+/chapter-07-startup-profiles-and-configuration-overlays/7-5-how-schemastery-validates-configuration/7-5-2-failing-at-load-time-instead-of-much-later:
+  en: b379bdeda9a60932
+  zh: 092944d9970591c6
+/chapter-07-startup-profiles-and-configuration-overlays/7-5-how-schemastery-validates-configuration/7-5-2-failing-at-load-time-instead-of-much-later/two-startup-audits-assertentriesloaded-and-assertentriesactivated:
+  en: 9284991dffd7cb71
+  zh: 536a2194ea0f90d1
+/chapter-07-startup-profiles-and-configuration-overlays/7-6-inspecting-the-runtime-tree-with-dump-config:
+  en: 7e3c35a9f9987ce2
+  zh: aee703e4310f8a47
+/chapter-07-startup-profiles-and-configuration-overlays/7-6-inspecting-the-runtime-tree-with-dump-config/7-6-1-positional-prefix-snapshot-diffing:
+  en: cab089cf20c45839
+  zh: e15930e2e7c9d877
+/chapter-07-startup-profiles-and-configuration-overlays/7-6-inspecting-the-runtime-tree-with-dump-config/7-6-2-command-line-examples:
+  en: b4555ab113a014e6
+  zh: 717d663d51f52dcb
+/chapter-07-startup-profiles-and-configuration-overlays/7-6-inspecting-the-runtime-tree-with-dump-config/7-6-2-command-line-examples/1-print-the-complete-web-profile-tree:
+  en: 5e106d69ef5fbbbe
+  zh: ea54b0d537c1fba6
+/chapter-07-startup-profiles-and-configuration-overlays/7-6-inspecting-the-runtime-tree-with-dump-config/7-6-2-command-line-examples/2-print-the-bundle-tree-without-user-overrides-recovery-diagnosis:
+  en: 5421c61bebee291b
+  zh: 1d8945dc085a2c45
+/chapter-07-startup-profiles-and-configuration-overlays/7-7-complete-production-grade-typescript-implementation-boot-and-overlay-engine:
+  en: 814f554d44d79822
+  zh: a5ad6d3bd22fff7a
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting:
+  en: 8a6897306cc8dbd1
+  zh: a3ece2a98347f771
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting/failure-1-concurrent-junction-creation-on-windows-fails-with-eexist:
+  en: 3e69d7f8eacdf8f7
+  zh: 3f67385b8b8301bd
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting/failure-2-hmr-cannot-restore-bundle-defaults-after-a-configuration-edit-object-aliasing:
+  en: c8e4fc4d05848869
+  zh: cf768e3dc470f4a8
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting/failure-3-terminal-remains-in-raw-mode-after-a-plugin-crash:
+  en: 64c980da64efb6d3
+  zh: 3e3b0610b471b7e9
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting/failure-4-js-injection-enables-uncontrolled-code-execution:
+  en: 7793193e2f530e17
+  zh: 3dfe547b941dbcfd
+/chapter-07-startup-profiles-and-configuration-overlays/7-8-production-failure-modes-and-troubleshooting/failure-5-an-id-based-override-omits-a-required-field-and-fails-schemastery-validation:
+  en: 7118191ff2d61eb4
+  zh: e979bafbacd7bed1
+/chapter-07-startup-profiles-and-configuration-overlays/7-9-hands-on-exercises:
+  en: 6d09514136b4bcb2
+  zh: 670832fcf80ab409

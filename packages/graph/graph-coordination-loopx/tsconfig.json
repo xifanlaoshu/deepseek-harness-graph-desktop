@@ -8,7 +8,6 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../graph" },
     { "path": "../graph-coordination" },
-    { "path": "../../subprocess/subprocess" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../subprocess/subprocess" }
   ]
 }

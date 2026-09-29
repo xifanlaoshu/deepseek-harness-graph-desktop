@@ -1,6 +1,97 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 14-graph-mode-scheduling.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/14-graph-mode-scheduling.md
-14-graph-mode-scheduling.md: 8872223f4af18bbc568819ca19de8dcec6e97a89
-14-graph-mode-scheduling.zh.md: 89bf919ffadc8061d092452c89209a4c239cebd1
+/chapter-14-graph-mode-scheduling:
+  en: cfc76ef4df56be1a
+  zh: 514e6704b7eca2e7
+/chapter-14-graph-mode-scheduling/1-software-engineering-mapping-a-systems-programming-model-of-graph-mode:
+  en: 4313b0ad01fe3323
+  zh: 7f2fad63fc1b6c8e
+/chapter-14-graph-mode-scheduling/2-three-layers-of-a-task-graph-semantic-draft-to-immutable-revision-to-run:
+  en: 86a72b64269bceb0
+  zh: 2590ffa15caddc2e
+/chapter-14-graph-mode-scheduling/2-three-layers-of-a-task-graph-semantic-draft-to-immutable-revision-to-run/2-1-semantic-draft-protocol:
+  en: a0d4ca1d41944aab
+  zh: 7177b5b2a8c3775b
+/chapter-14-graph-mode-scheduling/2-three-layers-of-a-task-graph-semantic-draft-to-immutable-revision-to-run/2-2-deriving-immutable-revision-snapshots-and-propagating-downstream-invalidation:
+  en: b9db01bcc547c2fb
+  zh: cad617e583f21361
+/chapter-14-graph-mode-scheduling/2-three-layers-of-a-task-graph-semantic-draft-to-immutable-revision-to-run/2-3-physical-execution-layer-graph-run-and-state-projection:
+  en: 297089e98feb8c73
+  zh: 762ec128d53627b9
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control:
+  en: 8181b11e80deb472
+  zh: c7b786ddc1cbb09a
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-1-calculating-transitive-closure-and-an-invalidation-matrix-by-hand:
+  en: a5375dcb8c3f19f4
+  zh: 8aceec2d9b06027b
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-1-calculating-transitive-closure-and-an-invalidation-matrix-by-hand/worked-example:
+  en: a03952cea0521faa
+  zh: 01c6d963f944fc97
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-2-critical-path-method-cpm-and-theoretical-speedup:
+  en: b942704437e7732d
+  zh: 43e92ec7618a84e0
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-2-critical-path-method-cpm-and-theoretical-speedup/critical-path-length:
+  en: 44ec62a55313f4cc
+  zh: afe8010e93785d6b
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-2-critical-path-method-cpm-and-theoretical-speedup/theoretical-speedup-and-parallel-efficiency:
+  en: 65ca9c1b2465ea5a
+  zh: dd1abcd6db54d664
+/chapter-14-graph-mode-scheduling/3-mathematical-derivation-of-dag-topology-critical-paths-and-admission-control/3-3-admission-control-and-queueing-model:
+  en: 74cd24f5b3793040
+  zh: ed468e2e0eaa8e08
+/chapter-14-graph-mode-scheduling/4-four-dimensional-node-admission-and-concurrent-write-isolation-writeroots:
+  en: abc4aadadab1926f
+  zh: f50d5af77d17588e
+/chapter-14-graph-mode-scheduling/4-four-dimensional-node-admission-and-concurrent-write-isolation-writeroots/4-1-deriving-the-path-disjointness-algorithm:
+  en: 3ac2651b58ae4d2b
+  zh: 03a0c1b634a2240c
+/chapter-14-graph-mode-scheduling/5-campaign-and-batch-long-task-decomposition-and-an-immutable-plan-prefix:
+  en: 0d22e2bda7b5eb42
+  zh: 7e725bd2cf27c817
+/chapter-14-graph-mode-scheduling/5-campaign-and-batch-long-task-decomposition-and-an-immutable-plan-prefix/5-1-immutable-plan-prefix-and-atomic-extension-planextension:
+  en: 1787b03227567dae
+  zh: 07a3a940a809f955
+/chapter-14-graph-mode-scheduling/6-approval-barrier-and-safe-host-shell-execution-for-environment-nodes:
+  en: 1b3908d668c85b4e
+  zh: 3941aa7514c8e19a
+/chapter-14-graph-mode-scheduling/6-approval-barrier-and-safe-host-shell-execution-for-environment-nodes/6-1-constraints-on-safe-host-side-execution:
+  en: aaf1fb0a9998196b
+  zh: aa50ac243ffed51f
+/chapter-14-graph-mode-scheduling/7-controlled-dom-acceptance-by-browser-tester-and-three-ui-views:
+  en: 606fc692e0353a4f
+  zh: eaeb7361c0dac4c8
+/chapter-14-graph-mode-scheduling/7-controlled-dom-acceptance-by-browser-tester-and-three-ui-views/7-1-controlled-acceptance-workflow-for-browser-tester:
+  en: f87a085c07a8af29
+  zh: acdf0cbb07dc1741
+/chapter-14-graph-mode-scheduling/7-controlled-dom-acceptance-by-browser-tester-and-three-ui-views/7-2-three-client-ui-views-design-execution-revisions:
+  en: 04567a35320146a3
+  zh: b36f939e2f624bfd
+/chapter-14-graph-mode-scheduling/8-production-grade-typescript-implementation-graph-mode-scheduler-and-admission-engine:
+  en: 358f0f198ae6b575
+  zh: 4abbebb12fc5e4e1
+/chapter-14-graph-mode-scheduling/9-production-incidents-and-high-availability-defenses:
+  en: 7446fad0cf82b270
+  zh: 146f8f1dfd756cf6
+/chapter-14-graph-mode-scheduling/9-production-incidents-and-high-availability-defenses/incident-1-all-conditional-branches-evaluate-false-and-block-downstream-nodes:
+  en: 2b76b9653a1a0b4c
+  zh: e2120c3114918b7f
+/chapter-14-graph-mode-scheduling/9-production-incidents-and-high-availability-defenses/incident-2-concurrent-writes-corrupt-one-source-file:
+  en: 88ecb1d6bf01e8ce
+  zh: 4685673e3bf0937f
+/chapter-14-graph-mode-scheduling/9-production-incidents-and-high-availability-defenses/incident-3-a-late-write-from-a-slow-worker-overwrites-new-revision-artifacts:
+  en: 53e2278e013329af
+  zh: 806f4062ad83f67b
+/chapter-14-graph-mode-scheduling/9-production-incidents-and-high-availability-defenses/incident-4-a-privileged-command-escapes-and-damages-the-host-environment:
+  en: 35bc757d991dfdbc
+  zh: b482a28e91a5e87d
+/chapter-14-graph-mode-scheduling/10-summary-and-advanced-architecture-questions:
+  en: 37777d9b10095a3c
+  zh: b6f447413255c876
+/chapter-14-graph-mode-scheduling/10-summary-and-advanced-architecture-questions/core-architectural-principles:
+  en: 2d556fd2a46cd44f
+  zh: 605218e0a44e5e16
+/chapter-14-graph-mode-scheduling/10-summary-and-advanced-architecture-questions/questions-and-hands-on-exercises:
+  en: 03c1bb41f6ac9366
+  zh: 898735bdf063e9b8

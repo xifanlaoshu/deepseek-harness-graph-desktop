@@ -47,7 +47,7 @@ graph TD
 在 Cordis 依赖注入架构中，服务（Service）与上下文（Context）的扩展采用 TypeScript 的**声明合并（Declaration Merging）**特性：
 
 ```ts ignore-check
-// packages/session/session/src/index.ts (Host 端)
+// packages/core/session/src/index.ts (Host 端)
 declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService
@@ -535,7 +535,7 @@ graph TD
 为了在 CI 无网络、无 API 密钥环境下精准回放大模型会话，Harness 实现了如下基于流式 Chunk 驱动的确定性回放 Provider：
 
 ```ts ignore-check
-// File: packages/test-support/llm-replay/src/replay-provider.ts
+// File: packages/test-support/llm-replay/src/index.ts
 import type { LlmProvider, StreamChunk, CompletionRequest } from '@deepseek-ai/dsh-llm';
 
 export interface RecordedTranscriptStep {

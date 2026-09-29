@@ -18,7 +18,6 @@
     { "path": "../../llm/llm" },
     { "path": "../../subagent/subagent" },
     { "path": "../../core/tools" },
-    { "path": "../../util/atomic-write" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../util/atomic-write" }
   ]
 }

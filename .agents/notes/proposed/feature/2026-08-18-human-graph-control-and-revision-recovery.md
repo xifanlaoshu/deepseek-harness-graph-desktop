@@ -4,7 +4,7 @@ Status: proposed
 
 English | [中文](2026-08-18-human-graph-control-and-revision-recovery.zh.md)
 
-The current Host control service serializes operations per session, rejects stale graph/revision/generation/attempt addresses and conflicting operation-id reuse, and logs actor, source, reason, applied/no-op result, and resulting revision or generation. It supports pause with draining, a durable node-specific modification request that returns to the controller for a new immutable revision, checkpoint approval/rejection, cancel, retry, resume, skip, assignment override, schema-valid substitute output with provenance, monotonic rollback, and a recovery-reconciliation request. Remaining work in this proposal is richer rejection-branch interaction, authorization policy beyond Host-authenticated ingress, and crash injection during every control settlement.
+The current Host control service serializes operations per session, rejects stale graph/revision/generation/attempt addresses and conflicting operation-id reuse, and logs actor, source, reason, applied/no-op result, and resulting revision or generation. It supports pause with draining, a durable node-specific modification request that returns to the controller for a new immutable revision, checkpoint approval/rejection, cancel, retry, resume, skip, assignment override, schema-valid substitute output with a control-event reference, monotonic rollback, and a recovery-reconciliation request. Remaining work in this proposal is richer rejection-branch interaction, authorization policy beyond Host-authenticated ingress, and crash injection during every control settlement.
 
 ## Problem
 
@@ -38,9 +38,9 @@ Approval and rejection are structured decisions, not positive or negative sentim
 
 ## Resume, retry, skip, and rollback
 
-Execution history is immutable. Resume and retry create a new `GraphRunGenerationId` with provenance to the source run and a durable reuse map. `resume-from-node` invalidates the addressed node and its transitive successors; predecessors and independent successful nodes may be reused only under normal input and schema compatibility checks. `retry-node` is rejected if its output has already been consumed by a terminal external effect that lacks reconciliation or compensation.
+Execution history is immutable. Resume and retry create a new `GraphRunGenerationId` with a reference to the source run and a durable reuse map. `resume-from-node` invalidates the addressed node and its transitive successors; predecessors and independent successful nodes may be reused only under normal input and schema compatibility checks. `retry-node` is rejected if its output has already been consumed by a terminal external effect that lacks reconciliation or compensation.
 
-Skipping is permitted only when the node policy declares `skippable` and defines how each successor handles missing output. Required successors become canceled or blocked; conditional successors evaluate as inactive; independent branches continue. A user may provide a schema-valid substitute output only through a distinct `supply-output` approval action whose provenance remains visible.
+Skipping is permitted only when the node policy declares `skippable` and defines how each successor handles missing output. Required successors become canceled or blocked; conditional successors evaluate as inactive; independent branches continue. A user may provide a schema-valid substitute output only through a distinct `supply-output` approval action whose control-event reference remains visible.
 
 Rollback never moves the current pointer backward or deletes later evidence. The Host creates a new revision whose content derives from the selected historical revision, records the rollback source and current-head parent, validates current roles and schemas from the session snapshot, and starts a new run only after confirmation. This preserves a linear head history while retaining the abandoned branch for inspection.
 
@@ -60,14 +60,14 @@ Every completed control shows actor, time, source, target, expected and accepted
 
 **Treat skip as success.** Downstream nodes could consume missing or fabricated data. Skip is a distinct outcome with explicit successor policy.
 
-**Move the head pointer backward for rollback.** Later revisions and runs would become detached from the current history. Cloning into a new revision preserves both provenance and a monotonic head.
+**Move the head pointer backward for rollback.** Later revisions and runs would become detached from the current history. Cloning into a new revision preserves both source-run references and a monotonic head.
 
 ## Acceptance criteria
 
 - All actions use one precisely addressed, revision-checked, idempotent Host control service and retain actor, source, target, reason, impact, and result in replay and export.
 - `awaiting_user` survives restart, never defaults to approval without an explicit policy, and resumes exactly once after a valid response.
 - Approval, rejection, modification, resume, retry, skip, output supply, assignment override, rollback, cancellation, and reconciliation have deterministic domain and assembled-browser coverage.
-- Resume and retry create a new run generation, apply the exact invalidation closure, and preserve reusable evidence with provenance; historical runs remain unchanged.
+- Resume and retry create a new run generation, apply the exact invalidation closure, and preserve reusable evidence with source-run references; historical runs remain unchanged.
 - Rollback creates a validated new head revision and never deletes or rewrites the selected source or later history.
 - Overrides remain session- and run-owned, respect hard limits, and display the effective role, model, reasoning, worker, and resource decision in execution evidence.
 - Conflicting browser tabs, stale child pages, duplicate clicks, restart during control settlement, and completion/control races preserve one accepted outcome.

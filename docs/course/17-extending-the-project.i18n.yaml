@@ -1,6 +1,103 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 17-extending-the-project.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/17-extending-the-project.md
-17-extending-the-project.md: 7969cb46da4e23bd0f462de3dadf8a547f8ebafe
-17-extending-the-project.zh.md: 1031286c9b1ab75bf6079f50cce9a9d909168e60
+/chapter-17-extending-the-project:
+  en: c0ffa8122021839f
+  zh: 9a2747af53820587
+/chapter-17-extending-the-project/17-1-core-concept-mapping-and-mental-model:
+  en: 7b42505b6fa485f4
+  zh: 0fc1592c581a9e6c
+/chapter-17-extending-the-project/17-2-extension-decision-tree-four-categories-of-requirements:
+  en: 18d71ac67b4707fe
+  zh: 518d890431844527
+/chapter-17-extending-the-project/17-2-extension-decision-tree-four-categories-of-requirements/properties-and-constraints-of-the-four-categories:
+  en: bbc45ec8489b3328
+  zh: 0979708bd3a27439
+/chapter-17-extending-the-project/17-3-mathematics-and-type-system-derivations:
+  en: 6eaab31f0ab95c50
+  zh: 1cd418a5b9e3d92b
+/chapter-17-extending-the-project/17-3-mathematics-and-type-system-derivations/17-3-1-event-sourcing-and-state-fold-algebra:
+  en: 967a5ae1d0c02592
+  zh: c890c14af852eeac
+/chapter-17-extending-the-project/17-3-mathematics-and-type-system-derivations/17-3-2-waterfall-fold-operator-and-short-circuit-algebra:
+  en: 694bfd7087dd429f
+  zh: 1143a7fb198da8bc
+/chapter-17-extending-the-project/17-3-mathematics-and-type-system-derivations/17-3-3-topological-lifecycles-and-reverse-disposal:
+  en: 0105b2ebe42160fd
+  zh: 9c9c7541b33ab2d9
+/chapter-17-extending-the-project/17-4-defensive-boundaries-and-type-safety:
+  en: 1d28fd94298348de
+  zh: bee8d98fb86156a1
+/chapter-17-extending-the-project/17-4-defensive-boundaries-and-type-safety/17-4-1-nominal-branded-types:
+  en: 9bd5709452ca4f06
+  zh: 58937d99f19f15d8
+/chapter-17-extending-the-project/17-4-defensive-boundaries-and-type-safety/17-4-2-discriminated-unions-and-assertnever-exhaustiveness-checks:
+  en: 5100a4da5513fa1e
+  zh: 134a567aef6f8828
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam:
+  en: b33ac39b6a2f1dae
+  zh: ef621c4a2d9dcfaa
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-1-define-domain-types-and-the-service-definition:
+  en: 564d154b9ebae875
+  zh: 465c3ad4ce6a4a79
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-1-define-domain-types-and-the-service-definition/1-definition-package-manifest-packages-knowledge-knowledge-package-json:
+  en: 6049a37254fa7c6b
+  zh: 8c66c0972cf2902e
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-1-define-domain-types-and-the-service-definition/2-domain-types-packages-knowledge-knowledge-src-types-ts:
+  en: dee96ecdd5a6662e
+  zh: 38ef4342842994b7
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-1-define-domain-types-and-the-service-definition/3-service-definition-packages-knowledge-knowledge-src-index-ts:
+  en: dd145d88e0b7795e
+  zh: 61d64844d28d6abe
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-2-implement-a-local-service-provider:
+  en: 9375472c811c7d82
+  zh: 7373d735ad1cff1b
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-2-implement-a-local-service-provider/1-vector-mathematics-and-pure-functions-packages-knowledge-knowledge-local-src-vector-math-ts:
+  en: 2772b9728150b4cb
+  zh: 6976533c8c3ca220
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-2-implement-a-local-service-provider/2-local-provider-packages-knowledge-knowledge-local-src-index-ts:
+  en: 764068163a3db4f7
+  zh: 376b912f2f340ffa
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-3-implement-the-model-tool-and-ui-consumer:
+  en: 91912f0cddc218b7
+  zh: aa5d9c0652aabf31
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-3-implement-the-model-tool-and-ui-consumer/packages-knowledge-tool-knowledge-src-search-tool-ts:
+  en: c06061f8670547ee
+  zh: c06061f8670547ee
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-4-register-services-and-dynamic-lifecycles-with-ctx-effect:
+  en: 4103b36da491b68a
+  zh: 7e66df6001418b2b
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-5-configure-composition-in-a-bundle:
+  en: 49c7899b60abee3d
+  zh: 242b2d6e0c572ead
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-6-write-unit-contract-and-keyless-snapshot-replay-tests:
+  en: 08eb8010e99ec0b5
+  zh: f26ad36ea3696e54
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-6-write-unit-contract-and-keyless-snapshot-replay-tests/1-contract-suite-packages-knowledge-knowledge-tests-contract-spec-ts:
+  en: 34a4b4d33b3fcf38
+  zh: 91f10c1877fee1b7
+/chapter-17-extending-the-project/17-5-six-implementation-steps-an-enterprise-local-knowledge-base-seam/step-6-write-unit-contract-and-keyless-snapshot-replay-tests/2-keyless-snapshot-replay-test-packages-knowledge-tool-knowledge-tests-replay-spec-ts:
+  en: adf743fcca2afe61
+  zh: b80707db6f3e50a5
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting:
+  en: d0bb3b819d1f4592
+  zh: 4f646ed277385abd
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting/failure-1-treating-asynchronous-state-as-synchronous-agent-followup-has-no-per-message-promise:
+  en: 74c0ae5b4d910c82
+  zh: 2228c75958f15c1a
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting/failure-2-dispose-signals-abort-but-does-not-wait-for-a-subprocess-to-exit:
+  en: 030c41e2e0ff53d1
+  zh: 5ee23f8f0c66599a
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting/failure-3-an-uncaught-waterfall-hook-error-crashes-the-core-event-loop:
+  en: a46457b9be32e7cf
+  zh: de4ec3d4ea3f4656
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting/failure-4-file-i-o-in-a-ui-card-s-presentcall-crashes-replay:
+  en: fcad40f2673a88bd
+  zh: 6fd7e727be9db37b
+/chapter-17-extending-the-project/17-6-production-incidents-and-troubleshooting/failure-5-a-new-discriminated-union-variant-lacks-an-assertnever-fallback:
+  en: b80ae42c802ca40d
+  zh: b1902177a48356ec
+/chapter-17-extending-the-project/17-7-extension-checklist:
+  en: d357ad5925eb9a5c
+  zh: f49cf1ffc72a953f

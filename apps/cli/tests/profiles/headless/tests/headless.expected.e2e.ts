@@ -253,7 +253,7 @@ function normalizeGraphStream(rawStdout: string, cwd: string): string {
       if (event.type === 'user/message') {
         const data = event.data as JsonObject | undefined
         const source = data?.source as JsonObject | undefined
-        return source?.kind === 'user' || source?.plugin === 'graph-mode'
+        return source?.kind === 'user' || source?.kind === 'graph-mode' || source?.plugin === 'graph-mode'
       }
       if (event.type === 'graph/run-update') {
         const data = event.data as JsonObject | undefined
@@ -325,7 +325,7 @@ describe('headless stream-json snapshots', () => {
         if (parent === undefined || child === undefined) {
           throw new Error(`missing persisted graph parent or child log: ${JSON.stringify(logs)}`)
         }
-        const projection = foldGraph(parseJsonl(parent.content) as unknown as SessionEvent[])
+        const projection = foldGraph(parseJsonl(parent.content) as SessionEvent[])
         const terminal = Object.values(projection.runs).sort((left, right) => left.updatedAt - right.updatedAt).at(-1)
         if (terminal?.phase === 'failed') throw new Error(`Graph snapshot run failed: ${JSON.stringify(terminal)}`)
         expect(terminal).toMatchObject({
@@ -364,7 +364,7 @@ describe('headless stream-json snapshots', () => {
       inspect: async (cwd) => {
         const logs = await persistedLogs(cwd)
         const records = parseJsonl(logs[0]?.content ?? '')
-        const projection = foldGraph(records as unknown as SessionEvent[])
+        const projection = foldGraph(records as SessionEvent[])
         const terminal = Object.values(projection.runs).sort((left, right) => left.updatedAt - right.updatedAt).at(-1)
         expect(terminal).toMatchObject({
           phase: 'awaiting_user', nodes: { prepareMaven: { phase: 'awaiting_user' } },
@@ -861,7 +861,7 @@ describe('headless stream-json snapshots', () => {
       expect(header?.config).toMatchInlineSnapshot(`
         {
           "maxTokens": 1024,
-          "model": "deepseek-v4-flash",
+          "model": "deepseek-flash",
           "provider": "deepseek",
           "reasoningEffort": "low",
         }

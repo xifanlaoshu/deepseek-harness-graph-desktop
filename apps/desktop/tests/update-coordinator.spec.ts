@@ -61,17 +61,33 @@ function fixture() {
   })
   const quitAndInstall = vi.fn()
   const beforeRestart = vi.fn(async () => true)
+  const downloadResult = vi.fn()
   const states: DesktopUpdateState[] = []
   const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall }) as unknown as AppUpdater
   const coordinator = new DesktopUpdateCoordinator(
     (state) => { states.push(state); return state },
-    beforeRestart, updater, () => true, () => '1.1.0-alpha.1',
+    beforeRestart, updater, () => true, () => '1.1.0-alpha.1', downloadResult,
   )
   coordinators.push(coordinator)
-  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart }
+  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart, downloadResult }
 }
 
 describe('desktop update coordinator', () => {
+  it('keeps disabled products idle and rejects transfer operations without contacting the updater', async () => {
+    const f = fixture()
+    const disabled = new DesktopUpdateCoordinator(
+      (state) => { f.states.push(state); return state }, async () => true,
+      f.updater, () => true, () => '1.0.0', undefined, false,
+    )
+    coordinators.push(disabled)
+    expect(await disabled.check(true)).toEqual({ phase: 'idle' })
+    await expect(disabled.download('1.1.0-rc.2')).rejects.toThrow(/downloads are disabled/u)
+    await expect(disabled.install('1.1.0-rc.2')).rejects.toThrow(/installation is disabled/u)
+    expect(f.checkForUpdates).not.toHaveBeenCalled()
+    expect(f.downloadUpdate).not.toHaveBeenCalled()
+    expect(f.quitAndInstall).not.toHaveBeenCalled()
+  })
+
   it('keeps safe preparation diagnostics separate and clears them on an explicit retry', async () => {
     const f = fixture()
     await f.coordinator.check()
@@ -221,4 +237,23 @@ describe('desktop update coordinator', () => {
     expect(f.states).toEqual([])
     expect(f.events.listenerCount('download-progress')).toBe(0)
   })
+})
+
+
+it('reports one download result when callers share an operation and none for cached readiness', async () => {
+  const f = fixture()
+  await f.coordinator.check()
+  await Promise.all([f.coordinator.download('1.1.0-rc.2'), f.coordinator.download('1.1.0-rc.2')])
+  await f.coordinator.download('1.1.0-rc.2')
+  expect(f.downloadResult).toHaveBeenCalledExactlyOnceWith(true)
+})
+
+
+it.each([new DesktopUpdatePreparationError('stop-failed', 'private diagnostic'), new Error('private URL')])('reports safe download failure classification: %s', async (error) => {
+  const f = fixture()
+  await f.coordinator.check()
+  f.downloadUpdate.mockRejectedValueOnce(error)
+  await f.coordinator.download('1.1.0-rc.2')
+  expect(f.downloadResult).toHaveBeenCalledExactlyOnceWith(false, error instanceof DesktopUpdatePreparationError ? 'stop-failed' : 'download_failed')
+  expect(JSON.stringify(f.downloadResult.mock.calls)).not.toContain('private')
 })

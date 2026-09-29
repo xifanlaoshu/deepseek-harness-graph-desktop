@@ -22,7 +22,6 @@
     { "path": "../graph-coordination" },
     { "path": "../graph-resources" },
     { "path": "../graph-scheduler" },
-    { "path": "../graph-worker" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../graph-worker" }
   ]
 }

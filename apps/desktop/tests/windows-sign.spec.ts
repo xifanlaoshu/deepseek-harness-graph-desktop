@@ -160,6 +160,8 @@ describe('Windows token signing', () => {
       await writeFile(path, 'fixture')
       validateDesktopPackageEnvironment({
         DSH_DESKTOP_APP_ID: 'com.example.desktop', DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com', DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
+        DSH_DESKTOP_PRODUCT_NAME: 'Fixture Desktop', DSH_DESKTOP_PROTOCOL_SCHEME: 'fixture-desktop',
+        DSH_DESKTOP_USER_DATA_DIR_NAME: 'Fixture-Desktop',
         DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
         DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
         DSH_DESKTOP_WINDOWS_CER_FILE: certificateFile, DSH_DESKTOP_WINDOWS_SIGNTOOL: signTool,

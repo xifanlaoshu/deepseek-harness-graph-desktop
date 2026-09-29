@@ -29,11 +29,11 @@
 
 | Harness 子系统 | 对应包路径 | 传统系统编程 / 分布式架构映射 | 核心职责与设计约束 |
 | :--- | :--- | :--- | :--- |
-| **Client / Web UI** | `packages/web/web-app`<br>`packages/client/client-connection` | **GUI 客户端 / 响应式前端** | 管理乐观更新、维护本地 Zustand 状态树、处理双向 RPC 与 WebSocket |
+| **Client / Web UI** | `packages/client/ui-chat`<br>`packages/client/client-connection` | **GUI 客户端 / 响应式前端** | 管理乐观更新、维护本地 Zustand 状态树、处理双向 RPC 与 WebSocket |
 | **API Gateway** | `packages/api/gateway`<br>`packages/api/remotes` | **API 网关 / RPC Dispatcher** | 校验 Wire 协议、解析 Session 路由、鉴权与双向事件转发 |
 | **Agent Core & Inbox**| `packages/core/agent`<br>`packages/core/agent-loop` | **Actor 邮箱 / 状态机引擎** | 维护 Turn/Step 事务边界、消费队列消息、驱动 ReAct 死循环 |
 | **Cordis Runtime** | `@deepseek-ai/cordis` | **微内核 IoC 容器 / 事件总线** | 服务依赖注入、生命周期析构（`ctx.effect`）、Waterfall 拦截链 |
-| **Context & Prompt** | `packages/context/system-prompt` | **动态编译器 / AST 模板引擎** | 组装不可变系统提示词、提取工具 JSON Schema、动态投影运行时上下文 |
+| **Context & Prompt** | `packages/core/system-prompt` | **动态编译器 / AST 模板引擎** | 组装不可变系统提示词、提取工具 JSON Schema、动态投影运行时上下文 |
 | **Session Ledger** | `packages/core/session` | **Write-Ahead Log (WAL) / 账本** | 纯追加（Append-Only）事件溯源存储，派生模型可见表面（Surface） |
 | **LLM Driver & MLA** | `packages/llm/llm`<br>`packages/llm/llm-openai` | **概率纯函数 / 向量加速计算** | 管理 SSE 流式传输、Block 解析、KV Cache 前缀命中与 Token 预算 |
 | **Tool Sandbox & Spill**| `packages/core/tools`<br>`packages/fs/tool-fs`<br>`packages/spill/spill-policy` | **POSIX 系统调用拦截 / 溢出缓冲** | 有界并发调度、Exclusive 互斥屏障、沙箱路径越界防御、超长输出 Spill |
@@ -120,7 +120,7 @@ sequenceDiagram
 #### 源码文件与类方法
 - **源码文件**：[`packages/client/client-connection/src/connection.ts`](file:///d:/git/deepseek-harness/packages/client/client-connection/src/connection.ts)
 - **核心方法**：`Connection.callRemote<T>(endpoint: string, params: unknown, options?: CallOptions): Promise<T>`
-- **前端状态管理**：[`packages/web/web-app/src/stores/session-store.ts`](file:///d:/git/deepseek-harness/packages/web/web-app/src/stores/session-store.ts) 中的 `useSessionStore.getState().appendOptimisticUserMessage()`
+- **前端状态管理**：[`packages/client/ui-chat`](file:///d:/git/deepseek-harness/packages/client/ui-chat) 中的 `useSessionStore.getState().appendOptimisticUserMessage()`
 
 #### 网络报文样例 (Wire Payload)
 前端通过 HTTP POST 向 Host 发起 JSON-RPC 2.0 兼容的 Typert RPC 请求：
@@ -183,7 +183,7 @@ Host 进程中的 API Gateway 充当请求准入控制器。它必须在微秒�
 #### 源码文件与类方法
 - **源码文件**：[`packages/api/gateway/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/gateway/src/index.ts)
 - **核心类与方法**：`TypertGatewayService.invokeRemote(endpoint, params, signal)`
-- **路由解析文件**：[`packages/api/remotes/src/agent-lookup.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/agent-lookup.ts) 中的 `createApiRemoteAgentResolver(ctx)`
+- **路由解析文件**：[`packages/api/remotes/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/index.ts) 中的 `createApiRemoteAgentResolver(ctx)`
 
 #### 关键实现代码解析
 
@@ -242,7 +242,7 @@ Agent 的设计遵循 **Actor 邮箱模型**。所有外部输入（用户的常
 ```
 
 #### 源码文件与类方法
-- **源码文件**：[`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts)
+- **源码文件**：[`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts)
 - **核心方法**：`Inbox.splice(target: InboxTarget, start: number, deleteCount: number, items: UserMessage[])`
 - **驱动控制文件**：[`packages/core/agent-loop/src/agent.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/agent.ts) 中的 `ReactLoopAgent.send()` 与 `ReactLoopAgent.wakeDriver()`
 
@@ -432,8 +432,8 @@ export type PreStepDecision =
 ```
 
 #### 源码文件与类方法
-- **系统提示词文件**：[`packages/context/system-prompt/src/assemble.ts`](file:///d:/git/deepseek-harness/packages/context/system-prompt/src/assemble.ts) 中的 `assembleSystemPrompt()`
-- **工具注册表文件**：[`packages/core/tools/src/registry.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/registry.ts) 中的 `ToolRegistry.exportSchemas()`
+- **系统提示词文件**：[`packages/core/system-prompt/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/system-prompt/src/index.ts) 中的 `assembleSystemPrompt()`
+- **工具注册表文件**：[`packages/core/tools/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/index.ts) 中的 `ToolRegistry.exportSchemas()`
 
 ---
 
@@ -517,7 +517,7 @@ $$\text{Memory}_{\text{MLA}} = (d_c + d_R) \times n_{\text{layers}} \times \text
 相比于标准 LLaMA-3-70B 的 MHA（约 $320\text{ KB/Token}$），MLA 实现了 **9.3 倍的显存压缩**，使得 DeepSeek 能以极低显存代价支撑 128K 超长上下文！
 
 #### 源码文件与类方法
-- **适配器抽象**：[`packages/llm/llm/src/adapter.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/adapter.ts)
+- **适配器抽象**：[`packages/llm/llm/src/index.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/index.ts)
 - **流式适配实现**：[`packages/llm/llm-openai/src/stream.ts`](file:///d:/git/deepseek-harness/packages/llm/llm-openai/src/stream.ts) 中的 `openAiStreamAdapter()`
 
 ---
@@ -745,8 +745,8 @@ private async turn(): Promise<boolean> {
 - 基于 React 19 的局部 Selector 仅重渲染受影响的消息组件，实现高帧率、无闪烁的极致 UI 体验。
 
 #### 源码文件与类方法
-- **写缓冲控制器**：[`packages/session/session-persistence/src/write-behind.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/write-behind.ts) 中的 `SessionWriteBehind.enqueue()` 与 `flush()`
-- **持久化协调器**：[`packages/session/session-persistence/src/coordinator.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/coordinator.ts)
+- **写缓冲控制器**：[`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl) 中的 `SessionWriteBehind.enqueue()` 与 `flush()`
+- **持久化协调器**：[`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl)
 - **SQLite 存储实现**：[`packages/session/session-persistence-sqlite/src/store.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence-sqlite/src/store.ts)
 
 ---
@@ -892,11 +892,11 @@ function applyEventWithReorder(state: EventReconcilerState, incomingEvent: Sessi
 | :--- | :--- | :--- | :--- | :--- |
 | **Step 1** | 网络接入 | 客户端生成 `rpcId`，提交乐观 UI | `packages/client/client-connection/src/connection.ts` | `Connection.callRemote()` |
 | **Step 2** | 网关分发 | Wire 协议校验与 Session 路由 | `packages/api/gateway/src/index.ts` | `TypertGatewayService.invokeRemote()` |
-| **Step 3** | 邮箱入队 | 消息压入 Inbox 队列 | `packages/core/agent/src/inbox.ts` | `Inbox.splice()` |
+| **Step 3** | 邮箱入队 | 消息压入 Inbox 队列 | `packages/core/agent-loop/src/inbox.ts` | `Inbox.splice()` |
 | **Step 4** | 实时广播 | WebSocket 向客户端推送入队确认 | `packages/api/remotes/src/remote-events.ts` | `API_REMOTE_FORWARDED_EVENTS` |
 | **Step 5** | 状态机激活 | 启动 Turn，写入 `turn/start` | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.wakeDriver()` |
 | **Step 6** | 前置拦截 | `agent/pre-step` Waterfall 审查 | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.preStep()` |
-| **Step 7** | 提示词装配 | 写入 `step/start`，装配 Prompt 与 Schemas | `packages/context/system-prompt/src/assemble.ts` | `assembleSystemPrompt()` |
+| **Step 7** | 提示词装配 | 写入 `step/start`，装配 Prompt 与 Schemas | `packages/core/system-prompt/src/index.ts` | `assembleSystemPrompt()` |
 | **Step 8** | 历史投影 | 折叠事件账本，构造不可变请求 | `packages/core/session/src/surface.ts` | `Session.deriveMessages()` |
 | **Step 9** | 模型调用 | 建立 SSE 长连接，触发 MLA 推理 | `packages/llm/llm-openai/src/stream.ts` | `openAiStreamAdapter()` |
 | **Step 10**| 流式消费 | 逐 Chunk 解析并追加至账本 | `packages/llm/llm/src/assembler.ts` | `BlockAssembler.push()` |
@@ -904,7 +904,7 @@ function applyEventWithReorder(state: EventReconcilerState, incomingEvent: Sessi
 | **Step 12**| 工具沙箱 | 鉴权 -> 沙箱执行 -> Spill 溢出控制 | `packages/core/agent-loop/src/tool-calls.ts` | `executeToolCalls()` |
 | **Step 13**| 结果反馈 | 追加 `tool/result`，触发多步迭代 | `packages/core/agent-loop/src/tool-calls.ts` | `appendToolResult()` |
 | **Step 14**| 轮次结算 | 输出最终回答，写入 `turn/end`，重置为 idle | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.turn()` |
-| **Step 15**| 异步落盘 | Write-Behind 触发，Zstd 压缩与 SQLite WAL | `packages/session/session-persistence/src/write-behind.ts` | `SessionWriteBehind.flush()` |
+| **Step 15**| 异步落盘 | Write-Behind 触发，Zstd 压缩与 SQLite WAL | `packages/session/session-persistence-jsonl` | `SessionWriteBehind.flush()` |
 
 ---
 

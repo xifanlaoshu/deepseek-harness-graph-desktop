@@ -81,6 +81,7 @@ export class LoopxCoordinationJournal {
   /** Open and validate one journal file or an isolated `:memory:` database. */
   constructor(
     private readonly goalId: string,
+    /** Absolute file path or `:memory:` for the journal database. */
     readonly path: string,
     busyTimeoutMs: number,
     journalMode: 'wal' | 'delete' | 'truncate',

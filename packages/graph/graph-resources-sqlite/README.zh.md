@@ -1,9 +1,29 @@
+---
+description: "使用 SQLite 和持久化围栏在多个进程间协调 Graph 模型资源预留。本文介绍数据库配置、遥测和部署限制。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-resources-sqlite
 
 [English](README.md) | 中文
 
+## 概述
+
+使用 SQLite 持久化和围栏在多个进程间协调会过期的 Graph 资源预留。共享遥测和退避状态可跨进程重启保留；SQLite 事务会短暂阻塞 JavaScript 线程。
+
+## 目录
+
+- [配置](#configuration)
+- [约定](#contract)
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+
+-----
+
 [`dsh-graph-resources`](../graph-resources/README.zh.md) 的 SQLite 提供方。它持久化精确模型路由的预留、围栏令牌、终态结果、OOM 退避与限流到期时间，使使用同一数据库的 Web 会话和 Host 进程共享一个容量权威。
 
+<a id="configuration"></a>
 ## 配置
 
 - `providerName` 注册资源提供方；默认值为 `sqlite-resources`。
@@ -12,6 +32,7 @@
 - `observationTtlMs`、`leaseMs`、`retryMs` 与 `oomBackoffMs` 分别约束观察、所有权、等待和 OOM 降级。
 - `telemetryMaxBytes` 限制单个遥测文件。`busyTimeoutMs` 约束 SQLite 锁等待。`journalMode` 在数据库身份验证后选择 `wal`、`delete` 或 `truncate`。
 
+<a id="contract"></a>
 ## 约定
 
 每次准入都在 SQLite `BEGIN IMMEDIATE` 事务中执行。提供方移除已过期租约、复用相同操作及所有者纪元、派生稳定预留 ID、分配单调递增的围栏令牌，并在提交前计算路由容量。因此，并发进程不能同时占用最后一个容量名额。
@@ -24,6 +45,18 @@
 
 打开同一数据库的所有进程必须使用相同资源配置。只有没有剩余预留时才能接受不同配置；已经打开的提供方随后会拒绝继续操作，直至重新加载。外部 application id、不支持的 schema 版本和包含未归属对象的数据库都会在更改 journal mode 之前被拒绝。
 
+<a id="dev-note"></a>
+## 开发备注
+该 Provider 不发布不变量 companion：SQLite 事务会校验预留和带围栏的终态转换。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 持久容量证据
@@ -40,7 +73,7 @@ Graph 规划检查点和资源等待证据可能包含提供方提供的有界 `
 
 没有直接影响；检查点容量摘要会随活动租约和近期结果变化。
 
-## 已知限制与延期工作
+## 已知限制与延期工作 <a id="known-limitations-and-deferred-work"></a>
 
 - SQLite 协调能够安全打开同一数据库文件的进程。它不是可用于任意网络文件系统的多 Host 租约存储。
 - Provider 不理解具体模型服务器的原生指标 API。可信运行时或 Sidecar 必须把 GPU 显存与队列指标转换为版本化遥测文件，并持续更新其过期时间。

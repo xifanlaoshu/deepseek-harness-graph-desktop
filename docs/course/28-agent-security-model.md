@@ -117,7 +117,7 @@ The STRIDE model maps to critical agent-runtime components as follows:
 | :--- | :--- | :--- | :--- |
 | **Spoofing** | Forge a user identity or certificate | Forge a tool-call ID, MCP service identity, or subagent origin | Signed context, strict session-UUID validation, tamper-resistant leases |
 | **Tampering** | Alter messages in transit or database records | Alter the session log or workspace config such as `.git/config` | Append-only log and read-only system-directory mounts |
-| **Repudiation** | Deny having performed an action | Model denies a dangerous shell write; agents deny responsibility for shared work | Provenance in audit events and full stdout/stderr archival |
+| **Repudiation** | Deny having performed an action | Model denies a dangerous shell write; agents deny responsibility for shared work | Source-event links in audit events and full stdout/stderr archival |
 | **Information Disclosure** | Read sensitive data without authorization | Prompt induces printing environment variables or extracting `.env` secrets via errors | Entropy-based redaction, environment allowlist, removal of in-memory credentials |
 | **Denial of Service** | Exhaust bandwidth, CPU, or memory | Output bomb, token flooding, archive bomb | Hard memory limits, disk spill, decompression quota checks |
 | **Elevation of Privilege** | Obtain root privileges from a lower-privilege account | Read-only agent spawns a writable subagent or bypasses approval for dangerous shell commands | Monotonic permission lattice ($\sqsubseteq$), fail-closed approval |

@@ -143,7 +143,7 @@ The session log is the source from which Harness reconstructs model history. Gra
 
 `dsh-graph` declares nine durable session event types. `graph/submission` records a provisional immutable Revision and queued Run before external admission; only an accepted submission publishes `graph/change` and the initial `graph/run`. Append-only `graph/run-update`, `graph/operation`, and `graph/settlement` events preserve incremental run state, execution transitions, and numbered external-write attempts, while whole-state `graph/checkpoint` and idempotent `graph/control` records preserve planning and human decisions. Folding events keeps all revisions and evidence, merges validated updates into each run, and exposes the result through the `graph` projection.
 
-The configuration contains exactly one enabled controller, editable worker roles, per-role prompts and model selections, and scheduler limits. A graph revision contains a stable graph id, a contiguous revision number, a parent revision after revision one, nodes, and edges. A run contains every node in that revision, attempt metadata, structured outputs, reuse provenance, invalidation sources, and an optional terminal error.
+The configuration contains exactly one enabled controller, editable worker roles, per-role prompts and model selections, and scheduler limits. A graph revision contains a stable graph id, a contiguous revision number, a parent revision after revision one, nodes, and edges. A run contains every node in that revision, attempt metadata, structured outputs, reused-result references, invalidation sources, and an optional terminal error.
 
 The append-only operation journal uses the complete ordered stage vocabulary below. A transition also retains its stable operation and event ids, logical work id, generation, owner epoch, expected previous stage, external references, output hash, terminal outcome, and bounded detail.
 
@@ -171,7 +171,7 @@ The controller classifies every human input as `new`, `revise`, `inspect`, `cont
 
 Graph validation rejects blank or unsafe ids, duplicate roles or nodes, missing acceptance criteria, disabled or controller role assignments, invalid attempt or weight policies, missing edge endpoints, self-edges, duplicate edges, malformed conditions, and cycles. Revision one has no parent; every later revision names the immediately preceding revision. Conditions are data, not code: they inspect a predecessor's published JSON through a path and one of `exists`, `truthy`, `equals`, or `not-equals`.
 
-For a revision, Graph Mode derives directly changed nodes from declared changes, changed node definitions, changed incoming edges, and successors of removed nodes. It then computes the complete transitive successor closure in topological order. Nodes in that closure rerun; an unaffected successful node may reuse its output only with explicit `reusedFrom` provenance. If the preceding revision still runs, the controller aborts and awaits it before starting the replacement run.
+For a revision, Graph Mode derives directly changed nodes from declared changes, changed node definitions, changed incoming edges, and successors of removed nodes. It then computes the complete transitive successor closure in topological order. Nodes in that closure rerun; an unaffected successful node may reuse its output only with an explicit `reusedFrom` reference. If the preceding revision still runs, the controller aborts and awaits it before starting the replacement run.
 
 ## Scheduler and worker execution
 

@@ -131,8 +131,57 @@ export interface GraphCoordinationReconcileResult {
 
 /** Provider-neutral external coordination seam. */
 export abstract class GraphCoordination extends Service {
+  private readonly quiescenceConsumers = new Set<{
+    readonly callback: () => Promise<void>
+    quiescence?: Promise<void>
+  }>()
+  private consumersDraining = false
+  private consumerQuiescence: Promise<void> | undefined
+
   constructor(ctx: Context) {
     super(ctx, 'graphCoordination')
+  }
+
+  /**
+   * Register a consumer shutdown callback that providers await before disposing owned resources.
+   * @param callback Consumer work that must settle before provider resources close.
+   * @returns An asynchronous disposer that waits for the callback before unregistering it.
+   */
+  registerQuiescence(callback: () => Promise<void>): () => Promise<void> {
+    if (this.consumersDraining) throw new Error('graph coordination provider is quiescing and no longer accepts consumers')
+    const registration = { callback }
+    this.quiescenceConsumers.add(registration)
+    return async (): Promise<void> => {
+      await this.quiesceRegistration(registration)
+    }
+  }
+
+  /** Stop accepting consumers and await every registered consumer before provider disposal. */
+  async quiesceConsumers(): Promise<void> {
+    if (this.consumerQuiescence !== undefined) {
+      await this.consumerQuiescence
+      return
+    }
+    this.consumersDraining = true
+    this.consumerQuiescence = (async (): Promise<void> => {
+      const results = await Promise.allSettled([...this.quiescenceConsumers].map(registration => this.quiesceRegistration(registration)))
+      const failures: unknown[] = []
+      for (const result of results) if (result.status === 'rejected') failures.push(result.reason)
+      if (failures.length > 0) throw new AggregateError(failures, 'graph coordination consumers failed to quiesce')
+    })()
+    await this.consumerQuiescence
+  }
+
+  private async quiesceRegistration(registration: {
+    readonly callback: () => Promise<void>
+    quiescence?: Promise<void>
+  }): Promise<void> {
+    registration.quiescence ??= Promise.resolve().then(registration.callback)
+    try {
+      await registration.quiescence
+    } finally {
+      this.quiescenceConsumers.delete(registration)
+    }
   }
 
   /**

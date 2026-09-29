@@ -11,7 +11,6 @@ import {
   type GraphResourceProvider,
   type GraphResourceReconcileRequest,
   type GraphResourceReconcileResult,
-  type GraphResourceReservation,
   type GraphResourceReservationRequest,
   type GraphResourceRoute,
   type GraphResourceSnapshot,
@@ -90,6 +89,52 @@ const reconcileResultSchema = z.object({
   evidence: text,
 }).strict()
 
+function snapshot(value: z.infer<typeof snapshotSchema>): GraphResourceSnapshot {
+  return {
+    model: value.model,
+    providerId: value.providerId,
+    observedAt: value.observedAt,
+    expiresAt: value.expiresAt,
+    status: value.status,
+    ...(value.provider === undefined ? {} : { provider: value.provider }),
+    ...(value.activeRequests === undefined ? {} : { activeRequests: value.activeRequests }),
+    ...(value.queueDepth === undefined ? {} : { queueDepth: value.queueDepth }),
+    ...(value.concurrencyLimit === undefined ? {} : { concurrencyLimit: value.concurrencyLimit }),
+    ...(value.activeWeight === undefined ? {} : { activeWeight: value.activeWeight }),
+    ...(value.weightLimit === undefined ? {} : { weightLimit: value.weightLimit }),
+    ...(value.contextWindow === undefined ? {} : { contextWindow: value.contextWindow }),
+    ...(value.maxOutputTokens === undefined ? {} : { maxOutputTokens: value.maxOutputTokens }),
+    ...(value.memoryClass === undefined ? {} : { memoryClass: value.memoryClass }),
+    ...(value.availableDeviceBytes === undefined ? {} : { availableDeviceBytes: value.availableDeviceBytes }),
+    ...(value.recentOomAt === undefined ? {} : { recentOomAt: value.recentOomAt }),
+    ...(value.rateLimitedUntil === undefined ? {} : { rateLimitedUntil: value.rateLimitedUntil }),
+  }
+}
+
+function decision(value: z.infer<typeof decisionSchema>): GraphResourceDecision {
+  if (value.status === 'wait' || value.status === 'rejected') {
+    return { ...value, snapshot: snapshot(value.snapshot) }
+  }
+  const reservation = value.reservation
+  return {
+    status: 'granted',
+    reservation: {
+      model: reservation.model,
+      id: GraphResourceReservationId(reservation.id),
+      providerId: reservation.providerId,
+      workId: GraphWorkId(reservation.workId),
+      operationId: GraphControlOperationId(reservation.operationId),
+      ownerEpoch: reservation.ownerEpoch,
+      weight: reservation.weight,
+      fencingToken: reservation.fencingToken,
+      acquiredAt: reservation.acquiredAt,
+      expiresAt: reservation.expiresAt,
+      snapshot: snapshot(reservation.snapshot),
+      ...(reservation.provider === undefined ? {} : { provider: reservation.provider }),
+    },
+  }
+}
+
 /** Authenticated Graph Resource Provider backed by one remote Worker service. */
 export class HttpGraphResourceProvider implements GraphResourceProvider {
   readonly protocolVersion = 1 as const
@@ -108,22 +153,12 @@ export class HttpGraphResourceProvider implements GraphResourceProvider {
 
   /** Observe one exact remote model route. */
   async observe(route: GraphResourceRoute, signal: AbortSignal): Promise<GraphResourceSnapshot> {
-    return snapshotSchema.parse(await this.transport.post('/v1/resources/observe', { protocolVersion: 1, route }, signal)) as GraphResourceSnapshot
+    return snapshot(snapshotSchema.parse(await this.transport.post('/v1/resources/observe', { protocolVersion: 1, route }, signal)))
   }
 
   /** Reserve remote capacity beneath the caller's durable hard ceilings. */
   async reserve(request: GraphResourceReservationRequest, signal: AbortSignal): Promise<GraphResourceDecision> {
-    const parsed = decisionSchema.parse(await this.transport.post('/v1/resources/reserve', { protocolVersion: 1, request }, signal))
-    if (parsed.status !== 'granted') return parsed as GraphResourceDecision
-    return {
-      status: 'granted',
-      reservation: {
-        ...parsed.reservation,
-        id: GraphResourceReservationId(parsed.reservation.id),
-        workId: GraphWorkId(parsed.reservation.workId),
-        operationId: GraphControlOperationId(parsed.reservation.operationId),
-      } as unknown as GraphResourceReservation,
-    }
+    return decision(decisionSchema.parse(await this.transport.post('/v1/resources/reserve', { protocolVersion: 1, request }, signal)))
   }
 
   /** Report one exact remote reservation outcome idempotently. */

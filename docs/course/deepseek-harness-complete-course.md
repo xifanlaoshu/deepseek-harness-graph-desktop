@@ -2787,7 +2787,7 @@ In a monorepo with more than 50 packages, dependency management is fundamental t
 |                          pnpm 11 Symlink Virtual Store Architecture                               |
 +---------------------------------------------------------------------------------------------------+
   packages/session/session-persistence-sqlite/node_modules/
-    ├── @deepseek-ai/dsh-session ──► Symlink to packages/session/session
+    ├── @deepseek-ai/dsh-session ──► Symlink to packages/core/session
     └── (Zero undeclared packages exist here!)
 
   .pnpm/ (Content-Addressable Virtual Store)
@@ -5965,7 +5965,7 @@ Base Rows [A, B]
    v Snapshot 4 (+ CLI --patch)     ---> Rows [A'', B, C', D](D inserted by CLI)
 ```
 
-The resulting YAML inserts `# ==` provenance comments above consecutive blocks.
+The resulting YAML places `# ==` comments with each entry's original and patching layers above consecutive blocks.
 
 ### 7.6.2 Command-Line Examples
 
@@ -6240,7 +6240,7 @@ export function renderConfigDump(
 
   let previous = baseEntries
   let previousWarningsCount = 0
-  const provenance: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
+  const entryLayerHistory: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
     origin: baseLabel,
     patchedBy: [],
   }))
@@ -6259,9 +6259,9 @@ export function renderConfigDump(
     const beforeStrings = previous.map(e => JSON.stringify(e))
     for (let idx = 0; idx < composed.length; idx++) {
       if (idx >= beforeStrings.length) {
-        provenance.push({ origin: layer.label, patchedBy: [] })
+        entryLayerHistory.push({ origin: layer.label, patchedBy: [] })
       } else if (JSON.stringify(composed[idx]) !== beforeStrings[idx]) {
-        provenance[idx]?.patchedBy.push(layer.label)
+        entryLayerHistory[idx]?.patchedBy.push(layer.label)
       }
     }
     previous = composed
@@ -6281,7 +6281,7 @@ export function renderConfigDump(
   }
 
   for (let idx = 0; idx < composed.length; idx++) {
-    const record = provenance[idx]
+    const record = entryLayerHistory[idx]
     const header = record.patchedBy.length === 0
       ? record.origin
       : `${record.origin}, patched by ${record.patchedBy.join(', ')}`
@@ -6675,7 +6675,7 @@ In DeepSeek Harness, `Inbox` **is not merely a transient array in memory; it is 
 For every queue operation (append, prepend, replace, delete, clear, or claim), the Session must append a normalized `agent/inbox/spliced` event **before** the in-memory array changes:
 
 ```typescript
-// packages/core/agent/src/inbox.ts
+// packages/core/agent-loop/src/inbox.ts
 export class Inbox {
   private readonly state: InboxState = { 'next-turn': [], 'next-step': [] }
 
@@ -9696,7 +9696,7 @@ export interface SessionEventMap {
 When external plugins such as `@deepseek-ai/dsh-compaction` or `@deepseek-ai/dsh-hook-protocol` introduce new facts, they extend that interface in their own module declarations:
 
 ```typescript
-// 在 packages/plugins/compaction/src/types.ts 中扩展
+// 在 packages/compaction/compaction/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'compaction/start': { compactionId: string; targetRange: { start: number; end: number } }
@@ -9705,7 +9705,7 @@ declare module '@deepseek-ai/dsh-session' {
   }
 }
 
-// 在 packages/plugins/hook-protocol/src/types.ts 中扩展
+// 在 packages/hooks/hook-protocol/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'hook/invoked': { hookName: string; handlerId: string; payload: JsonValue }
@@ -9838,7 +9838,7 @@ export function deriveEventMessage(event: SessionEvent): Message | null {
 }
 ```
 
-### 3.3 The `SurfaceManager` state machine and provenance assertions
+### 3.3 The `SurfaceManager` state machine and source-event assertions
 
 `SurfaceManager` performs **two-phase propose-and-commit validation** before an event enters the log, keeping the surface topology valid at all times.
 
@@ -9939,7 +9939,7 @@ export class SurfaceManager implements SessionSurface {
     }
 
     if (op === 'append') {
-      this.assertProvenance(event, [])
+      this.assertSourceEventReferences(event, [])
       return { kind: 'append', seq: expectedSeq }
     }
 
@@ -9958,7 +9958,7 @@ export class SurfaceManager implements SessionSurface {
 
     const shadowedSeqs = this._nodes.slice(startIdx, endIdx + 1)
     // 因果追溯校验：replace 节点必须在 sourceEventSeqs 中显式声明所有被它遮蔽的节点
-    this.assertProvenance(event, shadowedSeqs)
+    this.assertSourceEventReferences(event, shadowedSeqs)
 
     return {
       kind: 'replace',
@@ -9971,14 +9971,14 @@ export class SurfaceManager implements SessionSurface {
     }
   }
 
-  private assertProvenance(event: SessionEvent, shadowedSeqs: readonly number[]): void {
+  private assertSourceEventReferences(event: SessionEvent, shadowedSeqs: readonly number[]): void {
     const raw = event as SessionEvent & { sourceEventSeqs?: number[] }
     const sources = new Set<number>(raw.sourceEventSeqs ?? [])
 
     // 检查是否有前向引用非法序号（引用了未来尚未发生的事件）
     for (const src of sources) {
       if (src >= event.seq) {
-        throw new Error(`Provenance violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
+        throw new Error(`Source event reference violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
       }
     }
 
@@ -10649,7 +10649,7 @@ Use these ten indicators to review the architecture of an agent session system y
 - [ ] **Strict sequence continuity**: Does the system enforce $\text{seq} = 0, 1, 2, \dots, N-1$ and refuse to load a log as soon as it finds a gap?
 - [ ] **Pure projection**: Is `deriveMessages()` side-effect-free? Does it avoid sending residual empty-content messages to the model?
 - [ ] **Independent surface index**: Does context compaction maintain the surface index through a declarative `replace` operator instead of modifying or truncating the underlying factual log?
-- [ ] **Complete provenance**: Does every surface replacement declare all shadowed predecessor nodes in `sourceEventSeqs`?
+- [ ] **Complete source-event references**: Does every surface replacement declare all shadowed predecessor nodes in `sourceEventSeqs`?
 - [ ] **Asynchronous batching**: Does persistence use a bounded coalescing window like `SessionWriteBehind`? Can high-frequency streaming block the main event loop?
 - [ ] **Multi-frame compression**: Does the on-disk format use concatenated Zstandard frames or a comparable format to combine high compression with incremental tail appends?
 - [ ] **Torn-tail truncation**: On restart, can `scanZstdFrames` or line-by-line JSON scanning locate and truncate partially written bytes before decompression?
@@ -10823,7 +10823,7 @@ The Client Cordis tree follows a **pure-projection architecture**:
 The following production-style example initializes the browser Client Cordis container and loads its core plugins:
 
 ```ts ignore-check
-// packages/client/runtime/src/client/bootstrap.ts
+// packages/client/locale/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection'
@@ -11023,7 +11023,7 @@ Each monomorphic field check takes $T_{\text{type\_check}} \approx 1.2 \sim 3.5\
 The following production-style Host gateway demonstrates argument validation, lookup resolution, lifecycle binding, and error handling:
 
 ```ts ignore-check
-// packages/api/gateway/src/typert-gateway.ts
+// packages/api/gateway/src/index.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -11460,7 +11460,7 @@ In this example, main-thread CPU use falls from 100% to under 8%, yielding smoot
 
 ### 5.2 State Stores and the Limit of Zustand's Built-In Persist
 
-In `packages/client/runtime/src/client/contract/store.ts`, Harness implements separate `defineStore` and `createSnapshotStore` facilities.
+In `packages/client/store/src/index.ts`, Harness implements separate `defineStore` and `createSnapshotStore` facilities.
 
 #### Why Not Use Zustand's `persist` Middleware?
 
@@ -11472,7 +11472,7 @@ In production use, the team encountered a serious issue in Zustand's `persist` m
 Harness therefore serializes the entire JSON value itself and handles storage failures without throwing, degrading gracefully in private-browsing mode or when a quota is exceeded.
 
 ```ts ignore-check
-// packages/client/runtime/src/client/contract/store.ts
+// packages/client/store/src/index.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { shallow } from 'zustand/shallow'
@@ -11566,7 +11566,7 @@ export function createSnapshotStore<T>(
 At the rendering layer, components connect to snapshot sources through `useSyncExternalStoreWithSelector`:
 
 ```tsx
-// packages/client/ui-renderer/src/client/hooks.ts
+// packages/client/ui-renderer/src/client/index.ts
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import { shallowEqual } from '@deepseek-ai/dsh-client-runtime/client'
@@ -11642,7 +11642,7 @@ For screenshots and downloads, an agent supplies an output path, for example to 
 The Harness MCP client adapter therefore applies a strict workspace-path guard:
 
 ```ts
-// packages/bundle/browser-chrome-devtools/src/path-resolver.ts
+// packages/experimental/browser-use-chrome-devtools-mcp
 import { resolve, normalize, relative, isAbsolute } from 'node:path'
 
 export class WorkspacePathGuard {
@@ -15046,11 +15046,11 @@ The table maps the eight subsystems traversed by this request to concepts in sys
 
 | Harness subsystem | Package path | Systems-programming / distributed analogue | Responsibility and design constraint |
 | :--- | :--- | :--- | :--- |
-| **Client / Web UI** | `packages/web/web-app`<br>`packages/client/client-connection` | **GUI client / reactive frontend** | Manages optimistic updates and the local Zustand state tree; handles bidirectional RPC and WebSocket traffic. |
+| **Client / Web UI** | `packages/client/ui-chat`<br>`packages/client/client-connection` | **GUI client / reactive frontend** | Manages optimistic updates and the local Zustand state tree; handles bidirectional RPC and WebSocket traffic. |
 | **API Gateway** | `packages/api/gateway`<br>`packages/api/remotes` | **API gateway / RPC dispatcher** | Validates the wire protocol, routes sessions, authorizes requests, and forwards events in both directions. |
 | **Agent Core & Inbox**| `packages/core/agent`<br>`packages/core/agent-loop` | **Actor mailbox / state-machine engine** | Maintains Turn/Step transaction boundaries, consumes queued messages, and drives the ReAct loop. |
 | **Cordis Runtime** | `@deepseek-ai/cordis` | **Microkernel IoC container / event bus** | Injects services, disposes lifecycle effects (`ctx.effect`), and runs waterfall interception chains. |
-| **Context & Prompt** | `packages/context/system-prompt` | **Dynamic compiler / AST template engine** | Assembles an immutable system prompt, extracts tool JSON Schema, and projects runtime context dynamically. |
+| **Context & Prompt** | `packages/core/system-prompt` | **Dynamic compiler / AST template engine** | Assembles an immutable system prompt, extracts tool JSON Schema, and projects runtime context dynamically. |
 | **Session Ledger** | `packages/core/session` | **Write-ahead log (WAL) / ledger** | Keeps an append-only event-sourced record and derives the model-visible surface. |
 | **LLM Driver & MLA** | `packages/llm/llm`<br>`packages/llm/llm-openai` | **Probabilistic function / vector-accelerated computation** | Manages SSE transport, block parsing, KV Cache prefix hits, and token budgets. |
 | **Tool Sandbox & Spill**| `packages/core/tools`<br>`packages/fs/tool-fs`<br>`packages/spill/spill-policy` | **POSIX system-call interception / overflow buffer** | Schedules bounded concurrency and exclusive barriers, prevents sandbox path escapes, and spills oversized output. |
@@ -15137,7 +15137,7 @@ When a user presses Enter in the web input, the frontend does not merely wait fo
 #### Source Files and Methods
 - **Source file**: [`packages/client/client-connection/src/connection.ts`](file:///d:/git/deepseek-harness/packages/client/client-connection/src/connection.ts)
 - **Main method**: `Connection.callRemote<T>(endpoint: string, params: unknown, options?: CallOptions): Promise<T>`
-- **Frontend state**: [`packages/web/web-app/src/stores/session-store.ts`](file:///d:/git/deepseek-harness/packages/web/web-app/src/stores/session-store.ts) calls `useSessionStore.getState().appendOptimisticUserMessage()`.
+- **Frontend state**: [`packages/client/ui-chat`](file:///d:/git/deepseek-harness/packages/client/ui-chat) calls `useSessionStore.getState().appendOptimisticUserMessage()`.
 
 #### Example Wire Payload
 The frontend sends a JSON-RPC 2.0-compatible Typert RPC request to the Host through HTTP POST:
@@ -15200,7 +15200,7 @@ The Host API gateway admits the request after three checks:
 #### Source Files and Methods
 - **Source file**: [`packages/api/gateway/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/gateway/src/index.ts)
 - **Main class and method**: `TypertGatewayService.invokeRemote(endpoint, params, signal)`
-- **Route resolver**: [`packages/api/remotes/src/agent-lookup.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/agent-lookup.ts) defines `createApiRemoteAgentResolver(ctx)`.
+- **Route resolver**: [`packages/api/remotes/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/index.ts) defines `createApiRemoteAgentResolver(ctx)`.
 
 #### Key Implementation
 
@@ -15259,7 +15259,7 @@ The agent follows the **actor mailbox model**. External inputs—a regular `foll
 ```
 
 #### Source Files and Methods
-- **Source file**: [`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts)
+- **Source file**: [`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts)
 - **Main method**: `Inbox.splice(target: InboxTarget, start: number, deleteCount: number, items: UserMessage[])`
 - **Driver control**: [`packages/core/agent-loop/src/agent.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/agent.ts) defines `ReactLoopAgent.send()` and `ReactLoopAgent.wakeDriver()`.
 
@@ -15449,8 +15449,8 @@ Once the Step is admitted, the agent performs these atomic operations in order:
 ```
 
 #### Source Files and Methods
-- **System-prompt source**: [`packages/context/system-prompt/src/assemble.ts`](file:///d:/git/deepseek-harness/packages/context/system-prompt/src/assemble.ts) defines `assembleSystemPrompt()`.
-- **Tool-registry source**: [`packages/core/tools/src/registry.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/registry.ts) defines `ToolRegistry.exportSchemas()`.
+- **System-prompt source**: [`packages/core/system-prompt/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/system-prompt/src/index.ts) defines `assembleSystemPrompt()`.
+- **Tool-registry source**: [`packages/core/tools/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/index.ts) defines `ToolRegistry.exportSchemas()`.
 
 ---
 
@@ -15534,7 +15534,7 @@ For the stated DeepSeek-V3 configuration ($n_{\text{layers}} = 61$, $d_c = 512$,
 Compared with the approximately $320\text{ KB/Token}$ of standard LLaMA-3-70B MHA, MLA gives **9.3-fold memory compression**, supporting a 128K context at substantially lower memory cost.
 
 #### Source Files and Methods
-- **Adapter abstraction**: [`packages/llm/llm/src/adapter.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/adapter.ts)
+- **Adapter abstraction**: [`packages/llm/llm/src/index.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/index.ts)
 - **Streaming adapter**: [`packages/llm/llm-openai/src/stream.ts`](file:///d:/git/deepseek-harness/packages/llm/llm-openai/src/stream.ts) defines `openAiStreamAdapter()`.
 
 ---
@@ -15762,8 +15762,8 @@ After receiving the final `turn/end` and `agent/status { status: 'idle' }`, the 
 - Use React 19 selectors to re-render only affected message components for a high-frame-rate UI without flicker.
 
 #### Source Files and Methods
-- **Write buffer**: [`packages/session/session-persistence/src/write-behind.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/write-behind.ts) defines `SessionWriteBehind.enqueue()` and `flush()`.
-- **Persistence coordinator**: [`packages/session/session-persistence/src/coordinator.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/coordinator.ts)
+- **Write buffer**: [`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl) defines `SessionWriteBehind.enqueue()` and `flush()`.
+- **Persistence coordinator**: [`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl)
 - **SQLite store**: [`packages/session/session-persistence-sqlite/src/store.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence-sqlite/src/store.ts)
 
 ---
@@ -15909,11 +15909,11 @@ For development, debugging, and architecture review, this table lists the main o
 | :--- | :--- | :--- | :--- | :--- |
 | **Step 1** | Network entry | Client creates `rpcId` and updates the optimistic UI | `packages/client/client-connection/src/connection.ts` | `Connection.callRemote()` |
 | **Step 2** | Gateway dispatch | Validates the wire protocol and routes the session | `packages/api/gateway/src/index.ts` | `TypertGatewayService.invokeRemote()` |
-| **Step 3** | Inbox enqueue | Pushes the message into the Inbox | `packages/core/agent/src/inbox.ts` | `Inbox.splice()` |
+| **Step 3** | Inbox enqueue | Pushes the message into the Inbox | `packages/core/agent-loop/src/inbox.ts` | `Inbox.splice()` |
 | **Step 4** | Event broadcast | Pushes an enqueue acknowledgment over WebSocket | `packages/api/remotes/src/remote-events.ts` | `API_REMOTE_FORWARDED_EVENTS` |
 | **Step 5** | State-machine activation | Starts the Turn and appends `turn/start` | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.wakeDriver()` |
 | **Step 6** | Pre-Step interception | Reviews through the `agent/pre-step` waterfall | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.preStep()` |
-| **Step 7** | Prompt assembly | Appends `step/start` and assembles prompts and schemas | `packages/context/system-prompt/src/assemble.ts` | `assembleSystemPrompt()` |
+| **Step 7** | Prompt assembly | Appends `step/start` and assembles prompts and schemas | `packages/core/system-prompt/src/index.ts` | `assembleSystemPrompt()` |
 | **Step 8** | History projection | Folds the event ledger into an immutable request | `packages/core/session/src/surface.ts` | `Session.deriveMessages()` |
 | **Step 9** | Model call | Opens an SSE connection and runs MLA inference | `packages/llm/llm-openai/src/stream.ts` | `openAiStreamAdapter()` |
 | **Step 10**| Stream consumption | Parses each chunk and appends it to the ledger | `packages/llm/llm/src/assembler.ts` | `BlockAssembler.push()` |
@@ -15921,7 +15921,7 @@ For development, debugging, and architecture review, this table lists the main o
 | **Step 12**| Tool sandbox | Authorizes, runs in the sandbox, and controls spill | `packages/core/agent-loop/src/tool-calls.ts` | `executeToolCalls()` |
 | **Step 13**| Result feedback | Appends `tool/result` and resumes iteration | `packages/core/agent-loop/src/tool-calls.ts` | `appendToolResult()` |
 | **Step 14**| Turn settlement | Emits the final answer, appends `turn/end`, and returns to idle | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.turn()` |
-| **Step 15**| Asynchronous persistence | Flushes write-behind, Zstd compression, and SQLite WAL | `packages/session/session-persistence/src/write-behind.ts` | `SessionWriteBehind.flush()` |
+| **Step 15**| Asynchronous persistence | Flushes write-behind, Zstd compression, and SQLite WAL | `packages/session/session-persistence-jsonl` | `SessionWriteBehind.flush()` |
 
 ---
 
@@ -17066,7 +17066,7 @@ graph TD
 Cordis extends services and contexts through TypeScript **declaration merging**:
 
 ```ts ignore-check
-// packages/session/session/src/index.ts (Host 端)
+// packages/core/session/src/index.ts (Host 端)
 declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService
@@ -17554,7 +17554,7 @@ Snapshot replay records raw SSE chunks, the model's generated token sequence, re
 To replay LLM sessions accurately in CI without a network connection or API key, Harness uses a deterministic provider driven by recorded stream chunks:
 
 ```ts ignore-check
-// File: packages/test-support/llm-replay/src/replay-provider.ts
+// File: packages/test-support/llm-replay/src/index.ts
 import type { LlmProvider, StreamChunk, CompletionRequest } from '@deepseek-ai/dsh-llm';
 
 export interface RecordedTranscriptStep {
@@ -17936,7 +17936,7 @@ $$M_k = \text{deriveMessages}(E_{0..k}) = \text{Fold}\left( \text{surfaceOp}, \e
 The projection folds events as follows:
 
 - **Message append**: On `user/message`, `assistant/message`, or `tool/result`, the `surfaceOp: 'append'` operation adds the structured message to the end of the current list.
-- **Causal provenance**: The physical log retains `assistant/chunk` streaming events for live downlink and resumability; those chunks do not individually occupy model context. The final `assistant/message` references them through `sourceEventSeqs: [seq_1, seq_2, ...]`.
+- **Source-event links**: The physical log retains `assistant/chunk` streaming events for live downlink and resumability; those chunks do not individually occupy model context. The final `assistant/message` references them through `sourceEventSeqs: [seq_1, seq_2, ...]`.
 - **History compaction**: When compaction shadows historical events, the physical log retains them for deterministic replay, while `deriveMessages()` replaces them in the projection with one structured summary.
 
 #### 3. Key Files and Reading Notes
@@ -17978,8 +17978,8 @@ This stage addresses state consistency and frontend–backend decoupling. Persis
 
 #### 2. Key Files and Reading Notes
 
-- **`packages/session/session-persistence/src/write-behind.ts`**: `SessionWriteBehind` buffers writes so each small `assistant/chunk` does not incur synchronous disk I/O. A bounded queue coalesces batches using `maxDelayMs` (default 200 ms), while explicit `flush()` is a quiescence barrier at Turn completion, key tool execution, or session export, ensuring in-flight events are physically persisted with `fsync`.
-- **`packages/session/session-persistence/src/coordinator.ts`**: The persistence coordinator owns multi-session lifecycles, corruption detection (`SessionPersistenceCorruptionError`), format-version negotiation (`SESSION_FORMAT_VERSION`), and crash recovery.
+- **`packages/session/session-persistence-jsonl`**: `SessionWriteBehind` buffers writes so each small `assistant/chunk` does not incur synchronous disk I/O. A bounded queue coalesces batches using `maxDelayMs` (default 200 ms), while explicit `flush()` is a quiescence barrier at Turn completion, key tool execution, or session export, ensuring in-flight events are physically persisted with `fsync`.
+- **`packages/session/session-persistence-jsonl`**: The persistence coordinator owns multi-session lifecycles, corruption detection (`SessionPersistenceCorruptionError`), format-version negotiation (`SESSION_FORMAT_VERSION`), and crash recovery.
 - **`packages/host/apiproxy/src/api-proxy.ts`** and **`packages/host/apiproxy/src/api/`**: The frontend–backend gateway defines a four-quadrant discriminated union (`ClientRequest`, `ServerResponse`, `ServerRequest`, and `ClientResponse`). Zod validates each API request twice: once for the outer envelope and once for the business payload. A unified `RpcResult` carries closed error codes.
 - **`packages/client/runtime/src/`**: The browser Cordis runtime includes `ConversationNodeAssembler`, `SessionRuntime`, and `WorkspaceRuntime`. It subscribes to the Host mux event stream (`session/projection`) and uses Immer/Zustand to maintain an immutable frontend view with incremental rendering rather than full-session refreshes.
 
@@ -18024,7 +18024,7 @@ From the execution order, derive the exact `seq`, `type`, and key `data` fields 
 
 #### 3. Complete Event Sequence and Reference Answer
 
-| Seq | Event type | Boundary | Key payload (`data`) | Provenance (`sourceEventSeqs`) |
+| Seq | Event type | Boundary | Key payload (`data`) | Source-event links (`sourceEventSeqs`) |
 | :--- | :--- | :--- | :--- | :--- |
 | **0** | `request/header` | Session Init | `{ header: { config: { provider: 'deepseek', model: 'deepseek-chat' }, system: '...', tools: [...] }, reason: 'initial' }` | - |
 | **1** | `request/context` | Session Init | `{ provider: 'deepseek', model: 'deepseek-chat', contextWindow: 65536 }` | - |
@@ -18832,7 +18832,7 @@ A **concurrency-safe mailbox** attached to an agent instance. Messages from exte
 **The mailbox in an Erlang/Akka Actor model**.
 
 #### Where to Find It in DeepSeek Harness
-- Implementation: `Inbox` in [`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts).
+- Implementation: `Inbox` in [`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts).
 - Events: `'agent/inbox/inserted'`, `'agent/inbox/claimed'`, and `'agent/inbox/discarded'`.
 
 ---
@@ -19274,7 +19274,7 @@ An independent-lifecycle subagent spawned by a parent agent for a risky or compl
 | 25 | **Campaign** | Long-running cross-batch Epic / Saga | Ordered Batch sequence and terminal evidence | Advancing long-running, cross-version goals |
 | 26 | **Batch** | Iterative segmented work (Sprint / Chunk) | Independent bounded local DAG | Staged delivery and isolation |
 | 27 | **Revision** | Copy-on-write snapshot (Git commit / RCU) | Immutable topology data | Architectural refactoring and failure correction |
-| 28 | **Lineage** | Data lineage / provenance | Typed causal relationship graph | Auditing revision intent and structural differences |
+| 28 | **Lineage** | Data lineage / source-event links | Typed causal relationship graph | Auditing revision intent and structural differences |
 | 29 | **Run** | One pipeline execution | Execution-instance state machine | Physical graph scheduling and tracking |
 | 30 | **Generation** | Scheduler term / epoch (Raft) | Monotonically increasing generation number | Discarding stale scheduler work |
 | 31 | **Activation** | Exclusive task-lease handle | Temporary unique activation ID | Linking external coordination and execution evidence |
@@ -19859,7 +19859,7 @@ Force-killing threads or processes can leave locks and resources behind. Harness
 #### 4. Complete TypeScript Example: State-Machine Driver
 
 ```typescript
-// packages/core/agent-loop/src/driver.ts
+// packages/core/agent-loop/src/agent.ts
 
 import { Context } from '../../cordis-mini/src/container.js';
 
@@ -20097,7 +20097,7 @@ Harness applies strict rules to durable storage:
 #### 4. Complete TypeScript Example: Event Sourcing and Projection
 
 ```typescript
-// packages/core/session/src/session.ts
+// packages/core/session/src/index.ts
 
 export type SessionEventType =
   | 'turn/start'
@@ -20255,14 +20255,14 @@ Hard-coding filesystem writes or shell commands into business logic is dangerous
                                          | 实现接口
 +-----------------------------------------------------------------------------------+
 | 2. Service Provider (具体能力提供方实现包)                                         |
-|    - packages/provider/fs-local: 基于 Node.js 本地文件系统实现                    |
-|    - packages/provider/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
+|    - packages/fs/fs-local: 基于 Node.js 本地文件系统实现                    |
+|    - packages/fs/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
 +-----------------------------------------------------------------------------------+
                                          ^
                                          | 消费注入 (ctx.fs)
 +-----------------------------------------------------------------------------------+
 | 3. Consumer / Tools (面向大模型的工具消费包)                                      |
-|    - packages/tools/fs-tools: 向模型暴露 read_file / write_file 工具 DSL          |
+|    - packages/fs/tool-fs: 向模型暴露 read_file / write_file 工具 DSL          |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -20301,7 +20301,7 @@ Layer 4 applies three defenses when executing model-generated commands and argum
 #### 4. Complete TypeScript Example: Controlled Tool Pipeline
 
 ```typescript
-// packages/core/tools/src/pipeline.ts
+// packages/core/tools/src/index.ts
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -20468,7 +20468,7 @@ When integrating an external multi-agent coordinator such as LoopX, the two plan
 #### 4. Complete TypeScript Example: Fenced Storage and Reconciliation
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -20725,7 +20725,7 @@ The worker did not attach a scheduler-issued, monotonically increasing `Fencing 
 Use an atomic-write adapter that validates fencing tokens:
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -20780,7 +20780,7 @@ Just before power loss, a third-party plugin may have called an unsynchronized l
 Introduce an atomic queued-write barrier and startup reconciliation for sequence gaps in the session layer:
 
 ```typescript
-// packages/core/session/src/persistence-repair.ts
+// packages/core/session/src/repair.ts
 
 import { SessionEvent } from './session.js';
 
@@ -27151,7 +27151,7 @@ The STRIDE model maps to critical agent-runtime components as follows:
 | :--- | :--- | :--- | :--- |
 | **Spoofing** | Forge a user identity or certificate | Forge a tool-call ID, MCP service identity, or subagent origin | Signed context, strict session-UUID validation, tamper-resistant leases |
 | **Tampering** | Alter messages in transit or database records | Alter the session log or workspace config such as `.git/config` | Append-only log and read-only system-directory mounts |
-| **Repudiation** | Deny having performed an action | Model denies a dangerous shell write; agents deny responsibility for shared work | Provenance in audit events and full stdout/stderr archival |
+| **Repudiation** | Deny having performed an action | Model denies a dangerous shell write; agents deny responsibility for shared work | Source-event links in audit events and full stdout/stderr archival |
 | **Information Disclosure** | Read sensitive data without authorization | Prompt induces printing environment variables or extracting `.env` secrets via errors | Entropy-based redaction, environment allowlist, removal of in-memory credentials |
 | **Denial of Service** | Exhaust bandwidth, CPU, or memory | Output bomb, token flooding, archive bomb | Hard memory limits, disk spill, decompression quota checks |
 | **Elevation of Privilege** | Obtain root privileges from a lower-privilege account | Read-only agent spawns a writable subagent or bypasses approval for dangerous shell commands | Monotonic permission lattice ($\sqsubseteq$), fail-closed approval |
@@ -28415,7 +28415,7 @@ The following table relates AI orchestration concepts to established computer-sy
 | **Directed edge** | **Makefile / Ninja dependency rule** | Declares data and control dependencies as a partial order | Cycles, dangling references, false dependencies |
 | **Write roots (`writeRoots`)** | **Page-table isolation / mount namespace** | The relative paths a worker is allowed to write | Unauthorized writes, concurrent conflicts, directory traversal |
 | **Controller** | **Distributed scheduling coordinator** | Classifies intent, creates a minimal immutable DAG, dispatches work, and reconciles outcomes | Split-brain control, oversized controller prompts, invented schedules |
-| **Immutable revision** | **Git commit snapshot (Git Commit Tree / Merkle DAG)** | Each graph-topology change produces a new immutable, globally increasing revision | In-place mutation breaks replay and provenance |
+| **Immutable revision** | **Git commit snapshot (Git Commit Tree / Merkle DAG)** | Each graph-topology change produces a new immutable, globally increasing revision | In-place mutation breaks replay and source-event links |
 | **Campaign / Batch** | **Multi-stage transaction** | Divides a long goal into independent batches with an immutable prefix and extensible tail | Cross-batch context explosion and ghost historical nodes |
 
 ### 1.2 Physical Limits of a Serial Agent and Three Failure Barriers
@@ -31026,7 +31026,7 @@ export async function updateProjectLabelAntiPattern(ctx: Context, label: string)
 
 1. **Lifecycle-scope mismatch:** `Settings` represent declarative configuration, usually scoped to a Workspace or User Profile. A Project Label is dynamic Session-scoped state. Persisting one Session's action to shared Settings can silently change other concurrent Sessions in the same Workspace.
 
-2. **No historical provenance:** `Settings` hold the latest value, not who changed it at which step or which model turn it affected. Evaluation and debugging then lack the evidence needed to reconstruct the change.
+2. **No change history:** `Settings` hold the latest value, not who changed it at which step or which model turn it affected. Evaluation and debugging then lack the evidence needed to reconstruct the change.
 
 ### 2.3 Option C: an immutable Session event-sourcing ledger
 
@@ -35361,7 +35361,7 @@ stateDiagram-v2
 #### Code Deliverable: `production-agent-loop.ts`
 
 ```typescript
-// packages/runtime/src/agent/agent-loop.ts
+// packages/core/agent-loop/src/agent.ts
 import { z } from "zod";
 
 export type AgentStepState = "PRE_STEP" | "CALLING_MODEL" | "EXECUTING_TOOLS" | "SETTLING" | "TERMINATED";
@@ -35526,7 +35526,7 @@ export class ProductionAgentLoop {
 #### Code Deliverable: `event-sourced-session-store.ts`
 
 ```typescript
-// packages/persistence/src/session/event-session-store.ts
+// packages/session/session-persistence-jsonl/src/storage.ts
 export interface SessionEvent {
   id: string;
   sessionId: string;
@@ -35699,7 +35699,7 @@ export class FencedStorage<T> {
 ```
 
 ```typescript
-// packages/security/src/sandbox/os-sandbox-interceptor.ts
+// packages/sandbox/sandbox-local/src/index.ts
 import path from "node:path";
 
 export interface SandboxPolicy {

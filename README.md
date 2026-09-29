@@ -8,6 +8,10 @@ It is built on an **everything-is-a-plugin** architecture and powered by [Cordis
 
 Documentation: [https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
 
+## Graph desktop distribution
+
+This independent derivative preserves the local Graph, LoopX, browser-testing, and Session migration implementations on the official desktop release baseline. Self-contained Windows packaging is under development; no qualified standalone installer is published by this branch. The [Windows desktop migration plan](docs/scratch/standalone-windows-desktop.md) defines bundled runtimes, update isolation, supported-system qualification, and clean-machine acceptance. The npm command below runs the upstream distribution, not these fork-specific additions.
+
 ## Developer preview
 
 DeepSeek Harness is in _developer preview_ and iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
@@ -46,7 +50,7 @@ pnpm dsh web
 
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 - Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+- Join <a href="https://discord.gg/4MrtZUhpxg">DeepSeek Harness Discord community</a>.
 
 ## Contributing
 

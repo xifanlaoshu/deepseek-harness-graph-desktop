@@ -1,9 +1,29 @@
+---
+description: "通过经过身份验证的 HTTP 或旧版进程外适配器运行 Graph Worker。本文介绍远程分派、持久化恢复以及可选的资源、调度器和制品路由。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-worker-remote
 
 [English](README.md) | 中文
 
+## 概述
+
+通过经过身份验证的 HTTP 或旧版进程外适配器运行 Graph Worker。HTTP 服务会持久化已接受的工作，并对已被取代的进程实施围栏；不确定的活动任务会被隔离，等待协调恢复。
+
+## 目录
+
+- [配置](#configuration)
+- [约定](#contract)
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
+
 这是 [`dsh-graph-worker`](../graph-worker/README.zh.md) 的认证远程 Client、持久化 Worker 服务和面向现有进程外 Subagent Provider 的旧适配器。
 
+<a id="configuration"></a>
 ## Configuration
 
 `mode` 可选 `client`、`server` 或 `both`，默认值为 `client`。
@@ -22,6 +42,7 @@
 - `artifactRouteName`、`artifactProvider` 和 `artifactTempRoot` 可通过私有暂存目录公开一个持久化同进程 Graph Artifact Provider；`artifactMaxFiles` 和 `artifactMaxBytes` 限制传输。
 - `maxClockSkewMs`、`maxRequestBytes`、`maxResultBytes`、`maxReplayEntries`、`busyTimeoutMs` 和 `operationTimeoutMs` 是部署硬上限。
 
+<a id="contract"></a>
 ## Contract
 
 HTTP Client 使用 HMAC-SHA256 对 Worker、Resource、Scheduler 和 Artifact 操作签名。签名覆盖规范化方法、精确请求目标、调用方 Principal、服务 Audience、毫秒时间戳、密码学 Nonce 和精确请求体的 SHA-256 摘要。服务端使用常量时间比较验证签名，拒绝过期或重放请求，并在有界 Nonce 缓存已满时拒绝继续接收。Secret 必须包含 32 至 4,096 个 UTF-8 字节。
@@ -36,6 +57,18 @@ HTTP Client 使用 HMAC-SHA256 对 Worker、Resource、Scheduler 和 Artifact �
 
 旧适配器声明共享工作区执行。它把角色与模型选择转发到配置的 Subagent 路由，并可在发布终态成功前捕获制品路径。离线旧适配器引用仍返回 `quarantined`，因为该路径没有持久化远程 Journal。
 
+<a id="dev-note"></a>
+## 开发备注
+该 Provider 不发布不变量 companion：线协议、日志、传输和 Provider 响应都在相应信任边界校验。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Remote assignment
@@ -52,7 +85,7 @@ HTTP Client 使用 HMAC-SHA256 对 Worker、Resource、Scheduler 和 Artifact �
 
 角色和输出 Schema 相同的节点可以复用对应 Prompt 前缀。节点目标和依赖证据仍会变化。
 
-## Known Limitations and Deferred Work
+## Known Limitations and Deferred Work <a id="known-limitations-and-deferred-work"></a>
 
 - Worker SQLite Journal 是带 Epoch Fencing 的单活动服务持久化权威源。多 Host Run 所有权要求在 Scheduler 路由后配置持久化 Provider；HTTP 服务本身不是复制式高可用数据库。
 - 重启恢复会隔离不确定的非终态作业。它不会恢复仍存活的进程，也不会声称外部副作用不存在；策略重试前必须通过对账处理保留的 Provider 引用。

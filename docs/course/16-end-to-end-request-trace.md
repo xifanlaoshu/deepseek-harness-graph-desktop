@@ -29,11 +29,11 @@ The table maps the eight subsystems traversed by this request to concepts in sys
 
 | Harness subsystem | Package path | Systems-programming / distributed analogue | Responsibility and design constraint |
 | :--- | :--- | :--- | :--- |
-| **Client / Web UI** | `packages/web/web-app`<br>`packages/client/client-connection` | **GUI client / reactive frontend** | Manages optimistic updates and the local Zustand state tree; handles bidirectional RPC and WebSocket traffic. |
+| **Client / Web UI** | `packages/client/ui-chat`<br>`packages/client/client-connection` | **GUI client / reactive frontend** | Manages optimistic updates and the local Zustand state tree; handles bidirectional RPC and WebSocket traffic. |
 | **API Gateway** | `packages/api/gateway`<br>`packages/api/remotes` | **API gateway / RPC dispatcher** | Validates the wire protocol, routes sessions, authorizes requests, and forwards events in both directions. |
 | **Agent Core & Inbox**| `packages/core/agent`<br>`packages/core/agent-loop` | **Actor mailbox / state-machine engine** | Maintains Turn/Step transaction boundaries, consumes queued messages, and drives the ReAct loop. |
 | **Cordis Runtime** | `@deepseek-ai/cordis` | **Microkernel IoC container / event bus** | Injects services, disposes lifecycle effects (`ctx.effect`), and runs waterfall interception chains. |
-| **Context & Prompt** | `packages/context/system-prompt` | **Dynamic compiler / AST template engine** | Assembles an immutable system prompt, extracts tool JSON Schema, and projects runtime context dynamically. |
+| **Context & Prompt** | `packages/core/system-prompt` | **Dynamic compiler / AST template engine** | Assembles an immutable system prompt, extracts tool JSON Schema, and projects runtime context dynamically. |
 | **Session Ledger** | `packages/core/session` | **Write-ahead log (WAL) / ledger** | Keeps an append-only event-sourced record and derives the model-visible surface. |
 | **LLM Driver & MLA** | `packages/llm/llm`<br>`packages/llm/llm-openai` | **Probabilistic function / vector-accelerated computation** | Manages SSE transport, block parsing, KV Cache prefix hits, and token budgets. |
 | **Tool Sandbox & Spill**| `packages/core/tools`<br>`packages/fs/tool-fs`<br>`packages/spill/spill-policy` | **POSIX system-call interception / overflow buffer** | Schedules bounded concurrency and exclusive barriers, prevents sandbox path escapes, and spills oversized output. |
@@ -120,7 +120,7 @@ When a user presses Enter in the web input, the frontend does not merely wait fo
 #### Source Files and Methods
 - **Source file**: [`packages/client/client-connection/src/connection.ts`](file:///d:/git/deepseek-harness/packages/client/client-connection/src/connection.ts)
 - **Main method**: `Connection.callRemote<T>(endpoint: string, params: unknown, options?: CallOptions): Promise<T>`
-- **Frontend state**: [`packages/web/web-app/src/stores/session-store.ts`](file:///d:/git/deepseek-harness/packages/web/web-app/src/stores/session-store.ts) calls `useSessionStore.getState().appendOptimisticUserMessage()`.
+- **Frontend state**: [`packages/client/ui-chat`](file:///d:/git/deepseek-harness/packages/client/ui-chat) calls `useSessionStore.getState().appendOptimisticUserMessage()`.
 
 #### Example Wire Payload
 The frontend sends a JSON-RPC 2.0-compatible Typert RPC request to the Host through HTTP POST:
@@ -183,7 +183,7 @@ The Host API gateway admits the request after three checks:
 #### Source Files and Methods
 - **Source file**: [`packages/api/gateway/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/gateway/src/index.ts)
 - **Main class and method**: `TypertGatewayService.invokeRemote(endpoint, params, signal)`
-- **Route resolver**: [`packages/api/remotes/src/agent-lookup.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/agent-lookup.ts) defines `createApiRemoteAgentResolver(ctx)`.
+- **Route resolver**: [`packages/api/remotes/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/index.ts) defines `createApiRemoteAgentResolver(ctx)`.
 
 #### Key Implementation
 
@@ -242,7 +242,7 @@ The agent follows the **actor mailbox model**. External inputs—a regular `foll
 ```
 
 #### Source Files and Methods
-- **Source file**: [`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts)
+- **Source file**: [`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts)
 - **Main method**: `Inbox.splice(target: InboxTarget, start: number, deleteCount: number, items: UserMessage[])`
 - **Driver control**: [`packages/core/agent-loop/src/agent.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/agent.ts) defines `ReactLoopAgent.send()` and `ReactLoopAgent.wakeDriver()`.
 
@@ -432,8 +432,8 @@ Once the Step is admitted, the agent performs these atomic operations in order:
 ```
 
 #### Source Files and Methods
-- **System-prompt source**: [`packages/context/system-prompt/src/assemble.ts`](file:///d:/git/deepseek-harness/packages/context/system-prompt/src/assemble.ts) defines `assembleSystemPrompt()`.
-- **Tool-registry source**: [`packages/core/tools/src/registry.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/registry.ts) defines `ToolRegistry.exportSchemas()`.
+- **System-prompt source**: [`packages/core/system-prompt/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/system-prompt/src/index.ts) defines `assembleSystemPrompt()`.
+- **Tool-registry source**: [`packages/core/tools/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/index.ts) defines `ToolRegistry.exportSchemas()`.
 
 ---
 
@@ -517,7 +517,7 @@ For the stated DeepSeek-V3 configuration ($n_{\text{layers}} = 61$, $d_c = 512$,
 Compared with the approximately $320\text{ KB/Token}$ of standard LLaMA-3-70B MHA, MLA gives **9.3-fold memory compression**, supporting a 128K context at substantially lower memory cost.
 
 #### Source Files and Methods
-- **Adapter abstraction**: [`packages/llm/llm/src/adapter.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/adapter.ts)
+- **Adapter abstraction**: [`packages/llm/llm/src/index.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/index.ts)
 - **Streaming adapter**: [`packages/llm/llm-openai/src/stream.ts`](file:///d:/git/deepseek-harness/packages/llm/llm-openai/src/stream.ts) defines `openAiStreamAdapter()`.
 
 ---
@@ -745,8 +745,8 @@ After receiving the final `turn/end` and `agent/status { status: 'idle' }`, the 
 - Use React 19 selectors to re-render only affected message components for a high-frame-rate UI without flicker.
 
 #### Source Files and Methods
-- **Write buffer**: [`packages/session/session-persistence/src/write-behind.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/write-behind.ts) defines `SessionWriteBehind.enqueue()` and `flush()`.
-- **Persistence coordinator**: [`packages/session/session-persistence/src/coordinator.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/coordinator.ts)
+- **Write buffer**: [`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl) defines `SessionWriteBehind.enqueue()` and `flush()`.
+- **Persistence coordinator**: [`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl)
 - **SQLite store**: [`packages/session/session-persistence-sqlite/src/store.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence-sqlite/src/store.ts)
 
 ---
@@ -892,11 +892,11 @@ For development, debugging, and architecture review, this table lists the main o
 | :--- | :--- | :--- | :--- | :--- |
 | **Step 1** | Network entry | Client creates `rpcId` and updates the optimistic UI | `packages/client/client-connection/src/connection.ts` | `Connection.callRemote()` |
 | **Step 2** | Gateway dispatch | Validates the wire protocol and routes the session | `packages/api/gateway/src/index.ts` | `TypertGatewayService.invokeRemote()` |
-| **Step 3** | Inbox enqueue | Pushes the message into the Inbox | `packages/core/agent/src/inbox.ts` | `Inbox.splice()` |
+| **Step 3** | Inbox enqueue | Pushes the message into the Inbox | `packages/core/agent-loop/src/inbox.ts` | `Inbox.splice()` |
 | **Step 4** | Event broadcast | Pushes an enqueue acknowledgment over WebSocket | `packages/api/remotes/src/remote-events.ts` | `API_REMOTE_FORWARDED_EVENTS` |
 | **Step 5** | State-machine activation | Starts the Turn and appends `turn/start` | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.wakeDriver()` |
 | **Step 6** | Pre-Step interception | Reviews through the `agent/pre-step` waterfall | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.preStep()` |
-| **Step 7** | Prompt assembly | Appends `step/start` and assembles prompts and schemas | `packages/context/system-prompt/src/assemble.ts` | `assembleSystemPrompt()` |
+| **Step 7** | Prompt assembly | Appends `step/start` and assembles prompts and schemas | `packages/core/system-prompt/src/index.ts` | `assembleSystemPrompt()` |
 | **Step 8** | History projection | Folds the event ledger into an immutable request | `packages/core/session/src/surface.ts` | `Session.deriveMessages()` |
 | **Step 9** | Model call | Opens an SSE connection and runs MLA inference | `packages/llm/llm-openai/src/stream.ts` | `openAiStreamAdapter()` |
 | **Step 10**| Stream consumption | Parses each chunk and appends it to the ledger | `packages/llm/llm/src/assembler.ts` | `BlockAssembler.push()` |
@@ -904,7 +904,7 @@ For development, debugging, and architecture review, this table lists the main o
 | **Step 12**| Tool sandbox | Authorizes, runs in the sandbox, and controls spill | `packages/core/agent-loop/src/tool-calls.ts` | `executeToolCalls()` |
 | **Step 13**| Result feedback | Appends `tool/result` and resumes iteration | `packages/core/agent-loop/src/tool-calls.ts` | `appendToolResult()` |
 | **Step 14**| Turn settlement | Emits the final answer, appends `turn/end`, and returns to idle | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.turn()` |
-| **Step 15**| Asynchronous persistence | Flushes write-behind, Zstd compression, and SQLite WAL | `packages/session/session-persistence/src/write-behind.ts` | `SessionWriteBehind.flush()` |
+| **Step 15**| Asynchronous persistence | Flushes write-behind, Zstd compression, and SQLite WAL | `packages/session/session-persistence-jsonl` | `SessionWriteBehind.flush()` |
 
 ---
 

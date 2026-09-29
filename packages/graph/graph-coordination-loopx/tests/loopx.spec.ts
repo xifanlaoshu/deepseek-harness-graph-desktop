@@ -6,12 +6,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
 import type { SubprocessHandle, SubprocessSpawnSpec, SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 import { GraphActivationId, GraphControlOperationId, GraphRunId, GraphSettlementId, GraphWorkId } from '@deepseek-ai/dsh-graph'
 import type { GraphRevision, GraphRole } from '@deepseek-ai/dsh-graph'
-import LoopxGraphCoordination from '../src/index.ts'
-import * as LoopxInvariant from '../src/invariant.ts'
+import LoopxGraphCoordination, { LoopxCoordinationClient } from '../src/index.ts'
 import { PersistentLoopxBroker } from '../src/broker.ts'
 import { runGraphCoordinationContract } from '../../graph-coordination/tests/contract.ts'
 
@@ -177,6 +175,36 @@ class FakePersistentSubprocess extends SubprocessRuntime {
   }
 }
 
+class TreePendingPersistentSubprocess extends FakePersistentSubprocess {
+  readonly treeWaitStarted = Promise.withResolvers<undefined>()
+  readonly treeExit = Promise.withResolvers<undefined>()
+  handle: SubprocessHandle | undefined
+
+  override spawn(spec: SubprocessSpawnSpec): SubprocessHandle {
+    const handle = super.spawn(spec)
+    this.handle = handle
+    return {
+      ...handle,
+      waitForExit: async (signal) => {
+        if (signal === undefined) {
+          this.treeWaitStarted.resolve(undefined)
+          await this.treeExit.promise
+          return true
+        }
+        if (signal.aborted) return false
+        const aborted = Promise.withResolvers<boolean>()
+        const onAbort = (): void => { aborted.resolve(false) }
+        signal.addEventListener('abort', onAbort, { once: true })
+        try {
+          return await Promise.race([this.treeExit.promise.then(() => true), aborted.promise])
+        } finally {
+          signal.removeEventListener('abort', onAbort)
+        }
+      },
+    }
+  }
+}
+
 class Utf16FailingPersistentSubprocess extends SubprocessRuntime {
   async terminalEnvironment() { return { platform: 'posix' as const } }
   async resolveExecutable(command: string): Promise<string> { return command }
@@ -286,7 +314,7 @@ const brokerOptions = {
 const role = {
   id: 'engineer', label: 'Engineer', description: 'implements', controller: false, enabled: true,
   model: {}, prompt: 'implement', maxParallel: 1,
-} as unknown as GraphRole
+} as GraphRole
 const graph = {
   graphId: 'g1', revision: 1, objective: 'ship', createdAt: 1, userInput: 'ship',
   nodes: [{
@@ -294,7 +322,7 @@ const graph = {
     acceptanceCriteria: ['done'], maxAttempts: 1, weight: 1,
   }],
   edges: [],
-} as unknown as GraphRevision
+} as never as GraphRevision
 
 const request = (node: GraphRevision['nodes'][number], selectedGraph = graph, cwd = 'D:/work', run = 'run-1') => {
   const workId = GraphWorkId(`work-${selectedGraph.graphId}-${node.id}-${cwd.replaceAll(/[^A-Za-z0-9]/g, '-')}`)
@@ -335,7 +363,11 @@ async function setup(config: {
   stderrMaxBytes?: number
   transport?: 'process' | 'persistent'
   brokerPythonExecutable?: string
+  brokerDirectPython?: boolean
   brokerCommand?: string
+  brokerCommandArgs?: string[]
+  brokerEnv?: Readonly<Record<string, string>>
+  brokerCwd?: string
 } = { goalId: 'goal-1', roleAgents: { engineer: 'engineer-peer' } }) {
   const ctx = new Context()
   await ctx.plugin(FakeSubprocess).await()
@@ -345,13 +377,30 @@ async function setup(config: {
 }
 
 describe('LoopxGraphCoordination', () => {
-  it('reserves package invariant ownership', async () => {
+  it('runs separate fixed-goal clients without requiring Cordis Service instances', async () => {
     const ctx = new Context()
-    await ctx.plugin(InvariantRegistry, { enabled: true })
-    await ctx.plugin(LoopxInvariant).await()
-    expect(() => {
-      ctx.invariants.register('@deepseek-ai/dsh-graph-coordination-loopx', () => {})
-    }).toThrow(/already registered/)
+    await ctx.plugin(FakeSubprocess).await()
+    const runtime = ctx.subprocess as FakeSubprocess
+    const first = new LoopxCoordinationClient(runtime, { goalId: 'goal-one', roleAgents: { engineer: 'engineer-peer' }, journalPath: ':memory:' })
+    const second = new LoopxCoordinationClient(runtime, { goalId: 'goal-two', roleAgents: { engineer: 'engineer-peer' }, journalPath: ':memory:' })
+    const signal = new AbortController().signal
+    try {
+      await first.prepare(graph, [role], 'D:/work', signal)
+      await second.prepare(graph, [role], 'D:/work', signal)
+      const base = request(graph.nodes[0]!, graph, 'D:/work', 'run-one')
+      await first.claim(base, signal)
+      await second.claim(base, signal)
+      const commands = runtime.argv.map(args => args.join(' '))
+      expect(commands.filter(command => command.includes('todo add'))).toEqual([
+        expect.stringContaining('--goal-id goal-one'), expect.stringContaining('--goal-id goal-two'),
+      ])
+      expect(commands.filter(command => command.includes('todo claim'))).toEqual([
+        expect.stringContaining('--goal-id goal-one'), expect.stringContaining('--goal-id goal-two'),
+      ])
+    } finally {
+      await Promise.all([first.dispose(), second.dispose()])
+      await ctx.fiber.dispose()
+    }
   })
 
   it('recovers the claimed todo so staged output can settle immediately after restart', async () => {
@@ -858,9 +907,64 @@ describe('LoopxGraphCoordination', () => {
     expect(runtime.specs).toHaveLength(1)
     expect(runtime.specs[0]?.stdio).toEqual({ stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' })
     expect(runtime.specs[0]?.argv).toEqual(expect.arrayContaining([
-      'wsl.exe', '-d', 'Ubuntu', '--exec', 'python3', '/root/.local/bin/loopx',
+      'wsl.exe', '-d', 'Ubuntu', '--exec', 'python3', JSON.stringify(['/root/.local/bin/loopx']),
     ]))
     expect(runtime.requests.map(item => item['cwd'])).toEqual(['/mnt/d/work/one', '/mnt/d/work/two'])
+    await ctx.fiber.dispose()
+  })
+
+  it('starts a native persistent broker directly with Python and isolates its environment', async () => {
+    const ctx = new Context()
+    await ctx.plugin(FakePersistentSubprocess).await()
+    const runtime = ctx.subprocess as FakePersistentSubprocess
+    const broker = new PersistentLoopxBroker(runtime, {
+      pythonExecutable: 'D:/runtime/python.exe',
+      directPython: true,
+      command: 'D:/runtime/python.exe',
+      commandArgs: ['D:/payload/launcher.py'],
+      env: { PATH: 'D:/runtime;C:/Windows/System32', TEMP: 'D:/private/temp', TMP: 'D:/private/temp', LOOPX_USAGE_PING: '0' },
+      cwd: 'D:/private/runtime',
+      graceMs: 100,
+      startTimeoutMs: 1_000,
+      diagnosticMaxBytes: 8_192,
+    })
+    try {
+      await broker.run('D:/work', ['--format', 'json', 'todo', 'list'], 1_000, 1_024, 1_024, new AbortController().signal)
+      expect(runtime.specs).toHaveLength(1)
+      expect(runtime.specs[0]?.argv.slice(0, 4)).toEqual([
+        'D:/runtime/python.exe', '-u', '-c', expect.any(String),
+      ])
+      expect(JSON.parse(runtime.specs[0]?.argv[4] ?? '[]')).toEqual([
+        'D:/runtime/python.exe', 'D:/payload/launcher.py',
+      ])
+      expect(runtime.specs[0]?.env).toMatchObject({
+        PATH: 'D:/runtime;C:/Windows/System32', TEMP: 'D:/private/temp', TMP: 'D:/private/temp', LOOPX_USAGE_PING: '0',
+      })
+      expect(runtime.specs[0]?.cwd).toBe('D:/private/runtime')
+    } finally {
+      await broker.dispose()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('awaits the complete owned process tree after a direct broker exit', async () => {
+    const ctx = new Context()
+    await ctx.plugin(TreePendingPersistentSubprocess).await()
+    const runtime = ctx.subprocess as TreePendingPersistentSubprocess
+    const broker = new PersistentLoopxBroker(runtime, brokerOptions)
+    await broker.run('/mnt/d/work', ['todo', 'list'], 1_000, 1_024, 1_024, new AbortController().signal)
+    const handle = runtime.handle
+    if (handle === undefined) throw new Error('persistent broker handle was not created')
+    handle.stdout?.emit('data', Buffer.from('{"protocol":99,"type":"response","id":"invalid"}\n'))
+    await runtime.treeWaitStarted.promise
+
+    let disposed = false
+    const disposal = broker.dispose().then(() => { disposed = true })
+    await Promise.resolve()
+    expect(disposed).toBe(false)
+    runtime.treeExit.resolve(undefined)
+    await disposal
+    expect(disposed).toBe(true)
     await ctx.fiber.dispose()
   })
 
@@ -868,7 +972,7 @@ describe('LoopxGraphCoordination', () => {
     const ctx = new Context()
     await ctx.plugin(PendingWritePersistentSubprocess).await()
     const runtime = ctx.subprocess as PendingWritePersistentSubprocess
-    const broker = new PersistentLoopxBroker(ctx, brokerOptions)
+    const broker = new PersistentLoopxBroker(ctx.subprocess, brokerOptions)
     const controller = new AbortController()
     const unhandled: unknown[] = []
     const onUnhandled = (error: unknown): void => { unhandled.push(error) }
@@ -892,7 +996,7 @@ describe('LoopxGraphCoordination', () => {
     const ctx = new Context()
     await ctx.plugin(PendingWritePersistentSubprocess).await()
     const runtime = ctx.subprocess as PendingWritePersistentSubprocess
-    const broker = new PersistentLoopxBroker(ctx, brokerOptions)
+    const broker = new PersistentLoopxBroker(ctx.subprocess, brokerOptions)
     const operation = broker.run('/mnt/d/work', ['todo', 'list'], 1_000, 1_024, 1_024, new AbortController().signal)
     await runtime.writeStarted.promise
     expect(() => { runtime.emitStdinError(new Error('write EPIPE')) }).not.toThrow()
@@ -1171,7 +1275,7 @@ describe('LoopxGraphCoordination', () => {
     const expanded = {
       ...graph,
       nodes: kinds.map((kind, index) => ({ ...graph.nodes[0]!, id: `node-${String(index)}`, kind })),
-    } as unknown as GraphRevision
+    } as never as GraphRevision
     await coordination.prepare(expanded, [role], 'D:/work', signal)
     for (const node of expanded.nodes) {
       await coordination.claim(request(node, expanded, 'D:/work', 'run-1'), signal)
@@ -1267,6 +1371,14 @@ describe('LoopxGraphCoordination', () => {
       run.runtime.responses.push(response)
       await expect(run.coordination.claim(request(graph.nodes[0]!), run.signal)).rejects.toThrow(/LoopX/)
     }
+  })
+
+  it('rejects a LoopX logical failure even when the CLI exits successfully', async () => {
+    const run = await setup()
+    await run.coordination.prepare(graph, [role], 'D:/work', run.signal)
+    run.runtime.responses.push({ stdout: { ok: false, error: 'registry route unavailable' } })
+    await expect(run.coordination.claim(request(graph.nodes[0]!), run.signal))
+      .rejects.toThrow(/registry route unavailable/u)
   })
 
   it('reports subprocess failure using stderr or captured stdout', async () => {

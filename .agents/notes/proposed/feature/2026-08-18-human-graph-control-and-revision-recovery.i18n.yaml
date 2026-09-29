@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-human-graph-control-and-revision-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-human-graph-control-and-revision-recovery.md
-2026-08-18-human-graph-control-and-revision-recovery.md: 1a79448fc42d0cf2a6a489521d17a0e79f6a28c0
-2026-08-18-human-graph-control-and-revision-recovery.zh.md: 0d2c8d5d06b2017a864400f330c0fb4b5bd6bf92
+/agent-note-human-graph-control-and-revision-recovery:
+  en: 3489ba98f2ed2a52
+  zh: 582e22472adb37cb
+/agent-note-human-graph-control-and-revision-recovery/problem:
+  en: 9cebaaa9dbb217b4
+  zh: 84ec5969abfdb583
+/agent-note-human-graph-control-and-revision-recovery/proposal:
+  en: 5d5b6e18452bab0b
+  zh: d67cb77306f4e72a
+/agent-note-human-graph-control-and-revision-recovery/awaiting-user-and-approval-semantics:
+  en: 697664daff8781fd
+  zh: bb058b21f8dade10
+/agent-note-human-graph-control-and-revision-recovery/resume-retry-skip-and-rollback:
+  en: a0b2d7a7d2dc090c
+  zh: aacce0aa5042fcc3
+/agent-note-human-graph-control-and-revision-recovery/product-control-plane:
+  en: cfcc3550514bbdaf
+  zh: c7e98e47330cc007
+/agent-note-human-graph-control-and-revision-recovery/alternatives-considered:
+  en: 430ea659d0624e8e
+  zh: 25b81dce5b072f81
+/agent-note-human-graph-control-and-revision-recovery/acceptance-criteria:
+  en: 75ce41f95913b5b9
+  zh: 57af36ef2d2d86c9
+/agent-note-human-graph-control-and-revision-recovery/risks:
+  en: 9532b8296eb0c8c2
+  zh: d359cec9a41a7a34

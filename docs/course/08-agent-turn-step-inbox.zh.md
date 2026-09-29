@@ -243,7 +243,7 @@ export interface AgentFactory {
 所有的队列变更（追加、前插、原地替换、删除、清空、认领），在内存数组改变**之前**，都必须先向 Session 追加一条标准化的 `agent/inbox/spliced` 事件：
 
 ```typescript
-// packages/core/agent/src/inbox.ts
+// packages/core/agent-loop/src/inbox.ts
 export class Inbox {
   private readonly state: InboxState = { 'next-turn': [], 'next-step': [] }
 

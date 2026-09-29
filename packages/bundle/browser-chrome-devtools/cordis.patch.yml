@@ -10,6 +10,7 @@
         browserMode: !!js "process.env.DSH_CHROME_DEBUG_URL?.trim() ? 'external' : 'managed'"
         browserUrl: !!js process.env.DSH_CHROME_DEBUG_URL?.trim() || 'http://127.0.0.1:9222'
         chromeChannel: stable
+        chromeExecutablePath: !!js "process.env.DSH_CHROME_EXECUTABLE_PATH?.trim() || (!process.env.DSH_CHROME_DEBUG_URL?.trim() ? process.env.DSH_DESKTOP_PRIVATE_CHROME_EXECUTABLE_PATH?.trim() : '') || ''"
         headless: false
         isolatedProfile: true
         startMaximized: true

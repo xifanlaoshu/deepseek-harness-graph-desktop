@@ -17,7 +17,6 @@
     { "path": "../ui-settings-plugins" },
     { "path": "../ui-slots" },
     { "path": "../../core/session" },
-    { "path": "../../graph/graph" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../graph/graph" }
   ]
 }

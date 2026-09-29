@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-scheduler/README.md
-README.md: f2ca15fee2c49eb26be2481217578dfa52840455
-README.zh.md: 1da1ee3325a94214da0ab34a3cf601ca34522145
+/:
+  en: 62b8200d3c27c456
+  zh: ad45635bc03bedb7
+/graph-scheduler:
+  en: 3729f7e517e4c325
+  zh: 8468f308c67f9731
+/graph-scheduler/summary:
+  en: f53b6fd11c9d77e3
+  zh: 834fa36e338fa1b7
+/graph-scheduler/table-of-contents:
+  en: 20829a4ac1594bb8
+  zh: 89faf8da6ce13c81
+/graph-scheduler/dev-note:
+  en: 4c1df25de84ac60c
+  zh: 9b47f325de09b2cd
+/graph-scheduler/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/graph-scheduler/model-experience/scheduler-ownership:
+  en: a2159f449ad7489a
+  zh: 6269c84776996bd9
+/graph-scheduler/model-experience/scheduler-ownership/what-the-model-sees:
+  en: 68e579cc94bf3bb4
+  zh: 0bc215e5fcccf164
+/graph-scheduler/model-experience/scheduler-ownership/token-effect:
+  en: a7af4c8d805e030b
+  zh: 1a33184d0dd932f4
+/graph-scheduler/model-experience/scheduler-ownership/kv-cache-effect:
+  en: f05b4e72b3c7ead6
+  zh: 5345792e765067e6
+/graph-scheduler/known-limitations-and-deferred-work:
+  en: 0c8d76e2fb723d67
+  zh: 49c096af9ea13742

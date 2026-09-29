@@ -32,6 +32,7 @@ describe('browser-chrome-devtools bundle plugin', () => {
       browserMode: 'managed',
       browserUrl: 'http://127.0.0.1:9222',
       chromeChannel: 'stable',
+      chromeExecutablePath: '',
       headless: false,
       isolatedProfile: true,
       startMaximized: true,
@@ -94,6 +95,23 @@ describe('browser-chrome-devtools bundle plugin', () => {
     expect(config.args.slice(1, 2)).toEqual(['--browser-url=http://127.0.0.1:9333'])
     expect(config.args).not.toContain('--isolated=true')
     expect(config.args).not.toContain('--channel=stable')
+  })
+
+  it('uses an explicitly configured Chrome executable without a channel fallback', () => {
+    const config = resolveMcpConfig(new Config({ chromeExecutablePath: process.execPath } as never))
+    expect(config.args.slice(1, 2)).toEqual([`--executablePath=${process.execPath}`])
+    expect(config.args).not.toContain('--channel=stable')
+  })
+
+  it('rejects invalid configured executable paths and external-mode overrides', () => {
+    expect(() => resolveMcpConfig(new Config({ chromeExecutablePath: 'chrome.exe' } as never)))
+      .toThrow('chromeExecutablePath must be an absolute path')
+    expect(() => resolveMcpConfig(new Config({ chromeExecutablePath: ' ' } as never)))
+      .toThrow('chromeExecutablePath must be an absolute path')
+    expect(() => resolveMcpConfig(new Config({ chromeExecutablePath: `${process.execPath}.missing` } as never)))
+      .toThrow('chromeExecutablePath must name an existing file')
+    expect(() => resolveMcpConfig(new Config({ browserMode: 'external', chromeExecutablePath: process.execPath } as never)))
+      .toThrow('chromeExecutablePath is only available in managed mode')
   })
 
   it('rejects a non-HTTP endpoint only in external mode', () => {

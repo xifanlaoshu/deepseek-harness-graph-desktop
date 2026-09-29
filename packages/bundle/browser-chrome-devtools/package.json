@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-browser-chrome-devtools",
   "description": "Chrome DevTools browser automation bundle for dsh, backed by the official ChromeDevTools MCP server",
-  "version": "0.1.5-rc.2",
+  "version": "0.2.0-rc.2-graph.1",
   "publishConfig": {
     "access": "public"
   },
@@ -18,19 +18,13 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./invariant": {
-      "types": "./lib/types/invariant.d.ts",
-      "default": "./lib/invariant.js"
-    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
-    "lib/invariant.js",
     "cordis.patch.yml",
-    "scripts/start-chrome-debug.ps1",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
@@ -40,23 +34,21 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-mcp-client": "workspace:^",
-    "@deepseek-ai/schemastery": "workspace:^",
+    "@deepseek-ai/dsh-mcp-client": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:~",
     "chrome-devtools-mcp": "1.7.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/dsh-system-prompt": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/dsh-system-prompt": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^",
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/cordis-plugin-include": "workspace:~",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
+    "@deepseek-ai/cordis": "workspace:~",
     "@types/js-yaml": "^4.0.9",
     "js-yaml": "^4.2.0"
   }

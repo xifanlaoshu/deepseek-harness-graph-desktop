@@ -2,8 +2,8 @@
 
 import { Buffer } from 'node:buffer'
 import { createInterface } from 'node:readline'
-import type { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle, SubprocessOutcome } from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import { LOOPX_BROKER_SOURCE } from './broker-source.ts'
 
 const BROKER_PROTOCOL = 1
@@ -50,6 +50,7 @@ interface BrokerState {
   readonly stderrTail: ByteTail
   readySeen: boolean
   closed: boolean
+  cleanup: Promise<void> | undefined
 }
 
 class ByteTail {
@@ -86,12 +87,53 @@ function brokerMessage(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function brokerResponse(message: Record<string, unknown>): BrokerResponse {
+  if (message['type'] !== 'response' || message['protocol'] !== BROKER_PROTOCOL || typeof message['id'] !== 'string') {
+    throw new Error('LoopX broker returned an invalid response')
+  }
+  const optional = <T>(key: string, accepts: (value: unknown) => value is T): T | undefined => {
+    const value = message[key]
+    if (value === undefined) return undefined
+    if (!accepts(value)) throw new Error(`LoopX broker response field ${key} is invalid`)
+    return value
+  }
+  const exitCode = optional('exitCode', (value): value is number | null => value === null || typeof value === 'number')
+  const timedOut = optional('timedOut', (value): value is boolean => typeof value === 'boolean')
+  const cancelled = optional('cancelled', (value): value is boolean => typeof value === 'boolean')
+  const spawnError = optional('spawnError', (value): value is string => typeof value === 'string')
+  const stdout = optional('stdout', (value): value is string => typeof value === 'string')
+  const stderr = optional('stderr', (value): value is string => typeof value === 'string')
+  const stdoutLossy = optional('stdoutLossy', (value): value is boolean => typeof value === 'boolean')
+  const stderrLossy = optional('stderrLossy', (value): value is boolean => typeof value === 'boolean')
+  return {
+    type: 'response', protocol: BROKER_PROTOCOL, id: message['id'],
+    ...(exitCode === undefined ? {} : { exitCode }),
+    ...(timedOut === undefined ? {} : { timedOut }),
+    ...(cancelled === undefined ? {} : { cancelled }),
+    ...(spawnError === undefined ? {} : { spawnError }),
+    ...(stdout === undefined ? {} : { stdout }),
+    ...(stderr === undefined ? {} : { stderr }),
+    ...(stdoutLossy === undefined ? {} : { stdoutLossy }),
+    ...(stderrLossy === undefined ? {} : { stderrLossy }),
+  }
+}
+
 /** Configuration for one provider-owned persistent CLI bridge. */
 export interface PersistentLoopxBrokerOptions {
-  readonly launcher: string
-  readonly launcherArgs: readonly string[]
+  /** Legacy execution-world bridge executable, such as wsl.exe. */
+  readonly launcher?: string
+  /** Arguments for the legacy execution-world bridge. */
+  readonly launcherArgs?: readonly string[]
   readonly pythonExecutable: string
   readonly command: string
+  /** Launch the broker directly with pythonExecutable instead of a bridge. */
+  readonly directPython?: boolean
+  /** Arguments that must precede each LoopX CLI argument, such as launcher.py. */
+  readonly commandArgs?: readonly string[]
+  /** Explicit environment inherited by the broker and its CLI children. */
+  readonly env?: NodeJS.ProcessEnv
+  /** Working directory for the long-lived broker process. */
+  readonly cwd?: string
   readonly graceMs: number
   readonly startTimeoutMs: number
   readonly diagnosticMaxBytes: number
@@ -108,11 +150,12 @@ export interface PersistentLoopxBrokerOptions {
 export class PersistentLoopxBroker {
   private state: BrokerState | undefined
   private starting: Promise<BrokerState> | undefined
+  private readonly retiring = new Set<Promise<void>>()
   private sequence = 0
   private disposed = false
 
   constructor(
-    private readonly ctx: Context,
+    private readonly subprocess: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>,
     private readonly options: PersistentLoopxBrokerOptions,
   ) {}
 
@@ -159,13 +202,13 @@ export class PersistentLoopxBroker {
     if (this.disposed) return
     this.disposed = true
     const state = this.state ?? await this.starting?.catch(() => undefined)
-    if (state === undefined || state.closed) return
-    this.rejectPending(state, new Error('LoopX broker is disposing'))
-    state.handle.stdin?.end()
-    const exited = await state.handle.waitForExit(AbortSignal.timeout(this.options.graceMs))
-    if (exited) return
-    state.handle.terminate()
-    await state.handle.waitForExit()
+    if (state !== undefined && !state.closed) {
+      this.rejectPending(state, new Error('LoopX broker is disposing'))
+      state.handle.stdin?.end()
+      await state.handle.waitForExit(AbortSignal.timeout(this.options.graceMs))
+      this.fail(state, new Error('LoopX broker is disposing'))
+    }
+    await Promise.all([...this.retiring])
   }
 
   private async start(signal: AbortSignal): Promise<BrokerState> {
@@ -185,18 +228,22 @@ export class PersistentLoopxBroker {
   }
 
   private async spawn(): Promise<BrokerState> {
-    const executable = await this.ctx.subprocess.resolveExecutable(this.options.launcher)
+    await Promise.all([...this.retiring])
+    const directPython = this.options.directPython === true
+    const launcher = directPython ? this.options.pythonExecutable : this.options.launcher
+    if (launcher === undefined) throw new Error('LoopX broker requires a launcher unless directPython is enabled')
+    const executable = await this.subprocess.resolveExecutable(launcher)
     const controller = new AbortController()
     const ready = Promise.withResolvers<void>()
-    const handle = this.ctx.subprocess.spawn({
+    const handle = this.subprocess.spawn({
       argv: [
         executable,
-        ...this.options.launcherArgs,
-        this.options.pythonExecutable,
+        ...(directPython ? [] : [...this.options.launcherArgs ?? [], this.options.pythonExecutable]),
         '-u', '-c', LOOPX_BROKER_SOURCE,
-        this.options.command,
+        JSON.stringify([this.options.command, ...this.options.commandArgs ?? []]),
       ],
-      cwd: process.cwd(),
+      cwd: this.options.cwd ?? process.cwd(),
+      ...(this.options.env === undefined ? {} : { env: this.options.env }),
       stdio: {
         stdin: 'pipe',
         stdout: 'pipe',
@@ -219,6 +266,7 @@ export class PersistentLoopxBroker {
       stderrTail: new ByteTail(this.options.diagnosticMaxBytes),
       readySeen: false,
       closed: false,
+      cleanup: undefined,
     }
     this.state = state
     const startTimer = setTimeout(() => {
@@ -272,11 +320,18 @@ export class PersistentLoopxBroker {
       this.fail(state, new Error('LoopX broker returned an invalid protocol message'))
       return
     }
-    const pending = state.pending.get(message['id'])
+    let response: BrokerResponse
+    try {
+      response = brokerResponse(message)
+    } catch (error) {
+      this.fail(state, errorOf(error))
+      return
+    }
+    const pending = state.pending.get(response.id)
     if (pending === undefined) return
-    state.pending.delete(message['id'])
+    state.pending.delete(response.id)
     pending.signal.removeEventListener('abort', pending.onAbort)
-    pending.resolve(message as unknown as BrokerResponse)
+    pending.resolve(response)
   }
 
   private async request(state: BrokerState, message: Record<string, unknown>, signal: AbortSignal): Promise<BrokerResponse> {
@@ -339,12 +394,21 @@ export class PersistentLoopxBroker {
   }
 
   private fail(state: BrokerState, error: Error): void {
-    if (state.closed) return
-    state.closed = true
-    state.readyReject(error)
-    this.rejectPending(state, error)
-    if (this.state === state) this.state = undefined
+    if (!state.closed) {
+      state.closed = true
+      state.readyReject(error)
+      this.rejectPending(state, error)
+      if (this.state === state) this.state = undefined
+    }
+    if (state.cleanup !== undefined) return
     state.handle.terminate()
+    const cleanup = (async (): Promise<void> => { await state.handle.waitForExit() })()
+    state.cleanup = cleanup
+    this.retiring.add(cleanup)
+    void cleanup.then(
+      () => { this.retiring.delete(cleanup) },
+      (_error: unknown) => { /* Keep failed tree cleanup available for dispose to reject. */ },
+    )
   }
 
   private rejectPending(state: BrokerState, error: Error): void {

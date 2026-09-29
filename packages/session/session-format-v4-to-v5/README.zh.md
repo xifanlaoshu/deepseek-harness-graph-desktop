@@ -7,13 +7,13 @@ kind: "package-library"
 
 [English](README.md) | 中文
 
-## Summary
+## 概述
 
 本库将已存储的 V4 Session 升级为 V5 写入格式，不改变事件正文，也不覆盖 V4 文件。V5 的当前 Session 校验接纳 Graph 拥有的消息来源。V4 物理编解码器及校验仍供历史读取使用。
 
 本包不发布运行时不变式配套模块，因为编解码器与迁移过程会在恢复时校验每份独立产物；本包没有可供比较的独立可变观测值。
 
-## Table of Contents
+## 目录
 
 - [转换](#conversion)
 - [原生接纳](#native-admission)
@@ -32,7 +32,7 @@ kind: "package-library"
 `releasedV5SessionFormatCodec` 保留 V4 物理行编码。V5 头保留 V4 字段，版本为 5。当前行接纳保留 V4 结构检查；已安装的 Session 校验接纳 Graph 消息来源和当前事件词汇。完整恢复检查 V4 关系，并依据事件序号及 Session 所有者校验 V5 交付标记。历史 V4 交付标记保留其 V4 含义，不会重标版本。
 
 <a id="dev-note"></a>
-## Dev Note
+## 开发备注
 
 None.
 

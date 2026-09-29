@@ -1,8 +1,14 @@
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV: 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
+/** Environment variable that selects whether this Desktop build uses update feeds. */
+export const DESKTOP_UPDATE_MODE_ENV: 'DSH_DESKTOP_UPDATE_MODE'
+
 /** Supported Desktop update deployment. */
 export type DesktopAutoUpdateEnvironment = 'test' | 'production'
+
+/** Supported update distribution modes. */
+export type DesktopUpdateMode = 'feed' | 'disabled'
 
 /** Directory name of one supported Desktop release target. */
 export type DesktopAutoUpdateTarget = 'mac-arm64' | 'mac-x64' | 'win-x64'
@@ -23,6 +29,13 @@ export interface DesktopUploadConfig extends DesktopAutoUpdateConfig {
   readonly secretIdEnvName: string
   readonly secretKeyEnvName: string
 }
+
+/**
+ * Resolve the update distribution mode; disabled mode requires a custom app ID and no update configuration.
+ * @param env - Packaging environment.
+ * @returns Validated update mode.
+ */
+export function resolveDesktopUpdateMode(env: NodeJS.ProcessEnv): DesktopUpdateMode
 
 /**
  * Resolve the update deployment, defaulting local release work to test.
@@ -68,7 +81,7 @@ export function desktopUpdateMetadataFilename(
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved updater configuration.
- * @throws When the test deployment lacks a valid HTTPS origin or a 32-character lowercase hexadecimal release ID.
+ * @throws When updates are disabled or the selected deployment lacks a valid HTTPS origin or release ID.
  */
 export function resolveDesktopAutoUpdateConfig(
   env: NodeJS.ProcessEnv,
@@ -82,7 +95,7 @@ export function resolveDesktopAutoUpdateConfig(
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved upload configuration.
- * @throws When the selected deployment lacks a bucket or valid updater configuration.
+ * @throws When updates are disabled or the selected deployment lacks a bucket or valid updater configuration.
  */
 export function resolveDesktopUploadConfig(
   env: NodeJS.ProcessEnv,

@@ -1,6 +1,157 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 23-requests-tokens-kvcache.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/23-requests-tokens-kvcache.md
-23-requests-tokens-kvcache.md: 8e0ad7b82c9f4dd8608bb4afa9077e25b4147688
-23-requests-tokens-kvcache.zh.md: 4f8d8ced5b62c2ef1148a6fe33ae445ebaca3fb2
+/chapter-23-model-requests-tokens-and-kv-cache:
+  en: 8cc1765c394f919b
+  zh: 1bc23c7c9c7d4e60
+/chapter-23-model-requests-tokens-and-kv-cache/23-1-learning-goals-and-systems-programming-model:
+  en: 37de44959097ea17
+  zh: 87f83c3d963c95af
+/chapter-23-model-requests-tokens-and-kv-cache/23-1-learning-goals-and-systems-programming-model/23-1-1-mapping-conventional-systems-concepts-to-the-llm-runtime:
+  en: 0d38648b1aa8f1f5
+  zh: 5ce9b3fe9accfbbf
+/chapter-23-model-requests-tokens-and-kv-cache/23-1-learning-goals-and-systems-programming-model/23-1-2-system-topology-and-end-to-end-data-flow:
+  en: 89795744dd4c7d46
+  zh: f2c422297f8379e0
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning:
+  en: c11cf5e34deb4d9a
+  zh: d55621c7513b07f9
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning/23-2-1-mathematical-model-and-context-budget-inequality:
+  en: 254430506fa4bc13
+  zh: 5630226bd2548a8f
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning/23-2-1-mathematical-model-and-context-budget-inequality/properties-and-priority-of-budget-components:
+  en: 5a922831d56dc108
+  zh: 805ddb0d36b49184
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning/23-2-2-five-stage-degradation-pipeline:
+  en: 98b1da69eed35568
+  zh: cf0e7cd2704bbecc
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning/23-2-2-five-stage-degradation-pipeline/technical-details-of-each-degradation-stage:
+  en: 0b6fb62040d6bb45
+  zh: e0cace69e8c6b735
+/chapter-23-model-requests-tokens-and-kv-cache/23-2-three-layer-request-budget-constraint-and-capacity-planning/23-2-3-production-grade-typescript-budget-controller:
+  en: cf263ea64d10aa91
+  zh: 75a6f6a2f4ebd606
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling:
+  en: 822ed37a55405471
+  zh: 834ed228b1929a84
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-1-compute-bound-prefill-versus-vram-bandwidth-bound-decode:
+  en: a3281ae977ffa263
+  zh: d5d468fdeb084c5a
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-2-operational-intensity-and-the-roofline-model:
+  en: 3a471ab9abcaaa6f
+  zh: a2a85a850525d7d8
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-2-operational-intensity-and-the-roofline-model/hardware-comparison-common-nvidia-inference-gpus:
+  en: f3cd8482a5b3455b
+  zh: 43ea5a11f38631f0
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-2-operational-intensity-and-the-roofline-model/deriving-decode-operational-intensity:
+  en: 30c76c23a300961b
+  zh: 699f6095b60ee362
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-3-end-to-end-latency-mathematical-models-for-ttft-and-tps:
+  en: c7c383f2f2399225
+  zh: d53d122dcc907b5f
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-3-end-to-end-latency-mathematical-models-for-ttft-and-tps/1-ttft-model:
+  en: e1f533e2bae79d29
+  zh: 84cd36c700ab5112
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-3-end-to-end-latency-mathematical-models-for-ttft-and-tps/2-tps-model:
+  en: 71754554618ff16a
+  zh: a3462caaa88db888
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-3-end-to-end-latency-mathematical-models-for-ttft-and-tps/worked-example-deepseek-v3-decode-tps-on-eight-h100-gpus-671b-moe-37b-active:
+  en: 0479f526fb8d322b
+  zh: 7c3121d2bd5cfe2d
+/chapter-23-model-requests-tokens-and-kv-cache/23-3-prefill-and-decode-from-the-roofline-model-to-inference-scheduling/23-3-4-server-scheduling-chunked-prefill-and-continuous-batching:
+  en: 8a78b3653ad35d5e
+  zh: 4544babe6728af7d
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching:
+  en: b654b5e80875b40e
+  zh: 34d392342d9af562
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-1-self-attention-memoization-mha-mqa-gqa-and-mla:
+  en: 153cb1811b57dea3
+  zh: 70e9715441596a13
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-2-kv-cache-vram-formulas-and-worked-calculations:
+  en: a76be397b44bde12
+  zh: aaa93a65d0c2003c
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-2-kv-cache-vram-formulas-and-worked-calculations/1-standard-mha-gqa-vram-formula:
+  en: bffd111b167c7a84
+  zh: a5ff866ca57ca0b9
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-2-kv-cache-vram-formulas-and-worked-calculations/2-deepseek-mla-multi-head-latent-attention-vram-formula:
+  en: 601ef2240d2ad23d
+  zh: 7881d4f729ec5ce8
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-2-kv-cache-vram-formulas-and-worked-calculations/worked-comparison-per-token-kv-cache-in-llama-3-70b-gqa-and-deepseek-v3-mla:
+  en: 52480e23757bd1c4
+  zh: 152d2aa0921f8ee3
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-3-prefix-consistency-and-radix-tree-hash-trie-caching:
+  en: 8de83ddfe3774719
+  zh: 8b08bbff872efffe
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-4-prompt-memory-sensitivity-why-dynamic-timestamps-must-not-lead-the-system-prompt:
+  en: 5e5ed0c1ecb45783
+  zh: 8e983d1c3bf9ce0c
+/chapter-23-model-requests-tokens-and-kv-cache/23-4-kv-cache-vram-accounting-and-prefix-caching/23-4-4-prompt-memory-sensitivity-why-dynamic-timestamps-must-not-lead-the-system-prompt/failure-example-cache-collapse-from-a-leading-dynamic-value:
+  en: fc057e11ec222a12
+  zh: a29f2ac4bc2da99d
+/chapter-23-model-requests-tokens-and-kv-cache/23-5-local-model-choice-and-multi-precision-quantization-vram-accounting:
+  en: 128be632bd356bcc
+  zh: 69e52011f7abd041
+/chapter-23-model-requests-tokens-and-kv-cache/23-5-local-model-choice-and-multi-precision-quantization-vram-accounting/23-5-1-components-of-vram-use:
+  en: 0ba24a7fc7d0e387
+  zh: c02fd8a98c614384
+/chapter-23-model-requests-tokens-and-kv-cache/23-5-local-model-choice-and-multi-precision-quantization-vram-accounting/23-5-2-vram-matrix-for-7b-14b-32b-70b-671b-models:
+  en: c09d23c7eca50a60
+  zh: e0292cff6bfbdf1f
+/chapter-23-model-requests-tokens-and-kv-cache/23-5-local-model-choice-and-multi-precision-quantization-vram-accounting/23-5-3-quantization-principles-and-accuracy-tradeoffs:
+  en: 75218ee094940151
+  zh: 113fec8ee6a4eb24
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting:
+  en: 0c723c51fb1a1fd9
+  zh: 01035cccba7b383d
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting/23-6-1-sse-protocol-and-a-multichannel-chunk-unpacking-state-machine:
+  en: 1c2c62b53963d585
+  zh: 73536a444ae0f142
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting/23-6-1-sse-protocol-and-a-multichannel-chunk-unpacking-state-machine/example-raw-sse-messages:
+  en: 30c25b983d5d6069
+  zh: 97620f8da9068278
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting/23-6-2-complete-production-blockassembler-and-interleaved-block-assembly:
+  en: 47927242f448a386
+  zh: a1ea285dbf15d6ab
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting/23-6-3-token-accounting-by-field:
+  en: 1804e76d94693039
+  zh: 9fda35a1dceec4c9
+/chapter-23-model-requests-tokens-and-kv-cache/23-6-streaming-parsing-blockassembler-and-multidimensional-token-accounting/23-6-3-token-accounting-by-field/billing-and-performance-formulas:
+  en: 3e567b0711ae0621
+  zh: 771337f4e7182b86
+/chapter-23-model-requests-tokens-and-kv-cache/23-7-dynamic-model-routing-and-automated-evaluation-design:
+  en: 1107d3dcf9f4089a
+  zh: 3d89e0abcae8063f
+/chapter-23-model-requests-tokens-and-kv-cache/23-7-dynamic-model-routing-and-automated-evaluation-design/23-7-1-three-dimensional-routing-matrix-cost-complexity-and-latency:
+  en: 90033f002ef6865e
+  zh: baf1cf160da02792
+/chapter-23-model-requests-tokens-and-kv-cache/23-7-dynamic-model-routing-and-automated-evaluation-design/23-7-2-production-typescript-routing-decision-modelrouter:
+  en: 0037093cf7f71f68
+  zh: 4ed93d1fcec0b667
+/chapter-23-model-requests-tokens-and-kv-cache/23-7-dynamic-model-routing-and-automated-evaluation-design/23-7-3-automated-evaluation-pipeline:
+  en: 1f5e8c3c60e7cc0f
+  zh: b7b67307f98cd9ea
+/chapter-23-model-requests-tokens-and-kv-cache/23-7-dynamic-model-routing-and-automated-evaluation-design/23-7-3-automated-evaluation-pipeline/production-example-of-an-automated-evaluation-runner:
+  en: ee4964775231f8ee
+  zh: 470cd954988781f8
+/chapter-23-model-requests-tokens-and-kv-cache/23-8-production-incidents-and-pitfalls:
+  en: 051a86aa5f0fc674
+  zh: 39ff0faafdd58e1f
+/chapter-23-model-requests-tokens-and-kv-cache/23-8-production-incidents-and-pitfalls/23-8-1-incident-1-a-leading-timestamp-collapses-prefix-caching-and-inflates-bills:
+  en: b4845076d22dd583
+  zh: 97d7739249c9274d
+/chapter-23-model-requests-tokens-and-kv-cache/23-8-production-incidents-and-pitfalls/23-8-2-incident-2-a-broken-sse-chunk-corrupts-tool-call-json-and-triggers-a-loop:
+  en: bb30ae108c13b3a9
+  zh: 0e8159ac6e171762
+/chapter-23-model-requests-tokens-and-kv-cache/23-8-production-incidents-and-pitfalls/23-8-3-incident-3-kv-cache-vram-oversubscription-causes-inference-service-collapse:
+  en: 95709342f8060639
+  zh: 7e652e4563ebfd0c
+/chapter-23-model-requests-tokens-and-kv-cache/23-9-summary-and-architecture-checklist:
+  en: 266dd225b09f0403
+  zh: 78b215e132b92553
+/chapter-23-model-requests-tokens-and-kv-cache/23-9-summary-and-architecture-checklist/23-9-1-core-architectural-principles:
+  en: 05f7311e5407ebf4
+  zh: f76b3db6d79c0ad8
+/chapter-23-model-requests-tokens-and-kv-cache/23-9-summary-and-architecture-checklist/23-9-2-production-readiness-checklist:
+  en: eb534aa97823560b
+  zh: fc1a71af3f27deae

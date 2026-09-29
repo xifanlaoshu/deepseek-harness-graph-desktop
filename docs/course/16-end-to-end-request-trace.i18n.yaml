@@ -1,6 +1,205 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 16-end-to-end-request-trace.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/16-end-to-end-request-trace.md
-16-end-to-end-request-trace.md: d1ef1e245e872875ec7cd0fcfdb0798b12cd7bc4
-16-end-to-end-request-trace.zh.md: 8287551e61718913d937e62ab30e7d631befc74e
+/chapter-16-an-end-to-end-trace-of-one-request:
+  en: 9f4447be3aa77698
+  zh: 6e96181b55f43c59
+/chapter-16-an-end-to-end-trace-of-one-request/1-scenario-and-request-topology:
+  en: 3dde6ae11f72b654
+  zh: f49cb2e29c0ebbb0
+/chapter-16-an-end-to-end-trace-of-one-request/1-scenario-and-request-topology/1-1-scenario-a-compound-multi-step-task:
+  en: 3675e546edea8eaf
+  zh: 50a47bedf440187e
+/chapter-16-an-end-to-end-trace-of-one-request/1-scenario-and-request-topology/1-2-architecture-layers-mapped-to-systems-concepts:
+  en: b68824f38d88bf3e
+  zh: d3f7a48a40f054f0
+/chapter-16-an-end-to-end-trace-of-one-request/1-scenario-and-request-topology/1-3-sequence-diagram-of-the-15-step-request-lifecycle:
+  en: 83c6a64abc757c1b
+  zh: 5f05c38160d8ad66
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4:
+  en: 9d8d27cb843efac2
+  zh: 5b75c0b3624ae079
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-1-send-an-http-rpc-request-with-rpcid-and-update-the-optimistic-ui:
+  en: 1d93df0091c4adc6
+  zh: 9f229887533e2c7c
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-1-send-an-http-rpc-request-with-rpcid-and-update-the-optimistic-ui/source-files-and-methods:
+  en: cc1e7db0efbd728b
+  zh: e283fe0fef1470de
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-1-send-an-http-rpc-request-with-rpcid-and-update-the-optimistic-ui/example-wire-payload:
+  en: eafbdb373ff200dd
+  zh: d83247f26e7ca09b
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-2-validate-wire-data-in-host-apiservice-and-dispatch-to-the-agent:
+  en: 32082943516c8115
+  zh: 81538edba4ad184e
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-2-validate-wire-data-in-host-apiservice-and-dispatch-to-the-agent/source-files-and-methods:
+  en: fa94acf83af78dae
+  zh: 0bc1da4fd8efcdc5
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-2-validate-wire-data-in-host-apiservice-and-dispatch-to-the-agent/key-implementation:
+  en: 66f7067d3f7c54c0
+  zh: b604f502c4dd8fad
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-3-enqueue-the-message-in-the-agent-inbox-and-persist-user-message:
+  en: 023ba094e995bad6
+  zh: 508be23171cacde1
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-3-enqueue-the-message-in-the-agent-inbox-and-persist-user-message/source-files-and-methods:
+  en: 7f537d03a5405548
+  zh: 5efc1081f712b0ac
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-3-enqueue-the-message-in-the-agent-inbox-and-persist-user-message/inbox-data-structure:
+  en: b5cd4073b1211f2f
+  zh: d8d6d3414def248f
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-4-push-an-acknowledgment-event-to-the-frontend-over-websocket:
+  en: 169d53abb7ee5eb2
+  zh: b12bd4a1e19db9b4
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-4-push-an-acknowledgment-event-to-the-frontend-over-websocket/source-files-and-methods:
+  en: 4a96a0304ff411e9
+  zh: 5144e9b7fc1e9852
+/chapter-16-an-end-to-end-trace-of-one-request/2-phase-one-interaction-admission-and-network-entry-steps-1-4/step-4-push-an-acknowledgment-event-to-the-frontend-over-websocket/example-websocket-downlink-payload:
+  en: d5bee90ea64b8392
+  zh: fad7bbe8f337ddc8
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8:
+  en: ea9f7642686e8f0c
+  zh: 7b8b1dbf0cc60f0a
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-5-start-a-turn-in-the-agent-state-machine-and-emit-turn-start:
+  en: d377d2d15744059e
+  zh: 32dfa138ba9a38e7
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-5-start-a-turn-in-the-agent-state-machine-and-emit-turn-start/source-files-and-methods:
+  en: 63413cb8bfa8c933
+  zh: fa617bbb244ea783
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-5-start-a-turn-in-the-agent-state-machine-and-emit-turn-start/algebraic-state-machine-definition:
+  en: 314fa594a328f860
+  zh: 958ea33cb1a4115a
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-6-intercept-and-rewrite-with-the-agent-pre-step-waterfall:
+  en: cc2fed46374d6a47
+  zh: 5462c7013663d781
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-6-intercept-and-rewrite-with-the-agent-pre-step-waterfall/source-files-and-methods:
+  en: 615f3eae2086cf5d
+  zh: ca796d7ce0dcef6d
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-6-intercept-and-rewrite-with-the-agent-pre-step-waterfall/decision-structure:
+  en: f3e0ec63b4c8d054
+  zh: bb6ced52b7b2febe
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-7-emit-step-start-and-assemble-the-system-prompt-and-tool-schemas:
+  en: 6577e80c50d3fd0e
+  zh: d4e6fc83d0df74c1
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-7-emit-step-start-and-assemble-the-system-prompt-and-tool-schemas/source-files-and-methods:
+  en: 9be15b983607589e
+  zh: a3fa467ff3556fe1
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-8-project-history-with-session-derivemessages-and-build-the-llm-request-through-agent-request:
+  en: 78374294ca90777c
+  zh: 1feb4d953bf935e3
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-8-project-history-with-session-derivemessages-and-build-the-llm-request-through-agent-request/source-files-and-methods:
+  en: 5f242bea76918c59
+  zh: 59f9be3ba64f1bb7
+/chapter-16-an-end-to-end-trace-of-one-request/3-phase-two-state-machine-execution-and-context-assembly-steps-5-8/step-8-project-history-with-session-derivemessages-and-build-the-llm-request-through-agent-request/core-folding-algorithm-for-the-surface-projection:
+  en: fdcfaf2fa353870d
+  zh: 3163fa5a233fa059
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11:
+  en: c7d47e71d83ee50c
+  zh: eb6125ae30ff9431
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-9-start-the-sse-stream-with-ctx-llm-stream:
+  en: 26afe76bfdfca376
+  zh: b27c4b60f1863100
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-9-start-the-sse-stream-with-ctx-llm-stream/mathematical-background-autoregression-softmax-and-mla-memory:
+  en: de3c4e08f8be401f
+  zh: 4e6c0b0cca33cf77
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-9-start-the-sse-stream-with-ctx-llm-stream/mathematical-background-autoregression-softmax-and-mla-memory/kv-cache-memory-with-deepseek-v3-r1-multi-head-latent-attention:
+  en: b01e64e3e99f9baf
+  zh: 83592d3c4e633b79
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-9-start-the-sse-stream-with-ctx-llm-stream/source-files-and-methods:
+  en: 608ccf7de814735a
+  zh: 2e60f22924cb4762
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-10-parse-and-persist-each-assistant-chunk:
+  en: f2b6db199d84fe8c
+  zh: 52c6fe69c2af2282
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-10-parse-and-persist-each-assistant-chunk/source-files-and-methods:
+  en: 7efb4ae4c24192b4
+  zh: 7cdee2e0b8c08d34
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-11-assemble-assistant-message-and-record-tool-call:
+  en: 156777929a5beac7
+  zh: e9d6b576566543ac
+/chapter-16-an-end-to-end-trace-of-one-request/4-phase-three-model-inference-and-streaming-steps-9-11/step-11-assemble-assistant-message-and-record-tool-call/source-files-and-methods:
+  en: 4309bdc9fc6ab017
+  zh: c175b2831731b32a
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14:
+  en: a070692ab1bd9504
+  zh: 50e75ec17335ed80
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-12-tool-pipeline-pre-execution-permission-sandboxed-execution-and-post-execution-spill:
+  en: 739c293b928422e8
+  zh: b85f18db5e4004d4
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-12-tool-pipeline-pre-execution-permission-sandboxed-execution-and-post-execution-spill/concurrency-bounded-rolling-pool-and-exclusive-barrier:
+  en: 3879072b932a25c2
+  zh: a521fd7636f7b4bb
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-12-tool-pipeline-pre-execution-permission-sandboxed-execution-and-post-execution-spill/source-files-and-methods:
+  en: 2c8340ef53707106
+  zh: d78be639d774e3c5
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-13-record-tool-result-and-feed-it-back-to-the-model:
+  en: 993da4b793880ce4
+  zh: fd4611e9cf763257
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-13-record-tool-result-and-feed-it-back-to-the-model/source-files-and-methods:
+  en: e78af610d54690bb
+  zh: 8b5056cbbb839157
+/chapter-16-an-end-to-end-trace-of-one-request/5-phase-four-side-effects-and-the-feedback-loop-steps-12-14/step-14-emit-the-final-answer-and-record-step-end-and-turn-end:
+  en: 029fffd7550e057c
+  zh: 21cd6e254706b6dd
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15:
+  en: 5e8acd2a10edd8d9
+  zh: 1893a18b2a8ecd38
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15/step-15-flush-the-persistence-coordinator-and-update-the-frontend-zustand-view:
+  en: f1763464d8f964b5
+  zh: 6bc2bf34b4e67295
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15/step-15-flush-the-persistence-coordinator-and-update-the-frontend-zustand-view/6-1-backend-asynchronous-flush-write-behind-engine:
+  en: 58d387e4b35e7b82
+  zh: 600f3d8affbdffb1
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15/step-15-flush-the-persistence-coordinator-and-update-the-frontend-zustand-view/6-1-backend-asynchronous-flush-write-behind-engine/throughput-model-synchronous-fsync-versus-batched-write-behind:
+  en: 9b708da0ae069c82
+  zh: 735118b905103e8a
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15/step-15-flush-the-persistence-coordinator-and-update-the-frontend-zustand-view/6-2-frontend-zustand-updates-with-selective-re-rendering:
+  en: 1d2f32facf44c166
+  zh: 60c05ea8992d317c
+/chapter-16-an-end-to-end-trace-of-one-request/6-phase-five-persistence-and-frontend-view-alignment-step-15/step-15-flush-the-persistence-coordinator-and-update-the-frontend-zustand-view/source-files-and-methods:
+  en: 5719118b0e6bf114
+  zh: fc2fe83d46449f74
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses:
+  en: c62589c578d02ec1
+  zh: e648b71862650cd6
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-1-a-network-disconnect-leaves-tool-work-running-and-files-partially-written:
+  en: 8a0484aef0eb2e84
+  zh: b5c3757b9102d409
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-1-a-network-disconnect-leaves-tool-work-running-and-files-partially-written/symptom:
+  en: b84be0587ada266b
+  zh: 7635f384051e92f7
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-1-a-network-disconnect-leaves-tool-work-running-and-files-partially-written/root-cause-and-code-level-defense:
+  en: e7ff78d0a1f5ed49
+  zh: 32f0f0659b441e98
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-2-parallel-tools-race-and-overwrite-a-file:
+  en: f489a6fe203fa2c8
+  zh: fb0c34bfc4f6908b
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-2-parallel-tools-race-and-overwrite-a-file/symptom:
+  en: fde09648a9d48a35
+  zh: ddbf93f892ed5bce
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-2-parallel-tools-race-and-overwrite-a-file/root-cause-and-remedy:
+  en: 0641bdb33b4a3556
+  zh: 49374212276bf64c
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-3-large-tool-output-overfills-the-kv-cache-and-breaks-context:
+  en: 60d1c332ef8b2af2
+  zh: f9bf81486615e13f
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-3-large-tool-output-overfills-the-kv-cache-and-breaks-context/symptom:
+  en: 3355d50c7a1b6046
+  zh: d9f081ca7e5d18b0
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-3-large-tool-output-overfills-the-kv-cache-and-breaks-context/root-cause-and-remedy:
+  en: b321bb8e88d9e4dd
+  zh: d6c697d314cc6069
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-4-out-of-order-websocket-frames-desynchronize-frontend-state:
+  en: 4523da0148df7b03
+  zh: d2980b6c30c778a9
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-4-out-of-order-websocket-frames-desynchronize-frontend-state/symptom:
+  en: de4c324858e33f78
+  zh: 81cd82a68fffeee0
+/chapter-16-an-end-to-end-trace-of-one-request/7-production-failures-and-defenses/failure-4-out-of-order-websocket-frames-desynchronize-frontend-state/root-cause-and-reconciliation:
+  en: afd286dd5daa9a9d
+  zh: 0b0ac901ca247e3c
+/chapter-16-an-end-to-end-trace-of-one-request/8-quick-reference-technical-details-of-the-15-steps:
+  en: ef28a1dbe5b2dc90
+  zh: 9f93e86e7e80f498
+/chapter-16-an-end-to-end-trace-of-one-request/9-chapter-summary:
+  en: a02977594cd40e33
+  zh: 6df4016ce4a3ea9f

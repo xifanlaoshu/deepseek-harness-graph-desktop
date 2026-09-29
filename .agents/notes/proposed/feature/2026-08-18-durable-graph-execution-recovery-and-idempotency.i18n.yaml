@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-durable-graph-execution-recovery-and-idempotency.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-durable-graph-execution-recovery-and-idempotency.md
-2026-08-18-durable-graph-execution-recovery-and-idempotency.md: e91a1bf9e1d27d1dd7d77deb2613ab71494d0ada
-2026-08-18-durable-graph-execution-recovery-and-idempotency.zh.md: def0aea6435ed6697e1ced33b398c50b3d5cd874
+/agent-note-durable-graph-execution-recovery-and-idempotency:
+  en: 2af6045531169bb0
+  zh: 4bae8ffe54678097
+/agent-note-durable-graph-execution-recovery-and-idempotency/problem:
+  en: 119db99bdfe232ce
+  zh: 918be77c2eabeb2e
+/agent-note-durable-graph-execution-recovery-and-idempotency/proposal:
+  en: 92b141fbd6f6ee75
+  zh: 3b13b8ceaa74c94b
+/agent-note-durable-graph-execution-recovery-and-idempotency/recovery-and-reconciliation:
+  en: c62f3adcabb2b7c4
+  zh: 64d3a7a887d24697
+/agent-note-durable-graph-execution-recovery-and-idempotency/idempotent-effects-and-settlements:
+  en: 399924f48cff1ebb
+  zh: c52f33306a23abaa
+/agent-note-durable-graph-execution-recovery-and-idempotency/orphan-cleanup:
+  en: bc7394d058f350e8
+  zh: d28556ecb7456f96
+/agent-note-durable-graph-execution-recovery-and-idempotency/alternatives-considered:
+  en: b29e5bd75fc3c337
+  zh: 8702865be013b885
+/agent-note-durable-graph-execution-recovery-and-idempotency/acceptance-criteria:
+  en: 4935cba01fa6adea
+  zh: b8a2e33ae2ea65eb
+/agent-note-durable-graph-execution-recovery-and-idempotency/risks:
+  en: 90888ffdc4290176
+  zh: 9e733107796f820a

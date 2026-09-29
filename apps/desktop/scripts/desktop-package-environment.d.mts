@@ -18,7 +18,6 @@ export function loadDesktopPackageEnvironment(
  * @param environment File-owned release settings.
  * @param target Selected release target.
  * @param options Explicit packaging mode.
- * @returns Nothing.
  */
 export function validateDesktopPackageEnvironment(
   environment: NodeJS.ProcessEnv,

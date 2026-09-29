@@ -1,6 +1,136 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 24-tool-development.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/24-tool-development.md
-24-tool-development.md: d43a84a1ad9af4f2c00acfc091d91f53994d6b0e
-24-tool-development.zh.md: 1a14d8c0c6cb01d18f8d9ff6722fc80a3cea6aed
+/chapter-24-tool-development-from-schemas-to-side-effects:
+  en: fe11ba9248245a8e
+  zh: 092a93205f8fd3b3
+/chapter-24-tool-development-from-schemas-to-side-effects/1-mental-model-from-model-output-to-system-calls:
+  en: a39659aed18a5121
+  zh: c2d1c58242fdb2b2
+/chapter-24-tool-development-from-schemas-to-side-effects/1-mental-model-from-model-output-to-system-calls/1-1-systems-programming-analogies:
+  en: bd36846c28987a6c
+  zh: 01debe6813632412
+/chapter-24-tool-development-from-schemas-to-side-effects/1-mental-model-from-model-output-to-system-calls/1-2-why-is-the-tool-layer-the-riskiest-part-of-an-agent:
+  en: 21752605ece5d1fe
+  zh: df53c11312274882
+/chapter-24-tool-development-from-schemas-to-side-effects/1-mental-model-from-model-output-to-system-calls/1-3-four-stages-of-the-harness-tool-pipeline:
+  en: a1dd6e92cc8c6b98
+  zh: a3e02a14c40fc099
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules:
+  en: a92c7ba7987f649b
+  zh: 8efc6f30a5f99691
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-1-tool-names-and-semantic-namespaces:
+  en: eb1882bb94335b55
+  zh: a8fa6bcca92c86fd
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-1-tool-names-and-semantic-namespaces/naming-rules:
+  en: 72920be5b2e3907b
+  zh: 7e064d2b870c540b
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-1-tool-names-and-semantic-namespaces/writing-a-tool-description:
+  en: 55ac4b5b9073b2b4
+  zh: 59871174e0a427f0
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-2-argument-schema-validation-and-bidirectional-type-inference:
+  en: 9fb072fdede6159c
+  zh: e48d24b7e9d1b531
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-2-argument-schema-validation-and-bidirectional-type-inference/schema-dsl-and-data-structures:
+  en: 10a5b454d8856fcb
+  zh: beeef27b95a25f8b
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-2-argument-schema-validation-and-bidirectional-type-inference/compile-time-type-inference:
+  en: 7f44f4a0dceb8c64
+  zh: 4d2e2a396c672fc2
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-3-execution-modes-and-sandbox-permissions:
+  en: ee9d81d196260721
+  zh: bd6b043034c5430e
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-4-structured-error-codes:
+  en: a56cab9ffd0c9c18
+  zh: 778d9f3aa9be707b
+/chapter-24-tool-development-from-schemas-to-side-effects/2-production-tool-development-rules/2-5-ui-presentation-intent-and-immutable-replay:
+  en: 3c0015a0f68d4ed9
+  zh: 9cda8f6d91fc1bda
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees:
+  en: e9e1ac10aefb736f
+  zh: aa7bf16a1871aba5
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-1-mathematical-model:
+  en: 7a34c5d143f08539
+  zh: eec0e8b746ca6f7b
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-1-mathematical-model/1-tier-1-read-only-idempotency:
+  en: ee5be50eac50966b
+  zh: 1c395fda220d0dd2
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-1-mathematical-model/2-tier-2-state-idempotent-writes:
+  en: 4474306ed5269f22
+  zh: c2a32ad98106667f
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-1-mathematical-model/3-tier-3-non-idempotent-writes:
+  en: d720d9e3fd71d3a2
+  zh: 7260451d7178ac68
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-2-production-defenses-and-reconciliation-by-tier:
+  en: 7a2618b298f3b9ae
+  zh: fa97ceaa8ef6eb01
+/chapter-24-tool-development-from-schemas-to-side-effects/3-three-effect-categories-and-consistency-guarantees/3-2-production-defenses-and-reconciliation-by-tier/write-ahead-intent-protocol:
+  en: f97f6a6dc85ea0f9
+  zh: baa0f6c748c54f8f
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit:
+  en: 5069be0d7f7f22e1
+  zh: 30c09765c1507bdc
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit/4-1-exclusive-barriers-and-bounded-rolling-pools:
+  en: f89d09eefa7c974f
+  zh: a989a62e41a34176
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit/4-2-strict-commit-in-model-call-order:
+  en: 79abfbed1e8fb0e5
+  zh: 79751db82b847bbf
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit/4-2-strict-commit-in-model-call-order/why-does-model-call-order-matter:
+  en: 0daef2749cb7fd67
+  zh: a8a6b1dc83e54fda
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit/4-2-strict-commit-in-model-call-order/sliding-window-commit-logic:
+  en: b1a9f3a9cfc12030
+  zh: 6a25982ab9e53b43
+/chapter-24-tool-development-from-schemas-to-side-effects/4-scheduler-concurrency-and-ordered-commit/4-3-cooperative-cancellation-and-synthetic-audit-results:
+  en: b3c0e31c926d377c
+  zh: 9dd035235f974c4f
+/chapter-24-tool-development-from-schemas-to-side-effects/5-exercise-build-a-production-file-metadata-inspection-tool:
+  en: f238c79d02c5e062
+  zh: a53ef0fc3d68855e
+/chapter-24-tool-development-from-schemas-to-side-effects/5-exercise-build-a-production-file-metadata-inspection-tool/5-1-requirements-and-technical-specification:
+  en: 473b9a84510502ae
+  zh: f9807d1aa355c120
+/chapter-24-tool-development-from-schemas-to-side-effects/5-exercise-build-a-production-file-metadata-inspection-tool/5-2-complete-production-style-typescript-implementation:
+  en: 6c04e8b11638190e
+  zh: 3f9e66e985dbbca4
+/chapter-24-tool-development-from-schemas-to-side-effects/5-exercise-build-a-production-file-metadata-inspection-tool/5-3-production-unit-tests-and-boundary-assertions:
+  en: e3fa799db9d3607e
+  zh: b9240c3c176bc14b
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting:
+  en: e735c46d9d71ccda
+  zh: a79305d8cdc0afd1
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-1-case-one-a-non-idempotent-tool-is-charged-twice-after-a-timeout:
+  en: 87e0f708b3d7b78f
+  zh: 8c1a62704853bf6c
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-1-case-one-a-non-idempotent-tool-is-charged-twice-after-a-timeout/root-cause:
+  en: 88b45b7c2e2344a6
+  zh: 1adeeacaf9ba6253
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-1-case-one-a-non-idempotent-tool-is-charged-twice-after-a-timeout/remedy:
+  en: 5c0d803ed075421a
+  zh: dbbe23f9671380df
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-2-case-two-lost-abortsignal-overwrites-a-host-file-after-cancellation:
+  en: e402cfd55530fd15
+  zh: 1544a69ad1ad7c69
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-2-case-two-lost-abortsignal-overwrites-a-host-file-after-cancellation/root-cause:
+  en: f2e2e2491d58bfa3
+  zh: 41b2cf317b3569e6
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-2-case-two-lost-abortsignal-overwrites-a-host-file-after-cancellation/remedy:
+  en: 014b6b480c62aa19
+  zh: 3ed8444a7f63dc13
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-3-case-three-oversized-output-exhausts-model-tokens-and-dilutes-attention:
+  en: de4c3d9113fb9abf
+  zh: 6171e50a02eb4c10
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-3-case-three-oversized-output-exhausts-model-tokens-and-dilutes-attention/root-cause:
+  en: 6bedc77353b188a7
+  zh: e5da24b2493f3754
+/chapter-24-tool-development-from-schemas-to-side-effects/6-production-failures-and-troubleshooting/6-3-case-three-oversized-output-exhausts-model-tokens-and-dilutes-attention/remedy:
+  en: a42716f9bfa2ae62
+  zh: 4946eb103d5196e2
+/chapter-24-tool-development-from-schemas-to-side-effects/7-tool-readiness-checklist:
+  en: 470afb17cc1cfe44
+  zh: 6aa1e9f90f67a869
+/chapter-24-tool-development-from-schemas-to-side-effects/8-chapter-summary:
+  en: 5e96a88a648d5251
+  zh: e431467611117fc2

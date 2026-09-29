@@ -85,7 +85,7 @@ $$M_k = \text{deriveMessages}(E_{0..k}) = \text{Fold}\left( \text{surfaceOp}, \e
 The projection folds events as follows:
 
 - **Message append**: On `user/message`, `assistant/message`, or `tool/result`, the `surfaceOp: 'append'` operation adds the structured message to the end of the current list.
-- **Causal provenance**: The physical log retains `assistant/chunk` streaming events for live downlink and resumability; those chunks do not individually occupy model context. The final `assistant/message` references them through `sourceEventSeqs: [seq_1, seq_2, ...]`.
+- **Source-event links**: The physical log retains `assistant/chunk` streaming events for live downlink and resumability; those chunks do not individually occupy model context. The final `assistant/message` references them through `sourceEventSeqs: [seq_1, seq_2, ...]`.
 - **History compaction**: When compaction shadows historical events, the physical log retains them for deterministic replay, while `deriveMessages()` replaces them in the projection with one structured summary.
 
 #### 3. Key Files and Reading Notes
@@ -127,8 +127,8 @@ This stage addresses state consistency and frontend–backend decoupling. Persis
 
 #### 2. Key Files and Reading Notes
 
-- **`packages/session/session-persistence/src/write-behind.ts`**: `SessionWriteBehind` buffers writes so each small `assistant/chunk` does not incur synchronous disk I/O. A bounded queue coalesces batches using `maxDelayMs` (default 200 ms), while explicit `flush()` is a quiescence barrier at Turn completion, key tool execution, or session export, ensuring in-flight events are physically persisted with `fsync`.
-- **`packages/session/session-persistence/src/coordinator.ts`**: The persistence coordinator owns multi-session lifecycles, corruption detection (`SessionPersistenceCorruptionError`), format-version negotiation (`SESSION_FORMAT_VERSION`), and crash recovery.
+- **`packages/session/session-persistence-jsonl`**: `SessionWriteBehind` buffers writes so each small `assistant/chunk` does not incur synchronous disk I/O. A bounded queue coalesces batches using `maxDelayMs` (default 200 ms), while explicit `flush()` is a quiescence barrier at Turn completion, key tool execution, or session export, ensuring in-flight events are physically persisted with `fsync`.
+- **`packages/session/session-persistence-jsonl`**: The persistence coordinator owns multi-session lifecycles, corruption detection (`SessionPersistenceCorruptionError`), format-version negotiation (`SESSION_FORMAT_VERSION`), and crash recovery.
 - **`packages/host/apiproxy/src/api-proxy.ts`** and **`packages/host/apiproxy/src/api/`**: The frontend–backend gateway defines a four-quadrant discriminated union (`ClientRequest`, `ServerResponse`, `ServerRequest`, and `ClientResponse`). Zod validates each API request twice: once for the outer envelope and once for the business payload. A unified `RpcResult` carries closed error codes.
 - **`packages/client/runtime/src/`**: The browser Cordis runtime includes `ConversationNodeAssembler`, `SessionRuntime`, and `WorkspaceRuntime`. It subscribes to the Host mux event stream (`session/projection`) and uses Immer/Zustand to maintain an immutable frontend view with incremental rendering rather than full-session refreshes.
 
@@ -173,7 +173,7 @@ From the execution order, derive the exact `seq`, `type`, and key `data` fields 
 
 #### 3. Complete Event Sequence and Reference Answer
 
-| Seq | Event type | Boundary | Key payload (`data`) | Provenance (`sourceEventSeqs`) |
+| Seq | Event type | Boundary | Key payload (`data`) | Source-event links (`sourceEventSeqs`) |
 | :--- | :--- | :--- | :--- | :--- |
 | **0** | `request/header` | Session Init | `{ header: { config: { provider: 'deepseek', model: 'deepseek-chat' }, system: '...', tools: [...] }, reason: 'initial' }` | - |
 | **1** | `request/context` | Session Init | `{ provider: 'deepseek', model: 'deepseek-chat', contextWindow: 65536 }` | - |

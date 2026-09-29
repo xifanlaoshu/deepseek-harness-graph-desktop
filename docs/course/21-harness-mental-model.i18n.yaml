@@ -1,6 +1,193 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 21-harness-mental-model.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/21-harness-mental-model.md
-21-harness-mental-model.md: 627b7c8b363c0caf760ae97c2fdaa188dd38ef0a
-21-harness-mental-model.zh.md: f966c8afe75946dc042b332af5e4ef4e98dbd68a
+/chapter-21-a-mental-model-of-harness:
+  en: 6ffc587ee7c022f3
+  zh: 75295fe8414b0060
+/chapter-21-a-mental-model-of-harness/21-1-rebuilding-systems-intuition-from-black-box-to-state-machine:
+  en: 839a9f160ef5a699
+  zh: 78352d41f8a8f8e2
+/chapter-21-a-mental-model-of-harness/21-1-rebuilding-systems-intuition-from-black-box-to-state-machine/21-1-1-core-concepts-mapped-to-systems-programming:
+  en: f741ae814db491c2
+  zh: c6cf41e8a6e20c68
+/chapter-21-a-mental-model-of-harness/21-1-rebuilding-systems-intuition-from-black-box-to-state-machine/21-1-2-formalizing-a-probabilistic-function-and-state-machine:
+  en: 0488ba92e478b45c
+  zh: 77f5fa145d2115ac
+/chapter-21-a-mental-model-of-harness/21-1-rebuilding-systems-intuition-from-black-box-to-state-machine/21-1-3-harness-s-purpose-deterministic-engineering-around-probabilistic-inference:
+  en: 0308dfaee724fdfa
+  zh: f32132e9b67b09d9
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture:
+  en: 1f814af61eb5996a
+  zh: 923e6fc73b810e90
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-1-layer-1-cordis-plugin-tree-what-the-runtime-loads:
+  en: 6046ab6debff3374
+  zh: 704c9b212928528f
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-1-layer-1-cordis-plugin-tree-what-the-runtime-loads/1-runtime-meaning-and-systems-analogy:
+  en: f6ce5caf12687d6f
+  zh: 23236e5467d6a853
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-1-layer-1-cordis-plugin-tree-what-the-runtime-loads/2-four-cordis-event-dispatch-primitives:
+  en: 362f97cdd4d6f18c
+  zh: a2c0004d39e308c2
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-1-layer-1-cordis-plugin-tree-what-the-runtime-loads/3-configuration-overlays-and-load-time-validation:
+  en: b1eebc66ee4199e3
+  zh: 7faf3be991ff233e
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-1-layer-1-cordis-plugin-tree-what-the-runtime-loads/4-complete-typescript-example-cordis-container:
+  en: a5fff9c38148c094
+  zh: ec4984a65ad25b87
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-2-layer-2-agent-loop-how-a-request-advances:
+  en: 2748c444ce27c322
+  zh: 49a4f429bfe8afe9
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-2-layer-2-agent-loop-how-a-request-advances/1-turn-and-step-semantics-in-the-state-machine-loop:
+  en: 87129a7ffa0e6cbe
+  zh: d95048f5bce6947e
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-2-layer-2-agent-loop-how-a-request-advances/2-one-inbox-and-its-scheduling-semantics:
+  en: 75b7ab338779bf79
+  zh: c625311276ded9d8
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-2-layer-2-agent-loop-how-a-request-advances/3-cooperative-cancellation-with-abortsignal-and-quiescence:
+  en: 57f82d37a87d98da
+  zh: cf5d0f64d987f611
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-2-layer-2-agent-loop-how-a-request-advances/4-complete-typescript-example-state-machine-driver:
+  en: a6d88cd453ad0e17
+  zh: 082c06367acfb87d
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-3-layer-3-session-log-what-can-be-replayed-and-recovered:
+  en: bac22fda3a9e67fe
+  zh: e2aa11d9cbbbe090
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-3-layer-3-session-log-what-can-be-replayed-and-recovered/1-the-model-visible-is-recorded-invariant:
+  en: b94304e210305452
+  zh: 0ff58ef30934f80e
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-3-layer-3-session-log-what-can-be-replayed-and-recovered/2-surface-and-positional-replacement-compaction:
+  en: c4dc4783bd088e48
+  zh: d18daf51b88aed33
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-3-layer-3-session-log-what-can-be-replayed-and-recovered/3-zstandard-frames-sequence-continuity-and-sessionheader-layout:
+  en: 4d78baff42695f5b
+  zh: 4cb7f1194a865ef7
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-3-layer-3-session-log-what-can-be-replayed-and-recovered/4-complete-typescript-example-event-sourcing-and-projection:
+  en: 0c5109632147d4eb
+  zh: f13fed11a7cece9a
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-4-layer-4-capability-providers-controlled-file-command-and-network-effects:
+  en: 875100006f0f599f
+  zh: ab8cf5a5fc194f90
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-4-layer-4-capability-providers-controlled-file-command-and-network-effects/1-the-three-roles-of-a-service-seam:
+  en: 60e101cc3ad537c4
+  zh: f384527442305d16
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-4-layer-4-capability-providers-controlled-file-command-and-network-effects/2-side-effect-categories-and-concurrency:
+  en: b0c8936bacaa86ca
+  zh: 45ec4896e311cb8d
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-4-layer-4-capability-providers-controlled-file-command-and-network-effects/3-defense-in-depth-sandbox-credential-scrubbing-and-spill:
+  en: f8735448310d96cb
+  zh: e924a81ceaff4f2a
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-4-layer-4-capability-providers-controlled-file-command-and-network-effects/4-complete-typescript-example-controlled-tool-pipeline:
+  en: b217fabbe200b52f
+  zh: 95ebdf4d37bfd352
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination:
+  en: 87fa7b16f13cd804
+  zh: 4e36c8eb21ff22a0
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/1-multi-agent-dags-and-immutable-revision-lineage:
+  en: 81683cc9869b7a8d
+  zh: 1051a3a8ad775c8c
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/2-proof-of-monotonic-fencing-tokens:
+  en: 839a7a26f742f7b9
+  zh: d3763ab5dcc7f6ed
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/2-proof-of-monotonic-fencing-tokens/theorem-exclusive-ordering-with-fencing-tokens:
+  en: 8125495e813e3bdf
+  zh: 572debcbd03d815c
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/2-proof-of-monotonic-fencing-tokens/worked-derivation:
+  en: c3386f7bf59a2f94
+  zh: 14cef12bc9122735
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/3-harness-execution-plane-and-loopx-control-plane:
+  en: 1fb1e68d9f8c9465
+  zh: a6d0fea74c24f001
+/chapter-21-a-mental-model-of-harness/21-2-a-five-layer-mental-model-of-harness-architecture/21-2-5-layer-5-graph-loopx-long-running-task-coordination/4-complete-typescript-example-fenced-storage-and-reconciliation:
+  en: cee3efc6186769dd
+  zh: bf0d107412b8dcf9
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method:
+  en: 722420cc66f2b91d
+  zh: b0631ed62e8290c0
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method/21-3-1-step-one-configuration:
+  en: 49ce20ad837cf389
+  zh: bc2d72b1397e94a6
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method/21-3-2-step-two-services:
+  en: 3aa23b5fcb1db4c6
+  zh: 49303c058aa288d7
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method/21-3-3-step-three-events:
+  en: 650ddf17c1876190
+  zh: bf9249365c51dc96
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method/21-3-4-step-four-log-and-replay:
+  en: 525274be37779397
+  zh: a9f5627e9e5b3985
+/chapter-21-a-mental-model-of-harness/21-3-a-standard-five-step-diagnosis-method/21-3-5-step-five-cancellation-and-teardown:
+  en: 99912762e74bb95e
+  zh: 8559bd1ee048faa1
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews:
+  en: 44337dc5ad0d77a3
+  zh: fa46670b1e889fd6
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-1-case-one-a-missing-next-short-circuits-a-waterfall:
+  en: 3ef5af1fdc73d8c8
+  zh: 0063b052ee28b82b
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-1-case-one-a-missing-next-short-circuits-a-waterfall/1-symptom:
+  en: 262187d077b2be63
+  zh: 0e1490a1627866d9
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-1-case-one-a-missing-next-short-circuits-a-waterfall/2-five-step-investigation:
+  en: 09a4064f0ac1d5d2
+  zh: 44f88aa00802fead
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-1-case-one-a-missing-next-short-circuits-a-waterfall/3-root-cause-and-source-location:
+  en: b3ce3746caa817ab
+  zh: f3e32392b79b79f4
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-1-case-one-a-missing-next-short-circuits-a-waterfall/4-production-style-remedy:
+  en: ed5ee0280137b540
+  zh: 82bacbf59921a45a
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-2-case-two-async-dispose-returns-before-quiescence:
+  en: 36ed4b8eeb4fb142
+  zh: 5895369f0bb88df9
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-2-case-two-async-dispose-returns-before-quiescence/1-symptom:
+  en: b13553470811f132
+  zh: bce0d4987d80291f
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-2-case-two-async-dispose-returns-before-quiescence/2-five-step-investigation:
+  en: b86343110f2e8e1d
+  zh: 148fc5657ca21227
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-2-case-two-async-dispose-returns-before-quiescence/3-root-cause-and-source-location:
+  en: 53536a7609204d15
+  zh: 580d3b7a4def5ea9
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-2-case-two-async-dispose-returns-before-quiescence/4-production-style-remedy:
+  en: 522a4956f0b51511
+  zh: 490ee9c51f63abac
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-3-case-three-missing-fencing-allows-split-brain-writes-across-hosts:
+  en: 87cbe3a6690d493e
+  zh: 5d4772a8193889a0
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-3-case-three-missing-fencing-allows-split-brain-writes-across-hosts/1-symptom:
+  en: 43c867d90e04b40c
+  zh: 2e72901c1bc439f9
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-3-case-three-missing-fencing-allows-split-brain-writes-across-hosts/2-five-step-investigation:
+  en: 549cf727aed630c6
+  zh: ca536da4a977e229
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-3-case-three-missing-fencing-allows-split-brain-writes-across-hosts/3-root-cause:
+  en: 074fb86898b6e5c3
+  zh: 9a6ac53d5f33c2aa
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-3-case-three-missing-fencing-allows-split-brain-writes-across-hosts/4-production-style-remedy:
+  en: 9d1270a47219634b
+  zh: b509e0843c232c1d
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-4-case-four-a-session-log-sequence-gap-breaks-recovery:
+  en: 96d4061c17aae1f5
+  zh: feabcfd962ab4207
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-4-case-four-a-session-log-sequence-gap-breaks-recovery/1-symptom:
+  en: da0487e7bff07c1c
+  zh: 6709c9645f13295e
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-4-case-four-a-session-log-sequence-gap-breaks-recovery/2-five-step-investigation:
+  en: 73034d0e36a4283b
+  zh: 4b079d61ec1455be
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-4-case-four-a-session-log-sequence-gap-breaks-recovery/3-root-cause:
+  en: 5d3e3ec707b929b5
+  zh: 704b9228adc1b67b
+/chapter-21-a-mental-model-of-harness/21-4-production-failure-reviews/21-4-4-case-four-a-session-log-sequence-gap-breaks-recovery/4-production-style-remedy:
+  en: 25bcbc734798aff5
+  zh: 64f5785a88f98cf2
+/chapter-21-a-mental-model-of-harness/21-5-architecture-checks-and-core-rules:
+  en: a3282e46a7977d29
+  zh: 3ff2c7cae5cc7f9b
+/chapter-21-a-mental-model-of-harness/21-5-architecture-checks-and-core-rules/21-5-1-ten-architecture-rules:
+  en: dc613f70e8544739
+  zh: 15c9b1cd1bf1ee0c
+/chapter-21-a-mental-model-of-harness/21-5-architecture-checks-and-core-rules/21-5-2-weekly-development-checklist:
+  en: ccaa91c8d89ec672
+  zh: 92651b937660e37f

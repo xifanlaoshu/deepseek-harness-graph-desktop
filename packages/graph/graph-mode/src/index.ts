@@ -92,12 +92,11 @@ import type {
 } from '@deepseek-ai/dsh-graph-coordination'
 import type {} from '@deepseek-ai/dsh-graph-artifacts'
 import type { GraphResourceReservation, GraphResourceSnapshot } from '@deepseek-ai/dsh-graph-resources'
-import {
-  GraphSchedulerAuthorityError,
+import type {
   GraphSchedulerOwnerId,
-  type GraphSchedulerLease,
-  type GraphSchedulerLeaseRequest,
-  type GraphSchedulerDecision,
+  GraphSchedulerLease,
+  GraphSchedulerLeaseRequest,
+  GraphSchedulerDecision,
 } from '@deepseek-ai/dsh-graph-scheduler'
 import {
   GraphWorkerId,
@@ -265,7 +264,7 @@ const graphTemplateFields = {
 } as const
 
 /** Validates the Graph role template copied into each newly activated session. */
-export const GraphTemplateSettings = z.object(graphTemplateFields) as unknown as z<GraphTemplateSettings>
+export const GraphTemplateSettings: z<GraphTemplateSettings> = z.object(graphTemplateFields) as never
 
 /** Plugin configuration schema; template fields remain live in the profile editor. */
 export const Config: z<Config> = z.object({
@@ -285,7 +284,7 @@ export const Config: z<Config> = z.object({
   limits: graphTemplateFields.limits.default(defaultGraphModeConfig().limits as never).volatile(),
   executionPolicy: graphTemplateFields.executionPolicy.default(defaultGraphModeConfig().executionPolicy as never).volatile(),
   controllerResilience: graphTemplateFields.controllerResilience.default(defaultGraphControllerResiliencePolicy() as never).volatile(),
-}) as unknown as z<Config>
+}) as never
 
 type ControllerIntent = 'new' | 'revise' | 'inspect' | 'control' | 'clarify' | 'direct'
 const terminalNodePhase = (phase: GraphNodeRun['phase']): boolean => ['succeeded', 'failed', 'skipped', 'blocked', 'stale', 'canceled', 'exhausted'].includes(phase)
@@ -1106,7 +1105,7 @@ const collectEnvironmentDraftIssues = (
     }
   }
   if (issues.some(issue => issue.startsWith(path))) return
-  const approvalText = graphEnvironmentApprovalText(value as unknown as GraphEnvironmentPlan)
+  const approvalText = graphEnvironmentApprovalText(value as never)
   if (new TextEncoder().encode(approvalText).byteLength > MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES) {
     issues.push(`${path}: approval text exceeds ${String(MAX_GRAPH_ENVIRONMENT_APPROVAL_BYTES)} bytes; split the change into smaller environment nodes`)
   }
@@ -1142,7 +1141,8 @@ const draftAdmissionIssues = (
   const enabledRoles = new Set<string>(
     config.roles.filter(role => role.enabled && !role.controller).map(role => role.id),
   )
-  for (const [index, candidate] of (draft.nodes as unknown[]).entries()) {
+  const candidates: readonly unknown[] = draft.nodes
+  for (const [index, candidate] of candidates.entries()) {
     const path = `nodes[${String(index)}]`
     if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
       issues.push(`${path}: provide a task object`)
@@ -2061,13 +2061,14 @@ export class GraphModeController extends Service {
   private readonly externalOperationTimeoutMs: number
   private readonly recoveryScanIntervalMs: number
   private readonly environmentPolicy: GraphEnvironmentHostPolicy
-  private readonly schedulerOwnerId = GraphSchedulerOwnerId(randomUUID())
+  private readonly schedulerOwnerId = randomUUID() as GraphSchedulerOwnerId
   private templateSource: () => GraphTemplateSettings
   private readonly admission = new GraphAdmissionController()
   private readonly aborts = new Map<string, AbortController>()
   private readonly nodeAborts = new Map<string, AbortController>()
   private readonly workerRuns = new Map<string, GraphWorkerRun>()
   private readonly executions = new Map<string, Promise<void>>()
+  private readonly submissions = new Set<Promise<unknown>>()
   private readonly activatingSubmissions = new Set<GraphSubmissionId>()
   private readonly recoveries = new Map<Agent, Promise<void>>()
   private readonly recoveryTimers = new Map<Agent, ReturnType<typeof setInterval>>()
@@ -2076,8 +2077,10 @@ export class GraphModeController extends Service {
   private readonly toolDisposers = new Map<Agent, () => void>()
   private readonly controlLocks = new Map<string, Promise<void>>()
   private readonly controllerFallbacks = new WeakMap<Agent, { readonly turn: number; readonly index: number }>()
+  private readonly shutdown = new AbortController()
   private quiescence: Promise<void> | undefined
   private dependencyOwnsQuiescence = false
+  private stopping = false
 
   /** Construct and install graph-mode controller surfaces. */
   constructor(ctx: Context, config: Config = {}) {
@@ -2108,7 +2111,7 @@ export class GraphModeController extends Service {
     }
     this.templateSource = () => {
       const template = {
-        roles: (config.roles?.get() as unknown as GraphTemplateSettings['roles'] | undefined) ?? templateDefaults.roles,
+        roles: (config.roles?.get() as GraphTemplateSettings['roles'] | undefined) ?? templateDefaults.roles,
         limits: config.limits?.get() ?? templateDefaults.limits,
         executionPolicy: config.executionPolicy?.get() ?? templateDefaults.executionPolicy,
         controllerResilience: config.controllerResilience?.get() ?? templateDefaults.controllerResilience,
@@ -2286,6 +2289,7 @@ export class GraphModeController extends Service {
     }))
 
     ctx.on('agent/created', ({ agent }) => {
+      if (this.stopping) return
       this.liveAgents.add(agent)
       this.installRecoveryWatch(agent)
       if (!this.state(agent).config.active) return
@@ -2306,7 +2310,18 @@ export class GraphModeController extends Service {
         scope.effect(() => async () => { await this.quiesce() }, `dsh-graph-mode: quiesce before ${dependency}`)
       })
     }
-    installDependencyQuiescence('graphCoordination')
+    const coordination = ctx.get('graphCoordination')
+    if (coordination !== undefined) {
+      this.dependencyOwnsQuiescence = true
+      const unregister = coordination.registerQuiescence(() => this.quiesce())
+      ctx.effect(() => async () => { await unregister() }, 'dsh-graph-mode: quiesce before graphCoordination')
+    } else {
+      ctx.inject(['graphCoordination'], (scope) => {
+        this.dependencyOwnsQuiescence = true
+        const unregister = ctx.graphCoordination.registerQuiescence(() => this.quiesce())
+        scope.effect(() => async () => { await unregister() }, 'dsh-graph-mode: quiesce before graphCoordination')
+      })
+    }
     installDependencyQuiescence('graphResources')
     installDependencyQuiescence('graphScheduler')
     installDependencyQuiescence('graphArtifacts')
@@ -2322,14 +2337,20 @@ export class GraphModeController extends Service {
   }
 
   private async quiesce(): Promise<void> {
+    this.stopping = true
+    for (const timer of this.recoveryTimers.values()) clearInterval(timer)
+    this.recoveryTimers.clear()
+    this.shutdown.abort(new Error('graph-mode plugin disposed'))
     if (this.quiescence !== undefined) {
       await this.quiescence
       return
     }
     this.quiescence = (async () => {
-      const executions = [...this.executions.values()]
       for (const controller of this.aborts.values()) controller.abort(new Error('graph-mode plugin disposed'))
-      await Promise.allSettled(executions)
+      while (this.submissions.size > 0 || this.recoveries.size > 0 || this.executions.size > 0) {
+        const work = [...this.submissions, ...this.recoveries.values(), ...this.executions.values()]
+        await Promise.allSettled(work)
+      }
       this.aborts.clear()
       this.executions.clear()
     })()
@@ -2453,12 +2474,13 @@ export class GraphModeController extends Service {
       },
       execute: async (args, exec) => {
         const caller = exec.agent as Agent
+        const graphDraft: unknown = args.graph
         const submission = {
           intent: args.intent,
           reason: args.reason,
-          ...args.graph === undefined ? {} : { graph: args.graph as unknown as GraphControllerPlanDraft },
-          ...args.campaign === undefined ? {} : { campaign: args.campaign as unknown as GraphCampaignSubmissionDraft },
-          ...args.lineage === undefined ? {} : { lineage: args.lineage as unknown as GraphRevisionLineageDraft },
+          ...graphDraft === undefined ? {} : { graph: graphDraft as GraphControllerPlanDraft },
+          ...args.campaign === undefined ? {} : { campaign: args.campaign as GraphCampaignSubmissionDraft },
+          ...args.lineage === undefined ? {} : { lineage: args.lineage as GraphRevisionLineageDraft },
         }
         if (submission.intent !== 'new' && submission.intent !== 'revise') {
           return await this.submit(caller, { intent: submission.intent, reason: submission.reason }, exec.signal)
@@ -2668,6 +2690,7 @@ export class GraphModeController extends Service {
       await this.drive(agent, graph, run, config, signal, ancestry, runtimeInput, notify)
       return
     }
+    const { GraphSchedulerAuthorityError } = await import('@deepseek-ai/dsh-graph-scheduler')
     const scheduler = this.ctx.get('graphScheduler')
     if (scheduler === undefined) throw new Error('graph scheduler disappeared while a run lease was active')
     const heartbeatStop = new AbortController()
@@ -2815,6 +2838,7 @@ export class GraphModeController extends Service {
    * @param requestedRunId optional exact run selected for manual reconciliation.
    */
   async recover(agent: Agent, requestedRunId?: GraphRunId): Promise<void> {
+    if (this.stopping) throw new Error('graph-mode is quiescing and no longer accepts recovery')
     const previous = this.recoveries.get(agent) ?? Promise.resolve()
     const current = previous.catch(() => {
       // A later recovery request is independent and must still inspect durable state.
@@ -3282,7 +3306,7 @@ export class GraphModeController extends Service {
       failControl(`node ${nodeId} is not skippable`)
     }
     if (options.suppliedOutput !== undefined && options.suppliedByControlId === undefined) {
-      failControl('supplied output requires control provenance')
+      failControl('supplied output requires a control event reference')
     }
     const restart = new Set(downstreamInvalidation(graph, [nodeId]))
     for (const state of Object.values(prior.nodes)) {
@@ -4331,6 +4355,22 @@ export class GraphModeController extends Service {
     submission: GraphSubmission,
     signal: AbortSignal = new AbortController().signal,
   ): Promise<{ accepted: true; intent: ControllerIntent; graphId?: string; runId?: string }> {
+    if (this.stopping) throw new Error('graph-mode is quiescing and no longer accepts submissions')
+    const operationSignal = AbortSignal.any([signal, this.shutdown.signal])
+    const operation = this.acceptSubmission(agent, submission, operationSignal)
+    this.submissions.add(operation)
+    try {
+      return await operation
+    } finally {
+      this.submissions.delete(operation)
+    }
+  }
+
+  private async acceptSubmission(
+    agent: Agent,
+    submission: GraphSubmission,
+    signal: AbortSignal,
+  ): Promise<{ accepted: true; intent: ControllerIntent; graphId?: string; runId?: string }> {
     const state = this.state(agent)
     if (!state.config.active) throw new Error('graph_submit is available only while graph mode is active')
     if (!submission.reason.trim()) throw new Error('controller reason must be non-empty')
@@ -4807,7 +4847,7 @@ export class GraphModeController extends Service {
           return key
         })
       }
-      const proposal = { ...rawProposal, ...mapKeys === undefined ? {} : { mapKeys } } as unknown as GraphExpansionProposal
+      const proposal = { ...rawProposal, ...mapKeys === undefined ? {} : { mapKeys } } as GraphExpansionProposal
       const checkpoint: GraphCheckpoint = {
         id: GraphCheckpointId(stableId('checkpoint', [run.id, node.id, iteration])),
         graphId: graph.graphId,
@@ -5841,7 +5881,7 @@ export class GraphModeController extends Service {
         }
         const manifests = [...upstream].flatMap((id) => {
           const manifest = readRun().nodes[id]?.attempts.at(-1)?.artifactManifest
-          return manifest === undefined ? [] : [manifest as unknown as GraphArtifactManifest]
+          return manifest === undefined ? [] : [manifest as GraphArtifactManifest]
         })
         await this.materializeArtifacts(agent, node, readRun(), cwd as string, manifests, workerSignal)
         const controlOutput = node.kind === 'review' || node.kind === 'verification'

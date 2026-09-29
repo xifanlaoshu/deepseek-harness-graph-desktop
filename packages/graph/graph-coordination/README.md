@@ -1,6 +1,23 @@
+---
+description: "Coordinate Graph workers through provider-neutral claims, observations, and evidence. This page explains the coordination service and the limits of external authority."
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-graph-coordination`
 
 English | [中文](README.zh.md)
+
+## Summary
+
+Exchange fenced claims, observations, and evidence with an external Graph coordination Provider. Graph Mode retains durable ownership of graph state and policy.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
 
 Service Definition for graph-worker coordination outside the Harness session log. A provider prepares work items for an immutable graph revision, admits and claims each node with a fresh compact observation, then records terminal evidence and progress. The scheduler remains responsible for child-agent execution, DAG dependencies, retries, and durable run snapshots.
 
@@ -16,6 +33,18 @@ A heartbeat returns the current lease id and fencing token. A Provider may advan
 
 Every Provider runs the shared eight-operation conformance suite. It verifies prepare, claim, heartbeat, observe/watch, progress, cancellation, settlement, and reconciliation together, including repeated delivery, conflicting payloads, stale fenced writes, ordered cancellation observation, and matching or conflicting terminal evidence.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because providers own external state and return typed operation results.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Coordination observation

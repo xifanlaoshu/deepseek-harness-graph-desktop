@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-mcp-timeout-generation-retirement.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-mcp-timeout-generation-retirement.md
-2026-08-26-mcp-timeout-generation-retirement.md: cbf758054c04bf7efe83724e084ab6093f2f3c58
-2026-08-26-mcp-timeout-generation-retirement.zh.md: 584ad39ca3a4161db1e430dba813b2f564e015a3
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines:
+  en: e8de6e42d323bd9b
+  zh: 085e41a7d63af1a5
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines/problem:
+  en: 804c16d99c522ae9
+  zh: dbb25c36431dc7a2
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines/decision:
+  en: a45304d5f8c1fbd4
+  zh: 3db631a3d2407fa4
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines/alternatives-considered:
+  en: 8ee8b505f723032a
+  zh: 70d38b8f4b324e0e
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines/verification:
+  en: a52e56548b241c18
+  zh: dad351690a584654
+/agent-note-retire-mcp-connection-generations-after-tool-request-deadlines/consequences:
+  en: 49aa0fc9c91e60b2
+  zh: c265cbd2bd68d7c7

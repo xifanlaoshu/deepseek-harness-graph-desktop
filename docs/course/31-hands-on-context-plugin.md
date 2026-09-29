@@ -127,7 +127,7 @@ export async function updateProjectLabelAntiPattern(ctx: Context, label: string)
 
 1. **Lifecycle-scope mismatch:** `Settings` represent declarative configuration, usually scoped to a Workspace or User Profile. A Project Label is dynamic Session-scoped state. Persisting one Session's action to shared Settings can silently change other concurrent Sessions in the same Workspace.
 
-2. **No historical provenance:** `Settings` hold the latest value, not who changed it at which step or which model turn it affected. Evaluation and debugging then lack the evidence needed to reconstruct the change.
+2. **No change history:** `Settings` hold only the latest value. They do not record who changed it, which step changed it, or which model turn it affected. Evaluation and debugging then lack the evidence needed to reconstruct the change.
 
 ### 2.3 Option C: an immutable Session event-sourcing ledger
 

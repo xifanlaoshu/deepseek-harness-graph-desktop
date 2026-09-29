@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-coordination/README.md
-README.md: 4dceb3395f00eaafd877423390f536b22710cfa4
-README.zh.md: a26191346676dac0a7b507195416df16998eb4da
+/:
+  en: 0bf498305ff231b7
+  zh: f73159dae33f449e
+/deepseek-ai-dsh-graph-coordination:
+  en: ed08468415a2f484
+  zh: 8036d28497bc89fb
+/deepseek-ai-dsh-graph-coordination/summary:
+  en: 074df528adbafa5d
+  zh: 67bed33d46f24476
+/deepseek-ai-dsh-graph-coordination/table-of-contents:
+  en: edc4f8e08a1e3de2
+  zh: de5a0c54912d35a8
+/deepseek-ai-dsh-graph-coordination/dev-note:
+  en: 2f85985e1ca8cb3d
+  zh: ba0693ba07c99b63
+/deepseek-ai-dsh-graph-coordination/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-coordination/model-experience/coordination-observation:
+  en: 69e9f5ddc641030c
+  zh: 69921e745766c145
+/deepseek-ai-dsh-graph-coordination/model-experience/coordination-observation/what-the-model-sees:
+  en: 17263b348fdf4c35
+  zh: 44e2ec4014c0cddd
+/deepseek-ai-dsh-graph-coordination/model-experience/coordination-observation/token-effect:
+  en: 57fe5fecbc0341fb
+  zh: 8422dea20d335424
+/deepseek-ai-dsh-graph-coordination/model-experience/coordination-observation/kv-cache-effect:
+  en: b0b4de8a6292e7ec
+  zh: c92f6c7ddb3b05a6
+/deepseek-ai-dsh-graph-coordination/known-limitations-and-deferred-work:
+  en: 9b3ac3321658a4d8
+  zh: 1a28ae8ff3a32f9b

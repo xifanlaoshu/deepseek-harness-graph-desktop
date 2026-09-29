@@ -1,6 +1,172 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for agent-engineering-tutorial.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/agent-engineering-tutorial.md
-agent-engineering-tutorial.md: 17df5f367670ea9dbd239c42eef7c75b465e6420
-agent-engineering-tutorial.zh.md: b651ca852b63a7e9e88c96ca08506a453e8ede55
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode:
+  en: 84cd61e482d93bb7
+  zh: de9ec28cc8475ee4
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/1-how-to-use-this-tutorial:
+  en: 6ad23b40cedf6f3a
+  zh: 1dae841bf47e3a83
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/2-the-minimal-mental-model-of-an-agent:
+  en: d8fb0c50ce18c6c5
+  zh: 62beac568326a523
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/2-the-minimal-mental-model-of-an-agent/2-1-an-agent-is-not-just-a-chatbot:
+  en: 0a0b45e851b85fe2
+  zh: 884d9ae80b1c3df8
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/2-the-minimal-mental-model-of-an-agent/2-2-how-one-tool-call-happens:
+  en: c20c85f64efa6a77
+  zh: b0528c97012a6c15
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/2-the-minimal-mental-model-of-an-agent/2-3-the-minimal-agent-loop:
+  en: 15496c20e9c0eed3
+  zh: 9ef869a5ce6fb99f
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/2-the-minimal-mental-model-of-an-agent/2-4-common-terms:
+  en: 094276999ff0bbb6
+  zh: 4fe6319ed75550ed
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/3-from-an-agent-prototype-to-an-agent-harness:
+  en: b9282c2e4dd6579f
+  zh: 99402d55ad6f4396
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture:
+  en: 65519fb86d5888f2
+  zh: e856e2f4db2ab8e2
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-1-everything-is-a-cordis-plugin:
+  en: 96a2eee48226fbe3
+  zh: 10c36c02d3d5d64c
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-2-five-cordis-concepts-you-must-understand:
+  en: 043282f5803b1169
+  zh: 2595c1f7c1c30900
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-3-profiles-bundles-and-the-plugin-tree:
+  en: 7ebd8a629e147ff8
+  zh: 49d85137e075f7ea
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-4-core-services:
+  en: 7197ed7cfa0e2973
+  zh: d98d62d63c2d0112
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-5-model-visible-must-be-logged:
+  en: d206c77e9a1431bc
+  zh: 3a003c68f611c56c
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/4-deepseek-harness-architecture/4-6-capability-seams:
+  en: c5a373f3b081f89c
+  zh: 013c7ced80f6b9e5
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/5-how-to-develop-a-harness-plugin:
+  en: 8f21ab8334cd6f2a
+  zh: 6139814b365c1197
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/5-how-to-develop-a-harness-plugin/5-1-choose-the-extension-type-first:
+  en: 1ee33d595d82a30b
+  zh: 3f9cef6abd5665a5
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/5-how-to-develop-a-harness-plugin/5-2-the-plugin-lifecycle-pattern:
+  en: 705ec22f91196c11
+  zh: cdaf891e851f7728
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/5-how-to-develop-a-harness-plugin/5-3-what-a-package-contains:
+  en: f2699fb9f05dcad5
+  zh: 5171054ebf74d23c
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/5-how-to-develop-a-harness-plugin/5-4-recommended-development-process:
+  en: d34be58b6462673c
+  zh: 4ebe0647a5b4f419
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/6-engineering-foundations-of-multi-agent-systems:
+  en: 082e626524bc3e09
+  zh: 955bf28aca43d3aa
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/6-engineering-foundations-of-multi-agent-systems/6-1-multiple-agents-are-not-multiple-chat-windows:
+  en: f627e32d79adeb2c
+  zh: 772cea983c2ae524
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/6-engineering-foundations-of-multi-agent-systems/6-2-why-the-controller-is-outside-the-graph:
+  en: 7afbaa540a4807dc
+  zh: 9611f2cd8d96fa17
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/6-engineering-foundations-of-multi-agent-systems/6-3-six-terms-for-reliable-multi-agent-execution:
+  en: 7fefee688e05d8f3
+  zh: cde84c509f03f9d6
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/7-loopx-the-long-lived-collaboration-control-plane:
+  en: d5ac755f673342fc
+  zh: 9624a64c78b8701d
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/7-loopx-the-long-lived-collaboration-control-plane/7-1-what-loopx-is:
+  en: 2a40cd99a52026e1
+  zh: 774be68fad987631
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/7-loopx-the-long-lived-collaboration-control-plane/7-2-the-graph-coordination-protocol:
+  en: 32ac362d68f9c167
+  zh: ace232736bc3a0e5
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/7-loopx-the-long-lived-collaboration-control-plane/7-3-the-loopx-lifecycle:
+  en: 1161bed8e46ad3b5
+  zh: af13d0bce0e2180f
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/7-loopx-the-long-lived-collaboration-control-plane/7-4-local-observation-commands:
+  en: f98ea6b96dafe876
+  zh: 3029e68d48dec395
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation:
+  en: 76ce36f2ce70bac7
+  zh: ee45bf9950a35df3
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-1-package-responsibilities:
+  en: a7081a9da9c5fcb6
+  zh: c8561693d24244ac
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-2-activation-and-intent-classification:
+  en: 7898a12ea2eed743
+  zh: 45537891a96c84b7
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-3-default-roles-and-configuration-snapshots:
+  en: 3cda2f97a3674b8a
+  zh: 1d5dcaaf26c61190
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-4-revisions-and-downstream-invalidation:
+  en: 7dcf09d8077c47df
+  zh: 3bacda29f7c7d53c
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-5-conditions-and-branch-groups:
+  en: c8115318a82522cc
+  zh: ed2b04658fd1c40c
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-6-planning-checkpoints-and-dynamic-subgraphs:
+  en: 495c49989bb8be24
+  zh: 8d363eb7cb7934ab
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-7-concurrency-and-oom-protection:
+  en: 2eecefb7c7ff7810
+  zh: 9bba29ba5c7e35cf
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-8-workers-and-operation-stages:
+  en: 1070956d7c339b33
+  zh: fcb3acfdff0c1977
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-9-review-repair-and-termination:
+  en: 5eb75997f2402d1f
+  zh: ae98a0ecea798f3a
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-10-human-control:
+  en: c08675de22eac584
+  zh: 0b92838505d29377
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-11-recovery-and-the-limits-of-exactly-once:
+  en: 1a11831d74313c41
+  zh: b07d0f4c1c0759f7
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/8-the-complete-graph-mode-implementation/8-12-the-graphical-interface:
+  en: 4494ae6d25128821
+  zh: 87b2caa5dd3d6aae
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/9-how-one-user-request-crosses-the-whole-system:
+  en: 1850c32a6acba121
+  zh: 088ab564055f24ae
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises:
+  en: aed2dbcdc3071b17
+  zh: b119b02db1360a33
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises/exercise-1-see-the-plugin-tree:
+  en: aa628c21949e4462
+  zh: 9f640c4df7ea8bf3
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises/exercise-2-trace-an-ordinary-tool-call:
+  en: 0a34eba2dd28caed
+  zh: 6e8ba64a3a0087d2
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises/exercise-3-create-a-minimal-graph:
+  en: b3216c736ddad6ba
+  zh: 7cddaa0e3783ba0e
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises/exercise-4-trigger-review-rework:
+  en: d653ef1f71bf97db
+  zh: 3ea167135d57b040
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/10-five-progressive-exercises/exercise-5-verify-resources-and-recovery:
+  en: 0bd5c594d745c37a
+  zh: b7d58dc38167f2c4
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/11-debugging-method-trace-projections-back-to-authoritative-facts:
+  en: e025e96ddfdf690d
+  zh: a5665e08c4f49f65
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/12-interview-preparation:
+  en: fc0fa9a06664f57d
+  zh: 67ff4584a411a87b
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/12-interview-preparation/12-1-frequent-questions-and-answer-points:
+  en: de4618072d6bafee
+  zh: bfaec2e249835a57
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/12-interview-preparation/12-2-a-system-design-answer-framework:
+  en: 1fd20bd9cd7ac4f2
+  zh: b5d43ff9ddbcbec0
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/12-interview-preparation/12-3-a-project-introduction-template:
+  en: 60a7d27957ec7d46
+  zh: c424e49494cece93
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/13-source-reading-map:
+  en: 3d197610d463d0fe
+  zh: 86625094bf755389
+/agent-engineering-from-first-principles-deepseek-harness-loopx-and-graph-mode/14-graduation-checklist:
+  en: e8f88269546a8ec5
+  zh: 379a27d128331ddc

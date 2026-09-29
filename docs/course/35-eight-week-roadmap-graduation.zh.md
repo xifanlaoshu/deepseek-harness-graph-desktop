@@ -358,7 +358,7 @@ stateDiagram-v2
 #### 核心代码产物：`production-agent-loop.ts`
 
 ```typescript
-// packages/runtime/src/agent/agent-loop.ts
+// packages/core/agent-loop/src/agent.ts
 import { z } from "zod";
 
 export type AgentStepState = "PRE_STEP" | "CALLING_MODEL" | "EXECUTING_TOOLS" | "SETTLING" | "TERMINATED";
@@ -523,7 +523,7 @@ export class ProductionAgentLoop {
 #### 核心代码产物：`event-sourced-session-store.ts`
 
 ```typescript
-// packages/persistence/src/session/event-session-store.ts
+// packages/session/session-persistence-jsonl/src/storage.ts
 export interface SessionEvent {
   id: string;
   sessionId: string;
@@ -696,7 +696,7 @@ export class FencedStorage<T> {
 ```
 
 ```typescript
-// packages/security/src/sandbox/os-sandbox-interceptor.ts
+// packages/sandbox/sandbox-local/src/index.ts
 import path from "node:path";
 
 export interface SandboxPolicy {

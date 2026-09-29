@@ -1,9 +1,28 @@
+---
+description: "将带围栏的 Graph 节点尝试分配给具名 Worker 提供方，并强制执行其声明的能力。本文介绍分派证据、生命周期和恢复职责。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-worker
 
 [English](README.md) | 中文
 
+## 概述
+
+将带围栏的 Graph 节点尝试分配给本地或远程 Worker 提供方，并验证其能力。提供方负责工作区分配、子代理执行、取消、制品暂存和协调恢复。
+
+## 目录
+
+- [开发备注](#dev-note)
+- [约定](#contract)
+- [模型体验](#model-experience)
+- [已知限制与待完成工作](#known-limitations-and-deferred-work)
+
+-----
+
 `ctx.graphWorkers` 是把一个带 fencing 的 Graph 节点 Attempt 分配给命名本地或远程 Worker Provider 的 Service Definition。它验证协议和能力要求，Provider 负责工作区分配、子级执行、取消、制品暂存和终态资源分类。
 
+<a id="contract"></a>
 ## Contract
 
 - Assignment 在 Provider 接受前冻结 Graph Work、Operation、Attempt、Run Generation、Owner Epoch、Fencing Token、角色、节点、提示词、输出 Schema、工作区策略、Deadline 和工具策略。
@@ -14,6 +33,18 @@
 - Service Definition 不选择 Provider、不分配资源、不解释模型输出，也不集成制品。这些职责分别属于 Graph Mode、资源 Consumer 和 Integration 节点。
 - 每个 Provider 都运行共享 Worker 一致性测试套件。该套件验证能力声明、终态前发布的 Worker 与工作区引用、唯一的完成或取消终态结果、协作式取消，以及拒绝不匹配工作区的精确活动 Worker 对账。
 
+<a id="dev-note"></a>
+## 开发备注
+该服务不发布不变量 companion：Provider 注册所有权由服务同步执行。
+
+<details>
+<summary>维护者工作背景 — 点击展开</summary>
+
+无。
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Worker evidence
@@ -30,7 +61,7 @@ Graph Mode 可以选择有界公开 `GraphWorkerResult` 证据。除非主控或
 
 没有直接影响。
 
-## Known Limitations and Deferred Work
+## Known Limitations and Deferred Work <a id="known-limitations-and-deferred-work"></a>
 
 - 本包与 Provider 无关，不会把共享工作区变成隔离工作区；具体 Provider 只能声明自己真正执行的模式。
 - 本能力无法让任意外部副作用变成 exactly-once；被隔离或无法访问的 Worker 保持不确定状态，必须由 Graph 策略或人工裁决。

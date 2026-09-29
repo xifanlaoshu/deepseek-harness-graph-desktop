@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { resolveDesktopPolicyEnvironment } from '../scripts/desktop-policy-environment.mjs'
 import { validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { resolveDesktopPolicyConfig } from '../src/mandatory-update-policy.ts'
+import { forkIdentityEnvironment } from './desktop-identity-fixture.ts'
 
 const origins = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.example.com',
   DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://prod.example.com' }
@@ -13,6 +14,7 @@ it.each(['test', 'production'] as const)('selects the %s policy and authenticati
   expect(policy).toEqual({ origin, allowedPageOrigins: [origin],
     ...(deployment === 'test' ? { allowedAuthOrigins: ['https://login.example.com'] } : {}),
     authentication: deployment === 'test' ? 'feishu-test' : 'anonymous' })
+  if (policy === undefined) throw new Error('the selected deployment must provide policy settings')
   expect(resolveDesktopPolicyConfig(policy)).toMatchObject(policy)
 })
 
@@ -47,9 +49,16 @@ it('rejects login origins in production', () => {
     .toThrow('must not configure allowedAuthOrigins')
 })
 
+it('omits mandatory policy in disabled fork mode and rejects contradictory policy inputs', () => {
+  const disabled = { DSH_DESKTOP_APP_ID: 'com.example.fork', DSH_DESKTOP_UPDATE_MODE: 'disabled' }
+  expect(resolveDesktopPolicyEnvironment(disabled)).toBeUndefined()
+  expect(() => resolveDesktopPolicyEnvironment({ ...disabled,
+    DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com' })).toThrow(/disabled mode cannot include/u)
+})
+
 it.each([{ unsigned: true }, { prepareOnly: true }, {}])('fails before signing/preparation when policy is absent in %j', (options) => {
   for (const platform of ['win32', 'darwin'] as const) {
-    expect(() => { validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.example.test' }, { platform, arch: 'x64' }, options) })
+    expect(() => { validateDesktopPackageEnvironment(forkIdentityEnvironment('com.example.test'), { platform, arch: 'x64' }, options) })
       .toThrow('DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN')
   }
 })

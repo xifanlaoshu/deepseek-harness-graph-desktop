@@ -163,7 +163,7 @@ The Client Cordis tree follows a **pure-projection architecture**:
 The following production-style example initializes the browser Client Cordis container and loads its core plugins:
 
 ```ts ignore-check
-// packages/client/runtime/src/client/bootstrap.ts
+// packages/client/locale/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection'
@@ -363,7 +363,7 @@ Each monomorphic field check takes $T_{\text{type\_check}} \approx 1.2 \sim 3.5\
 The following production-style Host gateway demonstrates argument validation, lookup resolution, lifecycle binding, and error handling:
 
 ```ts ignore-check
-// packages/api/gateway/src/typert-gateway.ts
+// packages/api/gateway/src/index.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -800,7 +800,7 @@ In this example, main-thread CPU use falls from 100% to under 8%, yielding smoot
 
 ### 5.2 State Stores and the Limit of Zustand's Built-In Persist
 
-In `packages/client/runtime/src/client/contract/store.ts`, Harness implements separate `defineStore` and `createSnapshotStore` facilities.
+In `packages/client/store/src/index.ts`, Harness implements separate `defineStore` and `createSnapshotStore` facilities.
 
 #### Why Not Use Zustand's `persist` Middleware?
 
@@ -812,7 +812,7 @@ In production use, the team encountered a serious issue in Zustand's `persist` m
 Harness therefore serializes the entire JSON value itself and handles storage failures without throwing, degrading gracefully in private-browsing mode or when a quota is exceeded.
 
 ```ts ignore-check
-// packages/client/runtime/src/client/contract/store.ts
+// packages/client/store/src/index.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { shallow } from 'zustand/shallow'
@@ -906,7 +906,7 @@ export function createSnapshotStore<T>(
 At the rendering layer, components connect to snapshot sources through `useSyncExternalStoreWithSelector`:
 
 ```tsx
-// packages/client/ui-renderer/src/client/hooks.ts
+// packages/client/ui-renderer/src/client/index.ts
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import { shallowEqual } from '@deepseek-ai/dsh-client-runtime/client'
@@ -982,7 +982,7 @@ For screenshots and downloads, an agent supplies an output path, for example to 
 The Harness MCP client adapter therefore applies a strict workspace-path guard:
 
 ```ts
-// packages/bundle/browser-chrome-devtools/src/path-resolver.ts
+// packages/experimental/browser-use-chrome-devtools-mcp
 import { resolve, normalize, relative, isAbsolute } from 'node:path'
 
 export class WorkspacePathGuard {

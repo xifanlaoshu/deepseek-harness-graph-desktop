@@ -1,6 +1,94 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 01-learning-goals.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/01-learning-goals.md
-01-learning-goals.md: d1b61f06191933a70ef3cfc41beb57256a9d8d22
-01-learning-goals.zh.md: 8e9735e7f4a264e9e2fec77bb44659a529abe598
+/chapter-01-learning-goals-and-how-to-read-this-course:
+  en: 24a82272244e8f6f
+  zh: 6c3f7bb7465cfe3a
+/chapter-01-learning-goals-and-how-to-read-this-course/1-core-mental-model-mapping-from-deterministic-turing-machines-to-probabilistic-state-machines:
+  en: 176fb5cb78fc067f
+  zh: d003783bd9b842c8
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers:
+  en: f81db445e7216f54
+  zh: 0169636aadbcb460
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-1-trap-one-deterministic-expectations-vs-stochastic-sampling:
+  en: 0366a66ad0627a55
+  zh: eed09228989e67d8
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-2-trap-two-stateless-inference-vs-kv-cache-gpu-memory-growth:
+  en: 79f2359968a307fc
+  zh: 874725ae6cc6bd77
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-3-trap-three-blurred-boundaries-between-instructions-and-data-prompt-injection:
+  en: 8dd076bc5fbda674
+  zh: b12bc02f1b0c3984
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-4-trap-four-irreversible-side-effects-and-external-tool-calls:
+  en: fc1967568a7c25ca
+  zh: fb8ba2fa41db32f0
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-5-trap-five-asynchronous-cooperative-cancellation-and-zombie-tasks:
+  en: 201793ecd269db9d
+  zh: 0072be99b3f11272
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-6-trap-six-monolithic-loops-vs-loosely-coupled-plugin-containers:
+  en: 87de5f6586388834
+  zh: ff925e38088e1da0
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-7-trap-seven-hallucination-mechanisms-vs-deterministic-program-verification:
+  en: 06d14ff04d168626
+  zh: f97ee79186c846b5
+/chapter-01-learning-goals-and-how-to-read-this-course/2-eight-conceptual-traps-for-conventional-programmers/2-8-trap-eight-in-place-memory-mutation-vs-an-immutable-event-sourced-ledger:
+  en: 1c7b101e950fd4c3
+  zh: fc7965c7082e64aa
+/chapter-01-learning-goals-and-how-to-read-this-course/3-three-observation-scales-a-multidimensional-systems-engineering-view:
+  en: cc607c1caf041ab5
+  zh: 59f788a8a316f162
+/chapter-01-learning-goals-and-how-to-read-this-course/3-three-observation-scales-a-multidimensional-systems-engineering-view/3-1-macro-view-operating-system-and-distributed-topology-analogies:
+  en: 5deca8bdec56151e
+  zh: 48b1df427f17ba4a
+/chapter-01-learning-goals-and-how-to-read-this-course/3-three-observation-scales-a-multidimensional-systems-engineering-view/3-2-meso-view-state-machine-transitions-and-transaction-control:
+  en: 01c14a631880dbf2
+  zh: 92e370cc7b642073
+/chapter-01-learning-goals-and-how-to-read-this-course/3-three-observation-scales-a-multidimensional-systems-engineering-view/3-3-micro-view-instruction-level-tracing-and-fine-grained-timing:
+  en: 56855a6ff45f4d92
+  zh: b35593d38ac22d84
+/chapter-01-learning-goals-and-how-to-read-this-course/4-four-categories-of-system-facts-and-the-consequences-of-confusing-them:
+  en: 485bc5c8f6772196
+  zh: 3ad6170eb1fe4d2c
+/chapter-01-learning-goals-and-how-to-read-this-course/4-four-categories-of-system-facts-and-the-consequences-of-confusing-them/4-1-definitions-and-contracts-for-the-four-categories:
+  en: 1b236cbf42a1211e
+  zh: aaa744de51dba725
+/chapter-01-learning-goals-and-how-to-read-this-course/4-four-categories-of-system-facts-and-the-consequences-of-confusing-them/4-2-production-failures-caused-by-confusing-system-facts:
+  en: 8e31ab5160f9ad3b
+  zh: 6d0451f94660c46f
+/chapter-01-learning-goals-and-how-to-read-this-course/5-architecture-level-code-exercise-type-level-separation-of-the-four-categories:
+  en: a64216eb7c3ccc36
+  zh: 9f0ea9bf8d405866
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence:
+  en: 2cb80a473fd1acfd
+  zh: fc9181056724a6b6
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones:
+  en: 1c8c778e2a2535c6
+  zh: a74c1f126e65a7be
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones/stage-one-ai-modeling-fundamentals-and-mathematical-intuition-chapters-01-02:
+  en: a213e040a7652b4c
+  zh: accf4dd0b51be30a
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones/stage-two-harness-core-architecture-and-runtime-chapters-03-20:
+  en: 646b2174ae0f1ed3
+  zh: 03c88894794041a5
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones/stage-three-advanced-agent-engineering-and-production-practice-chapters-21-30:
+  en: 8c47f62c17fb1f20
+  zh: 54214c701b67c159
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones/stage-four-project-practice-and-failure-diagnosis-chapters-31-34:
+  en: e2f58dfb0b1e2429
+  zh: af882e24f18f1059
+/chapter-01-learning-goals-and-how-to-read-this-course/6-five-stage-learning-path-weekly-tasks-and-self-check-evidence/6-1-detailed-stage-milestones/stage-five-comprehensive-graduation-assessment-and-mock-interviews-chapter-35:
+  en: cff8bdc580a8af53
+  zh: 7252b5ae1b2032b2
+/chapter-01-learning-goals-and-how-to-read-this-course/7-eight-week-intensive-study-plan:
+  en: dd6ab2db2f9b01a3
+  zh: c2d2d747b6e2404d
+/chapter-01-learning-goals-and-how-to-read-this-course/7-eight-week-intensive-study-plan/7-1-recommendations-for-daily-reading-and-coding-practice:
+  en: 3059e038f72a0c4e
+  zh: f1d36f74b8dbfde2
+/chapter-01-learning-goals-and-how-to-read-this-course/8-production-practice-rules-for-avoiding-common-pitfalls:
+  en: 9710f6b1cc94c9b5
+  zh: 970c6d976f9a6ecc
+/chapter-01-learning-goals-and-how-to-read-this-course/9-chapter-summary-and-further-reading:
+  en: 41c1190906a35294
+  zh: b79798cde11f685d

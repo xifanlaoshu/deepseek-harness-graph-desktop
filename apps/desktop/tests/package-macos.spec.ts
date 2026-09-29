@@ -64,6 +64,29 @@ async function fixture(arch: 'arm64' | 'x64' = 'arm64') {
 }
 
 describe('parallel macOS artifacts', () => {
+  it('packages an isolated fork without app-update metadata in disabled mode', async () => {
+    const f = await fixture()
+    const updateMetadata = join(f.appPath, 'Contents', 'Resources', 'app-update.yml')
+    await rm(updateMetadata)
+    try {
+      await packageMacOSArtifacts({ ...f.request, environment: {
+        ...environment,
+        DOWNLOAD_TEST_ORIGIN: undefined,
+        DOWNLOAD_TEST_RELEASE_ID: undefined,
+        DSH_DESKTOP_APP_ID: 'com.example.offline',
+        DSH_DESKTOP_PRODUCT_NAME: 'Offline Fork',
+        DSH_DESKTOP_PROTOCOL_SCHEME: 'offlinefork',
+        DSH_DESKTOP_USER_DATA_DIR_NAME: 'Offline-Fork',
+        DSH_DESKTOP_UPDATE_MODE: 'disabled',
+      } }, f.build, f.apple)
+      expect(existsSync(updateMetadata)).toBe(false)
+      expect(existsSync(join(f.request.artifactsRoot, 'nightly-mac.yml'))).toBe(false)
+      expect(existsSync(join(f.request.artifactsRoot, `${f.base}.zip`))).toBe(true)
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
   it.each(['arm64', 'x64'] as const)('overlaps notarization on isolated %s copies and promotes only completed payloads', async (arch) => {
     const f = await fixture(arch)
     const appStarted = barrier()

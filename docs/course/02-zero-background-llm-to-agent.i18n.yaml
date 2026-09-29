@@ -1,6 +1,130 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 02-zero-background-llm-to-agent.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/02-zero-background-llm-to-agent.md
-02-zero-background-llm-to-agent.md: e33ef9ca08ae37e11f345733ef436eec924eaff9
-02-zero-background-llm-to-agent.zh.md: 0efd34f27d305a3c3b946d937bee2cbe2a985815
+/chapter-02-foundations-from-llms-to-agent-systems:
+  en: 26ce560b6c192232
+  zh: 31d822a956195460
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms:
+  en: d16353069b835836
+  zh: ffbdcdb2b77e5941
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms/2-1-1-a-change-in-perspective-for-software-engineers:
+  en: 3b883f23053aca7c
+  zh: ba7dd1dcf2171aae
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms/2-1-2-the-mathematics-of-autoregressive-generation:
+  en: 4142f586017ffdaf
+  zh: 1b12d20e506cd36e
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms/2-1-3-production-style-pseudocode-the-autoregressive-generation-loop:
+  en: 47437941d71ece00
+  zh: deed74e149300570
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms/2-1-4-why-is-the-model-a-stateless-pure-function:
+  en: 181ec5d5c5439a84
+  zh: 808ff0e7de858186
+/chapter-02-foundations-from-llms-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms/2-1-5-the-mathematical-source-of-hallucinations:
+  en: 7dff6e7853c3156f
+  zh: 7932b65ec9ecd65e
+/chapter-02-foundations-from-llms-to-agent-systems/2-2-tokens-tokenizers-embeddings-and-positional-encoding-rope:
+  en: ad04547817e167e4
+  zh: 4f94960864a7cb14
+/chapter-02-foundations-from-llms-to-agent-systems/2-2-tokens-tokenizers-embeddings-and-positional-encoding-rope/2-2-1-tokens-and-bpe-tokenization:
+  en: 79bb2cb2159254d7
+  zh: d24641fb7dc90f03
+/chapter-02-foundations-from-llms-to-agent-systems/2-2-tokens-tokenizers-embeddings-and-positional-encoding-rope/2-2-2-embeddings-from-discrete-ids-to-a-high-dimensional-semantic-manifold:
+  en: d98d9547daa840b1
+  zh: 5c246fe48b20956f
+/chapter-02-foundations-from-llms-to-agent-systems/2-2-tokens-tokenizers-embeddings-and-positional-encoding-rope/2-2-3-rotary-position-embeddings-rope:
+  en: 821c2239ff14576a
+  zh: 44afec6aff120c6e
+/chapter-02-foundations-from-llms-to-agent-systems/2-3-logits-softmax-and-sampling-strategies-temperature-top-p-top-k:
+  en: aff90bfcdabadb0e
+  zh: bb257b731b3204b0
+/chapter-02-foundations-from-llms-to-agent-systems/2-3-logits-softmax-and-sampling-strategies-temperature-top-p-top-k/2-3-1-log-probabilities-and-temperature-scaled-softmax:
+  en: 9617c3515e2bbf30
+  zh: 525825c067026472
+/chapter-02-foundations-from-llms-to-agent-systems/2-3-logits-softmax-and-sampling-strategies-temperature-top-p-top-k/2-3-2-sampling-algorithms-top-k-and-top-p-nucleus-sampling:
+  en: 87f8ef3c86226b5e
+  zh: 7a79b8da6f2a29a4
+/chapter-02-foundations-from-llms-to-agent-systems/2-3-logits-softmax-and-sampling-strategies-temperature-top-p-top-k/2-3-3-why-does-temperature-0-not-guarantee-bit-for-bit-reproducibility:
+  en: 9434951388f1571e
+  zh: df4cd55d6df7f0c1
+/chapter-02-foundations-from-llms-to-agent-systems/2-4-transformers-self-attention-and-deepseek-mla:
+  en: 04bdbbf70fd2fcb2
+  zh: 739082334f6f38cc
+/chapter-02-foundations-from-llms-to-agent-systems/2-4-transformers-self-attention-and-deepseek-mla/2-4-1-deriving-scaled-dot-product-self-attention:
+  en: 8f6ac298844a442a
+  zh: e3073b3743bd89f3
+/chapter-02-foundations-from-llms-to-agent-systems/2-4-transformers-self-attention-and-deepseek-mla/2-4-2-attention-architectures-mha-to-gqa-to-deepseek-mla:
+  en: 646fe6d3bc00d344
+  zh: ac29bfa2f849612b
+/chapter-02-foundations-from-llms-to-agent-systems/2-4-transformers-self-attention-and-deepseek-mla/2-4-2-attention-architectures-mha-to-gqa-to-deepseek-mla/deepseek-mla-s-core-innovation:
+  en: b9cf50600affedaf
+  zh: 806c044b9ee24823
+/chapter-02-foundations-from-llms-to-agent-systems/2-4-transformers-self-attention-and-deepseek-mla/2-4-3-flashattention-gpu-compute-and-the-memory-wall:
+  en: 2e96d5077a01c9b2
+  zh: 570644c719a8a82f
+/chapter-02-foundations-from-llms-to-agent-systems/2-5-model-pretraining-alignment-sft-dpo-and-reasoning:
+  en: 06f938d1a93f3467
+  zh: f99b9f47df9679b3
+/chapter-02-foundations-from-llms-to-agent-systems/2-5-model-pretraining-alignment-sft-dpo-and-reasoning/2-5-1-pretraining-objective-self-supervised-learning-without-labels:
+  en: 5d57cac8509dfd06
+  zh: 0e9b61ca13132f45
+/chapter-02-foundations-from-llms-to-agent-systems/2-5-model-pretraining-alignment-sft-dpo-and-reasoning/2-5-2-preference-alignment-from-ppo-to-direct-preference-optimization-dpo:
+  en: 5454587dc27d24a9
+  zh: ddb7c1dd8a4627c1
+/chapter-02-foundations-from-llms-to-agent-systems/2-5-model-pretraining-alignment-sft-dpo-and-reasoning/2-5-3-the-advance-of-reasoning-models:
+  en: d9047daf4a9bc7b5
+  zh: 61de7e7355de54c4
+/chapter-02-foundations-from-llms-to-agent-systems/2-6-inference-serving-context-windows-and-kv-cache-memory-accounting:
+  en: c2750b204b932392
+  zh: 297f2baf24e2d9e6
+/chapter-02-foundations-from-llms-to-agent-systems/2-6-inference-serving-context-windows-and-kv-cache-memory-accounting/2-6-1-the-two-inference-phases-prefill-and-decode:
+  en: 58a99d211bdf7410
+  zh: dd91a07a8ac7bb23
+/chapter-02-foundations-from-llms-to-agent-systems/2-6-inference-serving-context-windows-and-kv-cache-memory-accounting/2-6-2-standard-formula-for-kv-cache-gpu-memory-use:
+  en: f113172bcd62ca1a
+  zh: 7cf1cb78618121c2
+/chapter-02-foundations-from-llms-to-agent-systems/2-6-inference-serving-context-windows-and-kv-cache-memory-accounting/2-6-3-gpu-memory-accounting-and-hardware-selection-table:
+  en: 20e4ab418f6cd5b2
+  zh: 4bb77e8774edfe2b
+/chapter-02-foundations-from-llms-to-agent-systems/2-7-message-protocols-system-prompts-and-function-calling:
+  en: a849d0c2b688c87f
+  zh: 9cc169265eb5add7
+/chapter-02-foundations-from-llms-to-agent-systems/2-7-message-protocols-system-prompts-and-function-calling/2-7-1-structured-message-arrays:
+  en: 4749fc326e71de6f
+  zh: ea619905d9a32633
+/chapter-02-foundations-from-llms-to-agent-systems/2-7-message-protocols-system-prompts-and-function-calling/2-7-2-how-function-calling-works:
+  en: 8e837966fa8fca43
+  zh: c5642df086e744d4
+/chapter-02-foundations-from-llms-to-agent-systems/2-8-from-chat-to-agents-harness-graph-and-loopx:
+  en: b6dcf80c0d06b0b0
+  zh: 3b3ddd944de31834
+/chapter-02-foundations-from-llms-to-agent-systems/2-9-first-end-to-end-walkthrough-one-request-in-15-steps:
+  en: 962166b28578415a
+  zh: 74bd0a81c91024ec
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers:
+  en: 7006202ea9ca4241
+  zh: 838f02a83f0d3886
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-1-autoregressive-probability:
+  en: d2a3df295bcf9628
+  zh: 0dbfe72e3f4c003e
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-2-temperature-sampling:
+  en: 8124852a9cf3ff6e
+  zh: ce1b3860009b510d
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-3-the-kv-cache-memory-bottleneck:
+  en: 27b4d52f6dc371aa
+  zh: 8144a7fa19d1c6ea
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-4-deepseek-mla-s-advantage:
+  en: b1e9da9335bd57e6
+  zh: 0b275006fda3e952
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-5-prompt-injection-and-security-boundaries:
+  en: 83fc332b9199c181
+  zh: de5ab423f37f1f31
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-6-model-visible-means-recorded:
+  en: d64d7a3eb2e40121
+  zh: 8dcfcda3f2423ef4
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-7-the-actual-function-calling-flow:
+  en: b5758b19c1ef56e6
+  zh: 4c270af0c0943936
+/chapter-02-foundations-from-llms-to-agent-systems/2-10-beginner-self-check-questions-with-detailed-answers/question-8-distributed-fencing-tokens:
+  en: 59bc1339d9a07315
+  zh: 0fdbfd02e7beb2a2

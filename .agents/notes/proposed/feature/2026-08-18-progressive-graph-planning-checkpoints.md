@@ -18,7 +18,7 @@ For work whose implementation depends on repository facts, the controller will f
 
 The checkpoint planning context will contain bounded structured node outputs and artifact references, the repository/scaffold summary, the session-owned role selections, exact provider/model scheduler limits, and model metadata resolved by the LLM service, including known context windows, output limits, and reasoning selectors. Unknown capabilities will remain explicit rather than receiving invented values. Deployment-varying node-size and planning limits will be validated Graph settings, not plugin constants.
 
-The controller will use that evidence to submit the next immutable revision. Completed discovery nodes will be reused with provenance unless their inputs changed; the revision will expand the implementation, integration, review, verification, and documentation nodes at a granularity compatible with the assigned models and file ownership. The normal revision invalidation rules will rerun every affected successor while retaining older revisions and runs for inspection.
+The controller will use that evidence to submit the next immutable revision. Completed discovery nodes will be reused with source-run references unless their inputs changed; the revision will expand the implementation, integration, review, verification, and documentation nodes at a granularity compatible with the assigned models and file ownership. The normal revision invalidation rules will rerun every affected successor while retaining older revisions and runs for inspection.
 
 Graph submission will include a planning validation pass before the revision is logged. It will reject conflicting writable-path ownership, missing verification, execution nodes that combine independently verifiable subsystems beyond the configured policy, and model assignments that exceed declared capacity. The rejection will return structured findings to the controller so it can resubmit without asking the user to decompose the work.
 
@@ -47,12 +47,12 @@ Role and planning settings will be snapshotted into the session-owned Graph conf
 - The controller can submit a discovery-only revision with a durable expansion checkpoint after selected analysis, repository inspection, and architecture nodes.
 - An eligible checkpoint pauses undiscovered execution, persists its reason and evidence, and wakes the controller without adding a graph cycle or controller task node.
 - The logged planning context contains bounded predecessor results, artifact references, repository/scaffold evidence, session role selections, scheduler limits, and every model capability the LLM service can resolve; unknown values remain unknown.
-- The controller can expand the same graph through a new immutable revision that reuses unchanged discovery nodes with provenance and creates model-appropriate execution nodes.
+- The controller can expand the same graph through a new immutable revision that reuses unchanged discovery nodes with source-run references and creates model-appropriate execution nodes.
 - Submission validation returns structured controller-visible findings for configured node-size violations, writable-path conflicts, missing verification, and incompatible model assignments before logging the revision.
 - Review or verification rejection creates a controller checkpoint whose replacement revision reruns each changed node and its complete transitive successor closure.
 - Runtime-limit handling distinguishes same-session continuation, controller replanning, and provider retry; a `max-tokens` attempt does not blindly start the same one-shot prompt until `maxAttempts` is exhausted.
 - Exact-model admission limits remain enforced across roles after expansion, so multiple roles assigned to one local model cannot exceed that model's configured concurrency.
-- Restart and history replay reconstruct paused checkpoints, their planning evidence, the revisions they produced, and reused-node provenance without consulting current global templates.
+- Restart and history replay reconstruct paused checkpoints, their planning evidence, the revisions they produced, and reused-node source references without consulting current global templates.
 - The assembled Web application provides product-visible coverage for discovery, checkpoint pause, controller expansion, execution, rejection-driven repair, and inspection of the resulting design and execution revisions.
 
 ## Risks

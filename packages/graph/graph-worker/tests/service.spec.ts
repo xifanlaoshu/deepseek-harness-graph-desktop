@@ -1,5 +1,4 @@
 import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   GraphAttemptId,
   GraphControlOperationId,
@@ -11,8 +10,7 @@ import {
   defaultGraphNodeExecutionBudget,
   defaultGraphOutputSchema,
 } from '@deepseek-ai/dsh-graph'
-import InvariantRegistry from '@deepseek-ai/dsh-invariants'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import GraphWorkerRuntime, {
   GraphArtifactManifestId,
   GraphWorkerId,
@@ -20,7 +18,12 @@ import GraphWorkerRuntime, {
   type GraphWorkerAssignment,
   type GraphWorkerProvider,
 } from '../src/index.ts'
-import * as WorkerInvariant from '../src/invariant.ts'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { createWorkerTestParent } from './parent.ts'
+
+const parentContext = new Context()
+const parent = await createWorkerTestParent(parentContext, SessionId('parent-1'))
+afterAll(async () => { await parentContext.fiber.dispose() })
 
 const assignment = (overrides: Partial<GraphWorkerAssignment> = {}): GraphWorkerAssignment => ({
   protocolVersion: 1,
@@ -32,7 +35,7 @@ const assignment = (overrides: Partial<GraphWorkerAssignment> = {}): GraphWorker
   generationId: GraphRunGenerationId('generation-1'),
   ownerEpoch: 1,
   fencingToken: 1,
-  parent: { id: 'parent-1' } as unknown as Agent,
+  parent,
   node: {
     id: GraphNodeId('node-1'),
     title: 'Implement',
@@ -200,12 +203,4 @@ describe('graph worker service', () => {
     await expect(run.result).rejects.toThrow('different fenced attempt')
   })
 
-  it('reserves package invariant ownership', async () => {
-    const ctx = new Context()
-    await ctx.plugin(InvariantRegistry, { enabled: true })
-    await ctx.plugin(WorkerInvariant).await()
-    expect(() => {
-      ctx.invariants.register('@deepseek-ai/dsh-graph-worker', () => {})
-    }).toThrow(/already registered/)
-  })
 })

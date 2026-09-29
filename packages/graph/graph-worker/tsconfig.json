@@ -9,7 +9,6 @@
     { "path": "../../core/agent" },
     { "path": "../graph" },
     { "path": "../../llm/llm" },
-    { "path": "../../core/tools" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../../core/tools" }
   ]
 }

@@ -50,7 +50,7 @@ A model does not directly read characters, Chinese words, English words, or sour
 
 An embedding maps a discrete token id to a high-dimensional vector. Training creates exploitable geometric relationships among representations used in similar contexts, but an individual dimension usually has no fixed human label such as “is a noun.” Positional encoding tells the model token order. Without position, “user approves command” and “command approves user” would contain the same token set but lose their ordering distinction.
 
-A text-embedding model can also map a whole passage to a vector for semantic retrieval and may differ from the generative LLM. Vector proximity means the model considers passages semantically related; it does not prove correctness, freshness, or authorization for the current user. RAG (retrieval-augmented generation) still needs access control, provenance, reranking, and answer verification.
+A text-embedding model can also map a whole passage to a vector for semantic retrieval and may differ from the generative LLM. Vector proximity means the model considers passages semantically related; it does not prove correctness, freshness, or authorization for the current user. RAG (retrieval-augmented generation) still needs access control, source records, reranking, and answer verification.
 
 ### 2.3 Logits, Softmax, and Sampling
 
@@ -268,7 +268,7 @@ Security analysis must identify the real boundary. The Worker Thread Code Runtim
 
 A Session is an in-memory append-only event sequence. Every event has a continuous `seq`, time, and discriminated data. `turn/start`, `step/start`, `user/message`, `assistant/chunk`, `tool/call`, and `tool/result` are durable facts. Live events such as `agent/request` only extend the current operation and do not directly become history.
 
-`Session.deriveMessages()` does not read a second mutable chat array; it projects model messages from the event sequence. Crash repair, compaction, forks, child-session provenance, and model history can therefore share one ledger. A new model-visible input requires an extension to `SessionEventMap` and a projection rule.
+`Session.deriveMessages()` does not read a second mutable chat array; it projects model messages from the event sequence. Crash repair, compaction, forks, parent-child session links, and model history can therefore share one ledger. A new model-visible input requires an extension to `SessionEventMap` and a projection rule.
 
 Session Persistence is a separate capability. Its coordinator listens to `session/created`, `session/event`, `session/flush`, and `session/disposed`, serializes writes per Session, batches events within a fixed window, and drains on flush or unload. A backend implements reading, appending, repair, and listing without reimplementing the upper lifecycle.
 
@@ -654,9 +654,9 @@ Context engineering supplies the minimum sufficient information for the current 
 
 ### 26.1 Context Layers and Memory Lifecycle
 
-Short-term memory is normally the current conversation surface. Long-term memory can contain cross-session indexes, preferences, or domain knowledge. Working memory contains the active plan, todo, Claim, and checkpoint. They need different update and forgetting policies. A long-term write must consider provenance, scope, sensitivity, and expiry rather than treating model inference as user fact.
+Short-term memory is normally the current conversation surface. Long-term memory can contain cross-session indexes, preferences, or domain knowledge. Working memory contains the active plan, todo, Claim, and checkpoint. They need different update and forgetting policies. A long-term write must consider source records, scope, sensitivity, and expiry rather than treating model inference as user fact.
 
-Every model-visible item answers five questions: who created it; which user, project, or Session it applies to; when it expires; where its original source lives; and how a user can correct or delete it. A “user preference” without provenance and a “project fact” without invalidation turn one model guess into a permanent premise for later decisions.
+Every model-visible item answers five questions: who created it; which user, project, or Session it applies to; when it expires; where its original source lives; and how a user can correct or delete it. A “user preference” without a source record and a “project fact” without invalidation turn one model guess into a permanent premise for later decisions.
 
 | Context type | Typical content | Update mechanism | Primary risk |
 |---|---|---|---|
@@ -829,7 +829,7 @@ Finish with security, evaluation, and evolution: prompt injection, tenant isolat
 
 **Question: why can the same LLM input produce different output?** The model emits logits and sampling selects the next token from a conditional distribution. One early difference changes every later distribution. Greedy or low-temperature decoding reduces randomness, but model version, serving implementation, and prefix changes can still affect results.
 
-**Question: is the context window model memory?** No. It is the finite token sequence visible to one request and does not automatically become dependable long-term state afterward. Long-term memory needs external storage, provenance, scope, correction, and expiry, and relevant parts must be retrieved or projected into a later window.
+**Question: is the context window model memory?** No. It is the finite token sequence visible to one request and does not automatically become dependable long-term state afterward. Long-term memory needs external storage, source records, scope, a correction path, and expiry, and relevant parts must be retrieved or projected into a later window.
 
 **Question: how do KV Cache and prefix caching differ?** KV Cache usually reuses computed Keys and Values within one generation to accelerate decode. Prefix caching lets a service reuse prefill results for equal token prefixes across requests. Both depend on sequence and cache policy, but their lifetimes and hit semantics differ.
 
@@ -851,7 +851,7 @@ Finish with security, evaluation, and evolution: prompt injection, tenant isolat
 
 ### 34.3 Context, Security, and Multiple Agents
 
-**Question: what belongs in long-term memory?** Facts with provenance, scope, future value, and permission to retain. Do not automatically store model guesses, short-lived task state, or sensitive raw text. Every memory needs correction and expiry paths.
+**Question: what belongs in long-term memory?** Facts with recorded sources, scope, future value, and permission to retain. Do not automatically store model guesses, short-lived task state, or sensitive raw text. Every memory needs correction and expiry paths.
 
 **Question: how do you prevent prompt injection?** Treat external content as data, constrain tools and resources, isolate keys, validate URLs, paths, and commands, separate trusted instructions from retrieval, and approve and audit risky actions. Prompt warnings are one layer only.
 

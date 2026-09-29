@@ -1,6 +1,136 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 13-single-to-parallel-agents.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/13-single-to-parallel-agents.md
-13-single-to-parallel-agents.md: 90f65d1c061e5c77d2faf7449c0b81bae23de069
-13-single-to-parallel-agents.zh.md: a96b4faa4b4a569bd71806560b97f671155e05c9
+/chapter-13-from-a-single-agent-to-parallel-work:
+  en: 051e76379cf2e6f7
+  zh: 01802cbd75ffac9c
+/chapter-13-from-a-single-agent-to-parallel-work/1-systems-intuition-and-mathematical-models-for-concurrent-collaboration:
+  en: 92dd0812ff5e91f1
+  zh: bb37a944cbb16f57
+/chapter-13-from-a-single-agent-to-parallel-work/1-systems-intuition-and-mathematical-models-for-concurrent-collaboration/1-1-parallel-speedup-deriving-amdahl-s-and-gustafson-s-laws:
+  en: 1257c6857d2c3cf4
+  zh: 418210f2795ef7cc
+/chapter-13-from-a-single-agent-to-parallel-work/1-systems-intuition-and-mathematical-models-for-concurrent-collaboration/1-2-context-and-video-memory-cost-model-kv-cache-partitioning:
+  en: 019f2ec5866550c0
+  zh: 0b11725cdef8e72e
+/chapter-13-from-a-single-agent-to-parallel-work/2-subagent-delegation-and-spawning:
+  en: 01076b7de0eea6fb
+  zh: 06289fa262e7ecbe
+/chapter-13-from-a-single-agent-to-parallel-work/2-subagent-delegation-and-spawning/2-1-in-process-spawn-fork-versus-remote-heterogeneous-connectors:
+  en: cbf6e6091fc9a1ba
+  zh: 2464255fbbc827cd
+/chapter-13-from-a-single-agent-to-parallel-work/2-subagent-delegation-and-spawning/2-2-depth-budget-bounds-and-resolvechilddepth:
+  en: ce103eb6ed6cc4bf
+  zh: 655f0e932c3420e2
+/chapter-13-from-a-single-agent-to-parallel-work/2-subagent-delegation-and-spawning/2-3-parent-child-session-metadata-lineage-and-session-meta:
+  en: 431384f0043e4054
+  zh: 5863c6119e603516
+/chapter-13-from-a-single-agent-to-parallel-work/2-subagent-delegation-and-spawning/2-4-scope-isolation-and-runtime-context-declaration:
+  en: 59f5513554154558
+  zh: e417a0b5ce3f1f01
+/chapter-13-from-a-single-agent-to-parallel-work/3-monotonic-privilege-attenuation:
+  en: 63396c9fcfc994f7
+  zh: a278816b092e6f99
+/chapter-13-from-a-single-agent-to-parallel-work/3-monotonic-privilege-attenuation/3-1-deriving-the-privilege-lattice:
+  en: 29c153ff3a47d145
+  zh: fad74dd4b0a01112
+/chapter-13-from-a-single-agent-to-parallel-work/3-monotonic-privilege-attenuation/3-2-resolving-the-sandbox-cap-sandboxmodecap:
+  en: d3dcd226023fa648
+  zh: d0bb74214d9c31a2
+/chapter-13-from-a-single-agent-to-parallel-work/3-monotonic-privilege-attenuation/3-3-why-must-a-subagent-s-approval-policy-be-fixed-at-never:
+  en: cfc665b157047e28
+  zh: 9c315304d8750b88
+/chapter-13-from-a-single-agent-to-parallel-work/3-monotonic-privilege-attenuation/3-4-persisting-policy-in-event-sourced-logs-source-delegation:
+  en: d7a9503bbdc48849
+  zh: 6779b00fb5c68d68
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime:
+  en: b85c12cf3e5279dc
+  zh: 11898aac21a79293
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-1-technical-comparison-of-the-three-primitives:
+  en: d419710636610ada
+  zh: de3f3ba7dc8df722
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-2-primitive-1-jobs-general-purpose-handles-for-long-running-tasks:
+  en: 8a40821d1bcc679b
+  zh: 7c3d4f5692307724
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-2-primitive-1-jobs-general-purpose-handles-for-long-running-tasks/data-structures-and-lifecycle-state-machine:
+  en: 0397b267210a818d
+  zh: 0ad6a1b287d71bb7
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-2-primitive-1-jobs-general-purpose-handles-for-long-running-tasks/session-ownership-fencing-and-cascading-disposal:
+  en: bf7efe2236ad5bfc
+  zh: fb543eecc7a035d8
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-3-primitive-2-workflow-deterministic-processes-in-a-worker-thread:
+  en: abc6d95c1947e4f7
+  zh: 29b13a6bc82841ff
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-3-primitive-2-workflow-deterministic-processes-in-a-worker-thread/why-must-workflow-run-in-a-worker-thread:
+  en: d457b9fa8400f17f
+  zh: 2bf88805653e29b5
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-3-primitive-2-workflow-deterministic-processes-in-a-worker-thread/phases-and-structured-settlement:
+  en: d8f32d9d59fac092
+  zh: f1e3315f0689bb56
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-4-primitive-3-code-runtime-code-execution-sandbox-with-memory-and-time-limits:
+  en: c8a9d056d0dca318
+  zh: 8ed6a5999a8efc61
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-4-primitive-3-code-runtime-code-execution-sandbox-with-memory-and-time-limits/language-neutral-binding-namespaces:
+  en: d796bc976bd4cf7c
+  zh: 381bfad052ee43dd
+/chapter-13-from-a-single-agent-to-parallel-work/4-three-background-execution-primitives-jobs-workflow-and-code-runtime/4-4-primitive-3-code-runtime-code-execution-sandbox-with-memory-and-time-limits/six-failure-categories:
+  en: 351767e8f776f6bc
+  zh: 08a7dae094dc9006
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy:
+  en: ed86374083962460
+  zh: ddc34c099993f9d3
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels:
+  en: 8a4bddeb69519f2e
+  zh: 13e9f282070527d0
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/1-campaign:
+  en: 5902cbb2b0aa42e7
+  zh: 3e15a9cb3d0c9453
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/2-batch:
+  en: 05c2555c4c07eedf
+  zh: 28c93cf0dcb961fb
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/3-graph:
+  en: 0855492a7c2fdc4d
+  zh: d9dd823fd6e4c2ad
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/4-revision:
+  en: f2fe5fdcbbbb2718
+  zh: 44cda6d742593aad
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/5-run:
+  en: 33194c54224343cd
+  zh: c8d44bf976824356
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/6-generation:
+  en: b282ee379f44294f
+  zh: bda4ca2a17789b08
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/7-activation:
+  en: e8a109ba6896c8fd
+  zh: 6aa0e103eebf9978
+/chapter-13-from-a-single-agent-to-parallel-work/5-the-eight-level-graph-and-campaign-identity-hierarchy/5-1-precise-definitions-and-separate-responsibilities-at-eight-levels/8-attempt:
+  en: 9c04b309963c855e
+  zh: 685cedc2baa18416
+/chapter-13-from-a-single-agent-to-parallel-work/6-mathematical-model-and-vram-accounting-for-multi-agent-scheduling:
+  en: 99289d74da067511
+  zh: 4a8a7c9428ae40a8
+/chapter-13-from-a-single-agent-to-parallel-work/6-mathematical-model-and-vram-accounting-for-multi-agent-scheduling/6-1-dag-critical-path-and-minimum-completion-time:
+  en: 5b9d2e36722a4566
+  zh: e19848a3d4e445a2
+/chapter-13-from-a-single-agent-to-parallel-work/7-complete-production-grade-typescript-implementation:
+  en: 3b6cac5739c276fc
+  zh: 8e4404971fa1ca03
+/chapter-13-from-a-single-agent-to-parallel-work/8-production-incidents-and-troubleshooting:
+  en: f5ada1bc7d4ddc6a
+  zh: fb8a1259e9265034
+/chapter-13-from-a-single-agent-to-parallel-work/8-production-incidents-and-troubleshooting/incident-1-recursive-subagent-spawning-causes-depth-explosion:
+  en: 70f60a592134b635
+  zh: c3ef8dd88dec23c1
+/chapter-13-from-a-single-agent-to-parallel-work/8-production-incidents-and-troubleshooting/incident-2-a-background-subagent-requests-approval-and-hangs-indefinitely:
+  en: bb188412b1d1ee1d
+  zh: f8cb5d022902d0ef
+/chapter-13-from-a-single-agent-to-parallel-work/8-production-incidents-and-troubleshooting/incident-3-worker-thread-oom-destabilizes-the-host-and-leaves-orphaned-tasks:
+  en: e34c1543203d7e4b
+  zh: 93f7856aabaab792
+/chapter-13-from-a-single-agent-to-parallel-work/8-production-incidents-and-troubleshooting/incident-4-campaign-history-causes-unbounded-graph-state-growth:
+  en: a0def0d7a0a16668
+  zh: 83ee063b8b4db04e
+/chapter-13-from-a-single-agent-to-parallel-work/9-exercises-and-engineering-practice:
+  en: 162d4bcbbc539831
+  zh: 1e1161505f9ca8eb

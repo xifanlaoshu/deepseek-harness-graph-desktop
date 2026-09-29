@@ -1,6 +1,52 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/browser-chrome-devtools/README.md
-README.md: fcd00b964391e534f58c91417ddcc0498a047ef6
-README.zh.md: c5da458e60fb478d408e685d7a119a3255019eb1
+/:
+  en: bb9e67d553904c49
+  zh: ab2bfbd05d5ebec5
+/deepseek-ai-dsh-browser-chrome-devtools:
+  en: b110abb40934be8d
+  zh: 7ed041783219e99a
+/deepseek-ai-dsh-browser-chrome-devtools/summary:
+  en: 71ddf73b6e1e21eb
+  zh: dfe8852551ace113
+/deepseek-ai-dsh-browser-chrome-devtools/table-of-contents:
+  en: 31fc2c42eaab03e9
+  zh: 95978e52c1804313
+/deepseek-ai-dsh-browser-chrome-devtools/install-and-start:
+  en: 22ed6cf2296846bd
+  zh: 6a0329e821e8e77e
+/deepseek-ai-dsh-browser-chrome-devtools/enable-qwen-image-input:
+  en: 784fdb1b6386d55a
+  zh: 2f42326a791d58ed
+/deepseek-ai-dsh-browser-chrome-devtools/config:
+  en: 7a3ba19c543196ad
+  zh: 7e62b2263c8fc3c0
+/deepseek-ai-dsh-browser-chrome-devtools/graph-and-concurrent-agents:
+  en: 5ec62a0df89342af
+  zh: 5f0855a3bbafc564
+/deepseek-ai-dsh-browser-chrome-devtools/security:
+  en: 572275ac6a0c17ad
+  zh: 1e8e37b05729785b
+/deepseek-ai-dsh-browser-chrome-devtools/dev-note:
+  en: 72eddf0503601046
+  zh: a032bc48e491e5d7
+/deepseek-ai-dsh-browser-chrome-devtools/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-browser-chrome-devtools/model-experience/browser-automation-context:
+  en: c2420e8ceff98906
+  zh: 91f3195960b971f1
+/deepseek-ai-dsh-browser-chrome-devtools/model-experience/browser-automation-context/what-the-model-sees:
+  en: bf8d80f5b8b2eb83
+  zh: 80c25a3acb8ee085
+/deepseek-ai-dsh-browser-chrome-devtools/model-experience/browser-automation-context/token-effect:
+  en: 0b7efc4bf4fd7ea7
+  zh: 7671a0b1805cd868
+/deepseek-ai-dsh-browser-chrome-devtools/model-experience/browser-automation-context/kv-cache-effect:
+  en: a21ef09907ca20ca
+  zh: 0c42dcd476f4ad8f
+/deepseek-ai-dsh-browser-chrome-devtools/known-limitations-and-deferred-work:
+  en: eb30d2fdbd791560
+  zh: 231c90dbc7ee33f5

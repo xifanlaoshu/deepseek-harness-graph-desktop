@@ -1,9 +1,29 @@
+---
+description: "Run Graph Workers through authenticated HTTP or a legacy out-of-process adapter. This reference covers remote assignment, durable recovery, and optional resource, scheduler, and artifact routes."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-worker-remote
 
 English | [中文](README.zh.md)
 
+## Summary
+
+Run Graph Workers through authenticated HTTP or a legacy out-of-process adapter. The HTTP service persists accepted work and fences superseded processes; uncertain active jobs are quarantined for reconciliation.
+
+## Table of Contents
+
+- [Configuration](#configuration)
+- [Contract](#contract)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
 Authenticated remote Client and durable Worker service for [`dsh-graph-worker`](../graph-worker/README.md), plus a legacy adapter for existing out-of-process subagent Providers.
 
+<a id="configuration"></a>
 ## Configuration
 
 `mode` selects `client`, `server`, or `both`; the default is `client`.
@@ -22,6 +42,7 @@ Server and `both` modes require `server`:
 - `artifactRouteName`, `artifactProvider`, and `artifactTempRoot` optionally publish one persistent same-process Graph Artifact Provider through a private staging directory; `artifactMaxFiles` and `artifactMaxBytes` bound transfers.
 - `maxClockSkewMs`, `maxRequestBytes`, `maxResultBytes`, `maxReplayEntries`, `busyTimeoutMs`, and `operationTimeoutMs` are hard deployment bounds.
 
+<a id="contract"></a>
 ## Contract
 
 The HTTP Client signs Worker, Resource, Scheduler, and Artifact requests with HMAC-SHA256. A signature covers the normalized method, exact request target, caller principal, service audience, millisecond timestamp, cryptographic nonce, and SHA-256 digest of the exact body. The server verifies signatures with constant-time comparison, rejects stale or replayed requests, and fails closed when its bounded nonce cache is full. Secrets contain 32 to 4,096 UTF-8 bytes.
@@ -36,6 +57,18 @@ The optional Artifact route uploads only normalized regular files below configur
 
 The legacy adapter advertises shared-workspace execution. It forwards role/model selection to the configured subagent route and can capture artifact paths before terminal success. An offline legacy reference remains `quarantined` because that adapter has no durable remote journal.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because wire, journal, transfer, and Provider responses are validated at their trust boundaries.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Remote assignment

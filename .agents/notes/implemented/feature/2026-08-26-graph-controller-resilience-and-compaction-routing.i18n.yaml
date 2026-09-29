@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-graph-controller-resilience-and-compaction-routing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-graph-controller-resilience-and-compaction-routing.md
-2026-08-26-graph-controller-resilience-and-compaction-routing.md: f7f42d55b4dc094f5b5740f24f8664c79024aa2f
-2026-08-26-graph-controller-resilience-and-compaction-routing.zh.md: 32c963209c5102b978f7e35e67ab709e2c996a44
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing:
+  en: 9c5971bdac28373b
+  zh: 0962819363faf3f1
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing/problem:
+  en: 924b2054c82339ca
+  zh: 800630db90aacafa
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing/decision:
+  en: 899f6cd96c5c5605
+  zh: ffd28a85c63018a4
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing/alternatives-considered:
+  en: 44f01b6bb9db59ce
+  zh: c795c20130c48769
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing/consequences:
+  en: 247a4aee9b8f173c
+  zh: eed67abc102bab51
+/agent-note-graph-controller-resilience-and-session-owned-compaction-routing/verification:
+  en: 292b77093aa15727
+  zh: 4ed726eba81aa6f1

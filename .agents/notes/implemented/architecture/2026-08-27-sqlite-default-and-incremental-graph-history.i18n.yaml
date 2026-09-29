@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-27-sqlite-default-and-incremental-graph-history.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-27-sqlite-default-and-incremental-graph-history.md
-2026-08-27-sqlite-default-and-incremental-graph-history.md: 8d9ba3674688faf5bfa9f3d9c50220a39db48a42
-2026-08-27-sqlite-default-and-incremental-graph-history.zh.md: 6110900ae45eb2826fef92f4708f411f173faee8
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs:
+  en: 20532c7d89fa4ae4
+  zh: a474961cf49d3b49
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs/problem:
+  en: 6a2111738b58ed0d
+  zh: 9c25b3d2f718488f
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs/decision:
+  en: c4d5f8b3b5c59831
+  zh: c94173512357b2b9
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs/alternatives-considered:
+  en: e82777822f32df45
+  zh: a3b80ed88cf643a5
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs/consequences:
+  en: 325003a77d270a01
+  zh: b9cad5c7ebea4e1d
+/agent-note-sqlite-default-session-history-and-incremental-graph-runs/verification:
+  en: 49ec3501d7407b3c
+  zh: 3461a7387f0f1d8d

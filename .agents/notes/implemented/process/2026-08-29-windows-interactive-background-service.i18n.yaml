@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-29-windows-interactive-background-service.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-29-windows-interactive-background-service.md
-2026-08-29-windows-interactive-background-service.md: 53055658c3f99d8f1ffd046d8186b0ddbd88f7a8
-2026-08-29-windows-interactive-background-service.zh.md: 57f36c9f8064b8a9e17620abca81a61fc8212f27
+/agent-note-windows-interactive-background-service:
+  en: 899b401f348bc7e7
+  zh: b9302a2da7081b3b
+/agent-note-windows-interactive-background-service/problem:
+  en: f20decf7cf9bc0a5
+  zh: 740b0105d6fdcf35
+/agent-note-windows-interactive-background-service/decision:
+  en: a10c275e7a695a49
+  zh: 0f0d663bba9824f7
+/agent-note-windows-interactive-background-service/alternatives-considered:
+  en: 1ec0f4c5d7a7af2d
+  zh: bafa831eb971f92c
+/agent-note-windows-interactive-background-service/consequences:
+  en: f0aef265980f89e6
+  zh: 21519e93676c8375

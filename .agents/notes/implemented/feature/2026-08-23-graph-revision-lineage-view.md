@@ -18,7 +18,7 @@ Every newly accepted `graph/submission` may carry versioned `GraphRevisionLineag
 
 The classifications are `new_task`, `analysis_refactor`, and `execution_correction`. A new Graph is a new logical-task lane. A revision remains in its Graph lane and records `refactors` or `corrects` against its immutable parent. Campaign Batch dependencies become `depends_on` relationships between separate task lanes. The Host rejects a new submission classified as a refactor or correction, a revision classified as a new task, unknown trigger references, mismatched structural changes, duplicate node ids, invalid text, or a missing parent relationship.
 
-The lineage field is optional on replay because sessions created before this feature have no trustworthy classification evidence. The Revisions view labels those records as historical and unclassified instead of inferring provenance. This is a deliberate data-integrity rule, not a compatibility default for newly created submissions.
+The lineage field is optional on replay because sessions created before this feature have no trustworthy classification evidence. The Revisions view labels those records as historical and unclassified instead of inferring their trigger. This is a deliberate data-integrity rule, not a compatibility default for newly created submissions.
 
 ## Projection and metrics
 

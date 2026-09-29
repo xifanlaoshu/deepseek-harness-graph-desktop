@@ -69,6 +69,16 @@ Provider-neutral external coordination seam.
 
 ```ts cordis-catalog
 /**
+ * Register a consumer shutdown callback that providers await before disposing owned resources.
+ * @param callback Consumer work that must settle before provider resources close.
+ * @returns An asynchronous disposer that waits for the callback before unregistering it.
+ */
+registerQuiescence(callback: () => Promise<void>): () => Promise<void>
+
+/** Stop accepting consumers and await every registered consumer before provider disposal. */
+async quiesceConsumers(): Promise<void>
+
+/**
  * Validate external coordination identity for one immutable revision.
  * @param graph immutable revision being admitted.
  * @param roles configured roles available to its nodes.

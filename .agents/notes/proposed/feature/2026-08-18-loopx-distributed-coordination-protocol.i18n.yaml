@@ -1,6 +1,31 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-loopx-distributed-coordination-protocol.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-08-18-loopx-distributed-coordination-protocol.md
-2026-08-18-loopx-distributed-coordination-protocol.md: f3416448505156ce8b6849d4e4b29e818aeb96aa
-2026-08-18-loopx-distributed-coordination-protocol.zh.md: c4c53e93e2a4338a9b2767c9816014485ee7dd15
+/agent-note-loopx-distributed-coordination-protocol:
+  en: 105d90c90107a97d
+  zh: 0ef01862baab82ae
+/agent-note-loopx-distributed-coordination-protocol/problem:
+  en: 514677979e5385f5
+  zh: a8647f0ff43d8051
+/agent-note-loopx-distributed-coordination-protocol/proposal:
+  en: e4e04091a5a3caa1
+  zh: c24e91085bd3eac5
+/agent-note-loopx-distributed-coordination-protocol/lease-and-recovery-semantics:
+  en: 615f4e4dd465770f
+  zh: 7d98e324b703cb46
+/agent-note-loopx-distributed-coordination-protocol/ledger-reconciliation:
+  en: 5fda8821a42b908e
+  zh: 910662ffc272379b
+/agent-note-loopx-distributed-coordination-protocol/remote-execution-contract:
+  en: 06733ce2b5fe36cd
+  zh: e964ceb6ff7452fb
+/agent-note-loopx-distributed-coordination-protocol/alternatives-considered:
+  en: 3913568eebdfb3df
+  zh: 5cb20d54e6baa309
+/agent-note-loopx-distributed-coordination-protocol/acceptance-criteria:
+  en: 62c602a5e38a5a46
+  zh: 8b764ad5abb5a0a3
+/agent-note-loopx-distributed-coordination-protocol/risks:
+  en: aff0c2b531b06441
+  zh: 8a9e27a683bc2a28

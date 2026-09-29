@@ -238,8 +238,8 @@ describe('graph domain', () => {
     })
     const withLimit = (limit: unknown): GraphModeConfig => ({
       ...base,
-      limits: { ...base.limits, models: [limit] },
-    } as unknown as GraphModeConfig)
+      limits: { ...base.limits, models: [limit as never] },
+    })
 
     expectCode('GRAPH_CONFIG_STRUCTURE', () => { validateGraphModeConfig(null) })
     expectCode('GRAPH_CONFIG_STRUCTURE', () => { validateGraphModeConfig({ ...base, extra: true }) })
@@ -612,7 +612,7 @@ describe('graph domain', () => {
     type ProjectionHost = { sessionProjections: { register: (definition: unknown) => void } }
     apply({ inject: (_dependencies: readonly string[], callback: (inner: ProjectionHost) => void) => {
       callback({ sessionProjections: { register: (definition) => { registered = definition } } })
-    } } as unknown as Context)
+    } } as Context)
     expect(registered).toBe(graphProjectionDefinition)
   })
 

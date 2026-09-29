@@ -1,6 +1,202 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for technical-stack-course.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/technical-stack-course.md
-technical-stack-course.md: d8ad7a0c683c3a70f88b9a6e7728ad764170137d
-technical-stack-course.zh.md: f5a4ce75bee313401cf0cfbdc5d0fe535bde11cd
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery:
+  en: 19998ce6e7007eef
+  zh: 93dbaf3b300195fe
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/1-learning-goals-and-reading-method:
+  en: 7eee550859ebc9f6
+  zh: 2b162b6ad2a9eb70
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems:
+  en: dfbc3c62da0b416a
+  zh: c110285c42f1f303
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-1-ai-machine-learning-deep-learning-and-llms:
+  en: e394f53512464c7b
+  zh: d3556104d009cf58
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-2-tokens-tokenizers-vectors-and-position:
+  en: dd9e4e9e2e80efac
+  zh: d24edf8e0a2c32a3
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-3-logits-softmax-and-sampling:
+  en: 4900a96b9042e93b
+  zh: 4bdf77276f5c6bd3
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-4-transformers-and-attention:
+  en: a288e6f366aa5f45
+  zh: f2b3010c68ee76ae
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-5-pretraining-alignment-and-inference:
+  en: fc829a6bbc21dc86
+  zh: 29434eb1bd5bf811
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-6-inference-serving-context-windows-and-kv-cache:
+  en: e02bb271260ce6e8
+  zh: 875bf3ba171a7f06
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-7-messages-prompts-structured-output-and-function-calling:
+  en: 009c1faf981d449f
+  zh: 61e5d57b49e174de
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-8-from-chat-to-agent-harness-graph-and-loopx:
+  en: 99caea20c1ffe7ae
+  zh: bd095a5fff701aca
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-9-first-end-to-end-simulation:
+  en: a17d717839efc24c
+  zh: d18b7a4f012f9fca
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/2-zero-background-prerequisites-from-llm-to-agent-systems/2-10-zero-background-self-check:
+  en: 6a8df88d966f42d3
+  zh: 3278041b833a93df
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/3-what-the-project-is:
+  en: 50cbf077c7580b58
+  zh: dee30eafa3707a10
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/4-the-actual-technology-stack:
+  en: 7149ac1f7c28dfc5
+  zh: 61d1d443c444e07b
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/5-monorepo-and-package-boundaries:
+  en: e9fa711b637762bf
+  zh: 15e818c86736b58e
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/6-cordis-the-runtime-skeleton:
+  en: 4aa9972d8e05b3ca
+  zh: 62681b11d14c50e7
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/7-boot-profiles-and-configuration-layers:
+  en: 3a088665eaa1dd27
+  zh: cda405dc4051074e
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/8-agent-turn-step-and-inbox:
+  en: ecce46c104b60b47
+  zh: cc78ac3c1ce9b6c6
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/9-prompts-models-and-streaming-responses:
+  en: 93ba48a7f594fbfe
+  zh: 21c90a1915559c65
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/10-tools-and-side-effect-control:
+  en: df39d0783b1e2dfb
+  zh: 33225ec874dc152e
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/11-session-log-the-system-ledger:
+  en: 6ceb14833f83382c
+  zh: 4bec1dc603754c1e
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/12-web-host-rpc-and-plugin-ui:
+  en: fd7d26b804cca7bb
+  zh: 35fbbb7393a07b66
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/13-from-one-agent-to-parallel-work:
+  en: b062c980c52729ad
+  zh: 511cae9f26abf699
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/14-graph-mode-scheduling-mechanics:
+  en: ad958ccaa37dba11
+  zh: a27563d3eeea8e04
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/15-loopx-design-implementation-and-coupling:
+  en: 1aa6c60d36c1f0c5
+  zh: 3620ea88e0a6e2c9
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/16-end-to-end-close-up-of-one-request:
+  en: 6dbca8c23d27120f
+  zh: 7d4a165486c9c66a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/17-how-to-extend-the-project:
+  en: 6b09c01a0ae25fdd
+  zh: e77cce4baf3c166e
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/18-build-test-and-quality-gates:
+  en: 83a45747a210b72a
+  zh: d57b81cb2698d29c
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/19-source-reading-route-and-exercises:
+  en: 25fcd9af23be1903
+  zh: 409e1d979c113a49
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/20-terminology-quick-reference:
+  en: 735c424bcdd4bf2e
+  zh: 04a19cada48de0f5
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/21-harness-foundation-mental-model:
+  en: ec5a34f3b5f39924
+  zh: dc138fbb5867d479
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch:
+  en: fa3e19b9a0421fae
+  zh: 7c05af2269a87690
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch/22-1-state-machine-and-stop-conditions:
+  en: 0f427093179202d6
+  zh: 821c8b140123561d
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch/22-2-runnable-minimal-implementation:
+  en: 0e9773a005010e12
+  zh: 55c577757ad25c15
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch/22-3-react-planning-and-workflow:
+  en: 390d75588ba93dab
+  zh: 83987130ddd90a03
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch/22-4-from-teaching-loop-to-production-loop:
+  en: 3b6143b8920c579c
+  zh: f65854ddc9014b10
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/22-implement-a-minimal-agent-loop-from-scratch/22-5-lab-and-completion-standard:
+  en: c989f8ea1f251105
+  zh: b6ee2721a823338b
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache:
+  en: 68dc4d647470fe8c
+  zh: 18d3458253526cc8
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-1-three-request-layers-and-token-budget:
+  en: 9d482a91d1373c27
+  zh: 6279cff92d1d884d
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-2-prefill-decode-kv-cache-and-prefix-caching:
+  en: 19533fce10397bf2
+  zh: d7c393ee626bea76
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-3-local-model-memory-quantization-and-concurrency:
+  en: 2ec48b688d76804c
+  zh: 9cc32ae087d10673
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-4-streams-content-blocks-and-finish-semantics:
+  en: 1221f0248c7575f3
+  zh: ed1f956e14c86311
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-5-model-routing-and-capability-matrix:
+  en: b72a6f72351c8c5f
+  zh: d509d4235a722200
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/23-model-requests-tokens-and-kv-cache/23-6-integrated-lab-and-interview-check:
+  en: 7d6344b5fcce1512
+  zh: 5e76d29698cd7ab3
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/24-tool-development-from-schema-to-side-effect:
+  en: 1ca09eed18e275c4
+  zh: 364d597c8a0cac9b
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/25-event-sourcing-persistence-and-crash-recovery:
+  en: 3327d7bb52e8d30b
+  zh: 4864e0529435e60a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction:
+  en: 849bf122ba65d56a
+  zh: 567702235d7af865
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction/26-1-context-layers-and-memory-lifecycle:
+  en: d2a9fd6deab64cb7
+  zh: 50b6419ef8ff97f9
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction/26-2-rag-from-documents-to-verifiable-evidence:
+  en: f79159595fdfe908
+  zh: a1ac69b1403c4253
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction/26-3-compaction-and-lossy-projection:
+  en: 1f7da5d74af99029
+  zh: e1eb14bd20d02121
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction/26-4-context-assembly-order-and-prompt-injection:
+  en: 235e4c8e6f35d145
+  zh: 70b4d58e2e829f21
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/26-context-engineering-memory-and-compaction/26-5-lab-and-completion-standard:
+  en: a4ea855dda71af1a
+  zh: f417d64e7dee20c1
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/27-concurrency-cancellation-timeouts-and-fencing:
+  en: 220fe9738e00679c
+  zh: db2f82049ee2ace5
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/28-agent-security-model:
+  en: f876479d9f531839
+  zh: 4a3f83af1386176a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/29-multi-agent-orchestration-and-graph-design:
+  en: ff88e4b6c68b4267
+  zh: 2b128947aa25d886
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/30-evaluation-testing-and-observability:
+  en: 249fcfe625e44c31
+  zh: 481f4231a78bca84
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/31-lab-develop-a-model-visible-context-plugin:
+  en: a897eac38d6a0b5f
+  zh: 934ce298bda0c344
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/32-diagnosing-three-failure-cases:
+  en: 324ac4ba1161c613
+  zh: d97b94f3baea9d3a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/33-agent-system-design-interview-framework:
+  en: df957aff159e5d45
+  zh: 79600d6c500477e8
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/34-frequent-interview-questions-and-reference-answers:
+  en: dbd709b8e0d4f8b9
+  zh: dc3ebc9f05eb1b65
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/34-frequent-interview-questions-and-reference-answers/34-1-foundations-and-models:
+  en: c4111f700adb71a6
+  zh: 86704d3c81e8605a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/34-frequent-interview-questions-and-reference-answers/34-2-tools-state-and-reliability:
+  en: 258653c62dc17bde
+  zh: 4489b006373d6dda
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/34-frequent-interview-questions-and-reference-answers/34-3-context-security-and-multiple-agents:
+  en: a64682a8230ab6ec
+  zh: 9c36cca8c571dd12
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/34-frequent-interview-questions-and-reference-answers/34-4-project-source:
+  en: cec0a08c0a1d5878
+  zh: e3fc2f3c6c1c505a
+/deepseek-harness-technology-stack-from-zero-background-to-source-mastery/35-eight-week-study-graduation-and-mock-interview-plan:
+  en: 7045ead2a2236b41
+  zh: 944361acad9afb56

@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-scheduler-sqlite/README.md
-README.md: fbcacc5206429e21a95683a8543749e9669c7ec6
-README.zh.md: 9134ab87a57067e3d15e94851a02627140594655
+/:
+  en: 7c4495228fde1f4a
+  zh: 722a3390c8d9ef0e
+/sqlite-graph-scheduler:
+  en: 4d6c0c601c35221a
+  zh: 6ffd71d3bec8b241
+/sqlite-graph-scheduler/summary:
+  en: f323ea2e9494a412
+  zh: 0075b44e6626142b
+/sqlite-graph-scheduler/table-of-contents:
+  en: 094e82a398a595c5
+  zh: ed51429652c36108
+/sqlite-graph-scheduler/dev-note:
+  en: ceebf112347252f5
+  zh: 318c15d01e754cda
+/sqlite-graph-scheduler/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/sqlite-graph-scheduler/model-experience/sqlite-ownership:
+  en: bb58ece7a22ad2bc
+  zh: 82b404653775722b
+/sqlite-graph-scheduler/model-experience/sqlite-ownership/what-the-model-sees:
+  en: 766d1b34be921373
+  zh: 3b3c8eaff0dab963
+/sqlite-graph-scheduler/model-experience/sqlite-ownership/token-effect:
+  en: a7af4c8d805e030b
+  zh: 1a33184d0dd932f4
+/sqlite-graph-scheduler/model-experience/sqlite-ownership/kv-cache-effect:
+  en: fc1ad882d5016f0a
+  zh: fa1962a16bf35842
+/sqlite-graph-scheduler/known-limitations-and-deferred-work:
+  en: 13e2f668d9e58c90
+  zh: 6a78f424caa256af

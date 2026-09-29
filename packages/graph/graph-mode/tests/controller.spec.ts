@@ -24,7 +24,7 @@ import {
   foldGraph,
   apply as applyGraphProjection,
 } from '@deepseek-ai/dsh-graph'
-import type { GraphNode, GraphOperationTransition, GraphRevision, GraphRun } from '@deepseek-ai/dsh-graph'
+import type { GraphNode, GraphOperationTransition, GraphRevision, GraphRole, GraphRun } from '@deepseek-ai/dsh-graph'
 import GraphCoordination, { MemoryGraphCoordination } from '@deepseek-ai/dsh-graph-coordination'
 import GraphArtifactRuntime from '@deepseek-ai/dsh-graph-artifacts'
 import type {
@@ -528,11 +528,24 @@ class TestCoordination extends GraphCoordination {
     this.settleError = behavior.settleError
   }
 
-  async prepare(graph: GraphRevision): Promise<void> {
+  async prepare(graph: GraphRevision, _roles: readonly GraphRole[], _cwd: string, signal: AbortSignal): Promise<void> {
     this.prepares.push(graph)
-    await this.behavior.prepareWait
-    await this.behavior.prepareWaitFor?.(graph)
+    await this.waitForPrepare(signal, this.behavior.prepareWait)
+    await this.waitForPrepare(signal, this.behavior.prepareWaitFor?.(graph))
     if (this.behavior.prepareError !== undefined) throw this.behavior.prepareError
+  }
+
+  private async waitForPrepare(signal: AbortSignal, wait: Promise<void> | undefined): Promise<void> {
+    if (wait === undefined) return
+    signal.throwIfAborted()
+    const aborted = Promise.withResolvers<never>()
+    const onAbort = (): void => { aborted.reject(signal.reason ?? new Error('coordination preparation aborted')) }
+    signal.addEventListener('abort', onAbort, { once: true })
+    try {
+      await Promise.race([wait, aborted.promise])
+    } finally {
+      signal.removeEventListener('abort', onAbort)
+    }
   }
 
   async claim(request: GraphCoordinationRequest, signal: AbortSignal): Promise<GraphCoordinationClaim> {
@@ -905,14 +918,14 @@ async function harness(options: {
   })
   const steer = vi.fn()
   const followup = vi.fn()
-  const agent = {
+  const agent: Agent = {
     id: options.agentId ?? session.id,
     options: options.agentOptions ?? { provider: 'test', model: 'coder' },
     session,
     ctx,
     steer,
     followup,
-  } as unknown as Agent
+  } as never
   let scope!: Scope
   await ctx.plugin(Object.assign((inner: Context) => { scope = createScope(inner, agent) }, {
     inject: ['tools', 'systemPrompt'],
@@ -925,6 +938,39 @@ async function harness(options: {
 }
 
 describe('GraphModeController', () => {
+  it('stops recovery and submission admission before coordination provider quiescence', async () => {
+    const registerConsumer = vi.spyOn(GraphCoordination.prototype, 'registerQuiescence')
+    const { ctx, agent } = await harness({ memoryCoordination: true })
+    expect(registerConsumer).toHaveBeenCalledTimes(1)
+    await ctx.graphCoordination.quiesceConsumers()
+
+    await expect(ctx.graphMode.recover(agent)).rejects.toThrow(/no longer accepts recovery/)
+    await expect(ctx.graphMode.submit(agent, { intent: 'inspect', reason: 'shutdown' }))
+      .rejects.toThrow(/no longer accepts submissions/)
+    await ctx.fiber.dispose()
+  })
+
+  it('aborts and settles an accepted external preparation before provider disposal', async () => {
+    const started = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const { ctx, agent } = await harness({ cwd: 'D:/work', coordination: {
+      prepareWaitFor: () => { started.resolve(undefined); return held.promise },
+    } })
+    await ctx.commands.execute(agent, '/graph', [], new AbortController().signal)
+    const submission = ctx.graphMode.submit(agent, {
+      intent: 'new', reason: 'hold preparation during shutdown', graph: singleRevision('shutdown-prepare'),
+    })
+    await started.promise
+
+    let drained = false
+    const drain = ctx.graphCoordination.quiesceConsumers().then(() => { drained = true })
+    await expect(submission).rejects.toThrow(/aborted|disposed/i)
+    await drain
+    expect(drained).toBe(true)
+    expect(ctx.graphMode.state(agent).runs).toEqual({})
+    await ctx.fiber.dispose()
+  })
+
   it('reads the eagerly maintained graph projection when the registry is composed', async () => {
     const { ctx, agent } = await harness({ projections: true })
     ctx.graphMode.setConfig(agent, { ...defaultGraphModeConfig(), active: true })
@@ -1264,7 +1310,7 @@ describe('GraphModeController', () => {
         }],
         edges: [{ from: GraphNodeId('missing'), to: GraphNodeId('missing'), kind: 'data' }],
         unexpected: true,
-      } as unknown as GraphRevisionDraft, defaultGraphModeConfig())
+      } as never, defaultGraphModeConfig())
     } catch (error) {
       failure = error
     }
@@ -1389,7 +1435,7 @@ describe('GraphModeController', () => {
     const secondSession = Session.create(secondId, [], {
       version: SESSION_FORMAT_VERSION, id: secondId, createdAt: 2, isSeeded: false,
     })
-    const secondAgent = { ...active.agent, id: secondId, session: secondSession, steer: vi.fn(), followup: vi.fn() } as unknown as Agent
+    const secondAgent = { ...active.agent, id: secondId, session: secondSession, steer: vi.fn(), followup: vi.fn() } as Agent
     let secondScope!: Scope
     await active.ctx.plugin(Object.assign((inner: Context) => { secondScope = createScope(inner, secondAgent) }, {
       inject: ['tools', 'systemPrompt'],
@@ -4219,7 +4265,7 @@ describe('GraphModeController', () => {
       .find(item => item.runId === runId && item.issues?.some(issue => issue.id === 'modify-a'))
     expect(record).toMatchObject({ action: 'modify-task', nodeId: 'a', result: { outcome: 'applied' } })
     expect(checkpoint).toMatchObject({ kind: 'awaiting_user', status: 'pending', nodeId: 'a' })
-    const modificationFollowup = active.followup.mock.lastCall?.[0] as unknown
+    const modificationFollowup: unknown = active.followup.mock.lastCall?.[0]
     expect(modificationFollowup).toMatchObject({
       source: { kind: 'graph-mode' },
     })
@@ -4664,7 +4710,7 @@ describe('GraphModeController', () => {
     expect(record).toMatchObject({ resultingRevision: 3, targetRevision: 1 })
   })
 
-  it('accepts schema-valid substitute output with durable control provenance', async () => {
+  it('accepts schema-valid substitute output with a durable control event reference', async () => {
     const provider = new GraphWorkerProvider([() => Promise.reject(new Error('manual evidence required'))])
     const active = await harness({ provider })
     active.ctx.graphMode.setConfig(active.agent, { ...defaultGraphModeConfig(), active: true })

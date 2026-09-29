@@ -1,6 +1,58 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 34-frequently-asked-questions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/34-frequently-asked-questions.md
-34-frequently-asked-questions.md: a77ef04e7521fd04830e7a8f4c3dd1b18324084d
-34-frequently-asked-questions.zh.md: b44a6705998d7d42680a4d2622f951de239d80bc
+/chapter-34-common-interview-questions-and-reference-answers:
+  en: a8ce16d8b9954d62
+  zh: 30c327fd43836b3b
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles:
+  en: b685c273800311b0
+  zh: 2859d5e3f9d334ae
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles/q1-what-is-the-fundamental-difference-between-an-agent-and-a-traditional-workflow:
+  en: 6a8d04eebaf0d973
+  zh: e6e57920ddb29f1b
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles/q2-what-is-the-main-engineering-value-of-react-reasoning-acting:
+  en: 24fb2fe413a9ee87
+  zh: 84fc9f47ed17cf20
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles/q3-why-must-the-host-still-validate-types-at-runtime-for-example-with-zod-when-the-model-receives-a-strict-json-schema:
+  en: 3a423766d0e19459
+  zh: d9d16c988b86635d
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles/q4-why-does-temperature-0-still-fail-to-guarantee-100-reproducibility-across-machines-at-the-hardware-level:
+  en: c295b105b4e22d45
+  zh: 52e4608aefb2a11b
+/chapter-34-common-interview-questions-and-reference-answers/34-1-fundamentals-and-model-principles/q5-is-a-context-window-the-same-as-an-llm-s-long-term-memory:
+  en: 41a9bc4280e9c194
+  zh: 7c89d9481d7d6bc3
+/chapter-34-common-interview-questions-and-reference-answers/34-2-tools-state-and-system-reliability:
+  en: 17c29434e9272d24
+  zh: 0dbd2b3d3002ad94
+/chapter-34-common-interview-questions-and-reference-answers/34-2-tools-state-and-system-reliability/q6-why-must-the-tool-call-event-be-persisted-before-any-real-world-side-effect-executes:
+  en: b8fcd0ab264bc12e
+  zh: 27371743c80fe8a3
+/chapter-34-common-interview-questions-and-reference-answers/34-2-tools-state-and-system-reliability/q7-why-are-cancellation-and-timeout-strictly-orthogonal-in-system-design:
+  en: 62f26029c0c7dc7f
+  zh: 184aa6da2ade8dd1
+/chapter-34-common-interview-questions-and-reference-answers/34-2-tools-state-and-system-reliability/q8-what-is-a-monotonically-increasing-fencing-token-and-why-is-a-distributed-lease-alone-insufficient-to-prevent-split-brain:
+  en: 3dfcbfe31a307f7b
+  zh: 6b03213906ebe4d4
+/chapter-34-common-interview-questions-and-reference-answers/34-3-context-engineering-security-and-multi-agent-orchestration:
+  en: 1ab5c38e00aefd3a
+  zh: d5b515ef917950e6
+/chapter-34-common-interview-questions-and-reference-answers/34-3-context-engineering-security-and-multi-agent-orchestration/q9-when-should-you-definitely-avoid-multiple-agents:
+  en: e4d19828653a6e12
+  zh: 9149030ab877c699
+/chapter-34-common-interview-questions-and-reference-answers/34-3-context-engineering-security-and-multi-agent-orchestration/q10-how-should-a-defense-in-depth-system-against-prompt-injection-be-built:
+  en: adbc97e3323cedb4
+  zh: 04020d3abaa05472
+/chapter-34-common-interview-questions-and-reference-answers/34-4-project-source-and-microkernel-architecture:
+  en: ad0b43da90585d5e
+  zh: fa99bf60f4503c35
+/chapter-34-common-interview-questions-and-reference-answers/34-4-project-source-and-microkernel-architecture/q11-why-does-graph-mode-orchestrate-multi-agent-tasks-without-modifying-the-core-agent-loop-source:
+  en: 4a728a2cc669d72a
+  zh: bc311c87a5e18b22
+/chapter-34-common-interview-questions-and-reference-answers/34-4-project-source-and-microkernel-architecture/q12-why-must-a-campaign-not-copy-every-completed-node-from-one-batch-into-the-next-batch-s-task-graph:
+  en: ff0f64a2e32afea6
+  zh: 4c668b1a019d2755
+/chapter-34-common-interview-questions-and-reference-answers/34-4-project-source-and-microkernel-architecture/q13-why-must-a-successful-worker-not-be-rerun-blindly-after-its-loopx-settlement-fails:
+  en: ac6abf78b1082e20
+  zh: 7de3ecf7204fd85c

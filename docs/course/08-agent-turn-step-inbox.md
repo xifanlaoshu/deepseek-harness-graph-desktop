@@ -243,7 +243,7 @@ In DeepSeek Harness, `Inbox` **is not merely a transient array in memory; it is 
 For every queue operation (append, prepend, replace, delete, clear, or claim), the Session must append a normalized `agent/inbox/spliced` event **before** the in-memory array changes:
 
 ```typescript
-// packages/core/agent/src/inbox.ts
+// packages/core/agent-loop/src/inbox.ts
 export class Inbox {
   private readonly state: InboxState = { 'next-turn': [], 'next-step': [] }
 

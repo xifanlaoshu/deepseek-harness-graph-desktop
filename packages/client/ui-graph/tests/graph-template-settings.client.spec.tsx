@@ -16,6 +16,7 @@ import {
   type GraphTemplateSettingsTabProps,
 } from '../src/client/GraphTemplateSettingsTab.tsx'
 import { zh } from '../src/client/locales.ts'
+import { graphGlobalStandardProps } from './slot-standard-props.client.ts'
 
 afterEach(cleanup)
 
@@ -68,6 +69,7 @@ const template: GraphTemplateSettings = {
 
 const models: ModelDirectoryState = {
   current: null,
+  pending: null,
   routable: null,
   groups: [{
     id: 'local',
@@ -100,13 +102,14 @@ function setup(
   const modelStore = createSnapshotStore(modelDirectory)
   const loadModels = vi.fn()
   const props = {
+    ...graphGlobalStandardProps(),
     useSettings: bindSnapshotSelector(settingsStore),
     useModels: bindSnapshotSelector(modelStore),
     loadModels,
     saveTemplate,
     resetTemplate,
     t,
-  } as unknown as GraphTemplateSettingsTabProps
+  } satisfies GraphTemplateSettingsTabProps
   render(<GraphTemplateSettingsTab {...props} />)
   return { settingsStore, loadModels, saveTemplate, resetTemplate }
 }

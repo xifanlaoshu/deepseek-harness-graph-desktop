@@ -1,6 +1,52 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 26-context-engineering-memory-compression.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/26-context-engineering-memory-compression.md
-26-context-engineering-memory-compression.md: c980600c707ba013699de5bb0d95d5f11edccfe5
-26-context-engineering-memory-compression.zh.md: ef17f173ad630eaea87c18293c6ac2f663d5aaff
+/chapter-26-context-engineering-memory-and-compaction:
+  en: dab9fc912e6a93a4
+  zh: 12a13ab5051a62c1
+/chapter-26-context-engineering-memory-and-compaction/26-1-a-four-layer-lifecycle-model-for-memory-and-context:
+  en: e67f8fa4e80e66c7
+  zh: 890a4218b9a8db72
+/chapter-26-context-engineering-memory-and-compaction/26-2-designing-production-rag-from-chunking-to-cross-encoders:
+  en: 3ab69a12c211e07c
+  zh: ccbf90ae6b18712a
+/chapter-26-context-engineering-memory-and-compaction/26-2-designing-production-rag-from-chunking-to-cross-encoders/26-2-1-chunking-strategies-fixed-windows-vs-ast-syntax-units:
+  en: 5a39a3fb4f76f1b7
+  zh: 78248c63bc9947de
+/chapter-26-context-engineering-memory-and-compaction/26-2-designing-production-rag-from-chunking-to-cross-encoders/26-2-2-a-mathematical-model-for-hybrid-retrieval-rrf-reciprocal-rank-fusion:
+  en: e52de2af72866f59
+  zh: 42656e794c2cc705
+/chapter-26-context-engineering-memory-and-compaction/26-2-designing-production-rag-from-chunking-to-cross-encoders/26-2-3-how-a-cross-encoder-reranker-works:
+  en: 1e1dc5cda87bacea
+  zh: 0f56f7bc086fb9ba
+/chapter-26-context-engineering-memory-and-compaction/26-3-context-compaction-and-lossy-projection-algorithms:
+  en: d862042b483446bf
+  zh: e43f8037f3d38620
+/chapter-26-context-engineering-memory-and-compaction/26-3-context-compaction-and-lossy-projection-algorithms/26-3-1-a-token-budget-pressure-meter:
+  en: 74c2408d133ce5f3
+  zh: 4dcf449abd97539f
+/chapter-26-context-engineering-memory-and-compaction/26-3-context-compaction-and-lossy-projection-algorithms/26-3-2-five-non-negotiable-constraints-on-context-compaction:
+  en: d8f9c2bec11a775d
+  zh: 92578ef2d0f5e6e9
+/chapter-26-context-engineering-memory-and-compaction/26-4-prompt-injection-and-boundary-isolation:
+  en: fcdbc8fc4b722ebe
+  zh: 1bb120e6850ef8e5
+/chapter-26-context-engineering-memory-and-compaction/26-4-prompt-injection-and-boundary-isolation/26-4-1-a-physical-boundary-between-data-and-instructions:
+  en: 3172b424fce4b5fd
+  zh: a998e9a7af839ad1
+/chapter-26-context-engineering-memory-and-compaction/26-4-prompt-injection-and-boundary-isolation/26-4-2-the-principle-of-privilege-reduction:
+  en: dcf60db74cc116b9
+  zh: 2b0d5e262afa9c78
+/chapter-26-context-engineering-memory-and-compaction/26-5-industrial-practice-a-complete-hybrid-retrieval-and-memory-compaction-pipeline:
+  en: 80cacb22e8a7303d
+  zh: 63a118c8910134b3
+/chapter-26-context-engineering-memory-and-compaction/26-6-production-incident-reviews-and-pitfalls:
+  en: bbd06012db4ab940
+  zh: b565d18246bb2a74
+/chapter-26-context-engineering-memory-and-compaction/26-6-production-incident-reviews-and-pitfalls/incident-1-a-dynamic-timestamp-at-the-start-defeats-kv-cache-reuse:
+  en: 97256a74bb6f86ff
+  zh: 950506b7753146f0
+/chapter-26-context-engineering-memory-and-compaction/26-6-production-incident-reviews-and-pitfalls/incident-2-lossy-compaction-removes-a-critical-compiler-error:
+  en: 754f65aaa109c79a
+  zh: d3233402be800715

@@ -1,6 +1,49 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-mode/README.md
-README.md: f2a3b2ac3dc36f0e6857ac375f9c644bdfad0be6
-README.zh.md: b3d0ae76e0527ebca3d0cfa097edec6ee6243733
+/:
+  en: 2eae950b2e8bcfdd
+  zh: 5d507f1cc47e85de
+/deepseek-ai-dsh-graph-mode:
+  en: 097ea110b59c74ef
+  zh: a8ed8fd7959fafb3
+/deepseek-ai-dsh-graph-mode/summary:
+  en: 0dad42a8b62cbf06
+  zh: a5c33ef9f7a33ef0
+/deepseek-ai-dsh-graph-mode/table-of-contents:
+  en: 9add40bdc83baab4
+  zh: c7e163a7ab999fad
+/deepseek-ai-dsh-graph-mode/dev-note:
+  en: 2fa7d04810743169
+  zh: 7c7f0d8a5a1841e4
+/deepseek-ai-dsh-graph-mode/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-mode/model-experience/controller-policy:
+  en: 8e3e332f6eb27e0d
+  zh: 2251a2cdae7a5a13
+/deepseek-ai-dsh-graph-mode/model-experience/controller-policy/what-the-model-sees:
+  en: fef4f4278f60d85e
+  zh: c0c5c0cf0015c48f
+/deepseek-ai-dsh-graph-mode/model-experience/controller-policy/token-effect:
+  en: 9694e7b62b3b5233
+  zh: 49b5a77413d7f7d5
+/deepseek-ai-dsh-graph-mode/model-experience/controller-policy/kv-cache-effect:
+  en: 2752012c6143df23
+  zh: 53fc9468bf00f3e5
+/deepseek-ai-dsh-graph-mode/model-experience/node-assignment:
+  en: 341539a1ea4126a8
+  zh: e9c02de0b3ca125b
+/deepseek-ai-dsh-graph-mode/model-experience/node-assignment/what-the-model-sees:
+  en: 4d4cffd7e2e08dec
+  zh: 9d6cb905669547c8
+/deepseek-ai-dsh-graph-mode/model-experience/node-assignment/token-effect:
+  en: bc6f459889fc0312
+  zh: 10851ed5e2bcc777
+/deepseek-ai-dsh-graph-mode/model-experience/node-assignment/kv-cache-effect:
+  en: 70bed3796d9222a2
+  zh: 53d62a5467c646dc
+/deepseek-ai-dsh-graph-mode/known-limitations-and-deferred-work:
+  en: 23ad528dfa92b058
+  zh: e4189c5d5fec11db

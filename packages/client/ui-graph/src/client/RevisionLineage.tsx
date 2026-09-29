@@ -14,6 +14,10 @@ import { cytoscapeColor } from './cytoscapeColor.ts'
 import { graphFontFamily } from './graphTypography.ts'
 import css from './GraphAction.module.css'
 
+function cytoscapeLabelExpression(): string {
+  return ['data(', 'label', ')'].join('')
+}
+
 /** Runtime totals derived from durable runs and child-attempt health. */
 export interface RevisionRuntimeMetrics {
   readonly startedAt?: number
@@ -106,11 +110,13 @@ const dateTime = (value: number | undefined, unavailable: string): string => (
   value === undefined ? unavailable : new Date(value).toLocaleString()
 )
 
-const duration = (value: number | undefined, unavailable: string): string => {
+const duration = (value: number | undefined, unavailable: string, t: GraphActionProps['t']): string => {
   if (value === undefined) return unavailable
   const seconds = Math.max(0, Math.round(value / 1_000))
   const minutes = Math.floor(seconds / 60)
-  return minutes === 0 ? `${String(seconds)}s` : `${String(minutes)}m ${String(seconds % 60)}s`
+  return minutes === 0
+    ? t('node.elapsedSeconds', { seconds })
+    : t('node.elapsed', { minutes, seconds: seconds % 60 })
 }
 
 const compactNumber = (value: number): string => new Intl.NumberFormat(undefined, {
@@ -134,6 +140,20 @@ function kindLabel(t: GraphActionProps['t'], kind: GraphRevisionKind | 'unknown'
     case 'analysis_refactor': return t('revision.kind.analysis_refactor')
     case 'execution_correction': return t('revision.kind.execution_correction')
     case 'unknown': return t('revision.kind.unknown')
+  }
+}
+
+function runPhaseLabel(t: GraphActionProps['t'], phase: string): string {
+  switch (phase) {
+    case 'queued': return t('node.phase.queued')
+    case 'running': return t('node.phase.running')
+    case 'succeeded': return t('node.phase.succeeded')
+    case 'failed': return t('node.phase.failed')
+    case 'awaiting_user': return t('node.phase.awaiting_user')
+    case 'blocked': return t('node.phase.blocked')
+    case 'canceled': return t('node.phase.canceled')
+    case 'exhausted': return t('node.phase.exhausted')
+    default: return phase
   }
 }
 
@@ -199,8 +219,8 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
             id: item.id,
             label: [
               compactTitle(item.lineage?.title ?? item.graph.objective),
-              `r${String(item.graph.revision)} · ${kindOf(item)} · ${item.latestRun?.phase ?? 'not-run'}`,
-              `${compactDate(item.metrics.startedAt, '—')} · ${duration(item.metrics.durationMs, '—')}`,
+              `${t('node.revision', { revision: item.graph.revision })} · ${kindLabel(t, kindOf(item))} · ${item.latestRun === undefined ? t('revision.state.notRun') : runPhaseLabel(t, item.latestRun.phase)}`,
+              `${compactDate(item.metrics.startedAt, '—')} · ${duration(item.metrics.durationMs, '—', t)}`,
               `${String(item.metrics.subagentCount)}A · ${String(item.metrics.taskInteractions)}I · ${compactNumber(totalTokens)}T`,
             ].join('\n'),
             status: item.latestRun?.phase ?? 'not-run',
@@ -232,13 +252,13 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
       elements,
       layout: { name: 'preset', fit: true, padding: 54 },
       style: [
-        { selector: 'node', style: { width: 220, height: 92, shape: 'round-rectangle', label: 'data(label)', 'text-wrap': 'wrap', 'text-max-width': '190px', 'font-family': graphFontFamily, 'font-size': 10.5, 'font-weight': 500, color: token('--dsw-alias-label-primary'), 'background-color': token('--dsw-alias-bg-layer-2'), 'border-width': 1.5, 'border-color': token('--dsw-alias-border-l4'), 'text-valign': 'center', 'text-halign': 'center' } },
+        { selector: 'node', style: { width: 220, height: 92, shape: 'round-rectangle', label: cytoscapeLabelExpression(), 'text-wrap': 'wrap', 'text-max-width': '190px', 'font-family': graphFontFamily, 'font-size': 10.5, 'font-weight': 500, color: token('--dsw-alias-label-primary'), 'background-color': token('--dsw-alias-bg-layer-2'), 'border-width': 1.5, 'border-color': token('--dsw-alias-border-l4'), 'text-valign': 'center', 'text-halign': 'center' } },
         { selector: 'node.new_task', style: { 'border-color': token('--dsw-alias-state-business-primary') } },
         { selector: 'node.analysis_refactor', style: { 'border-color': token('--dsw-alias-state-warn-primary') } },
         { selector: 'node.execution_correction', style: { 'border-color': token('--dsw-alias-state-error-primary') } },
         { selector: 'node.succeeded', style: { 'background-color': token('--dsw-alias-state-success-secondary') } },
         { selector: 'node:selected', style: { 'border-width': 3, 'border-color': token('--dsw-alias-button-info-fill'), 'overlay-opacity': 0 } },
-        { selector: 'edge', style: { width: 1.4, 'curve-style': 'unbundled-bezier', 'control-point-distance': 40, 'control-point-weight': 0.5, 'target-arrow-shape': 'triangle', 'line-color': token('--dsw-alias-border-l4'), 'target-arrow-color': token('--dsw-alias-border-l4'), label: 'data(label)', 'font-family': graphFontFamily, 'font-size': 9, color: token('--dsw-alias-label-tertiary'), 'text-background-color': token('--dsw-alias-bg-layer-1'), 'text-background-opacity': 0.9 } },
+        { selector: 'edge', style: { width: 1.4, 'curve-style': 'unbundled-bezier', 'control-point-distance': 40, 'control-point-weight': 0.5, 'target-arrow-shape': 'triangle', 'line-color': token('--dsw-alias-border-l4'), 'target-arrow-color': token('--dsw-alias-border-l4'), label: cytoscapeLabelExpression(), 'font-family': graphFontFamily, 'font-size': 9, color: token('--dsw-alias-label-tertiary'), 'text-background-color': token('--dsw-alias-bg-layer-1'), 'text-background-opacity': 0.9 } },
         { selector: 'edge.corrects', style: { 'line-style': 'dashed', 'line-color': token('--dsw-alias-state-error-primary'), 'target-arrow-color': token('--dsw-alias-state-error-primary') } },
         { selector: 'edge.refactors', style: { 'line-style': 'dotted', 'line-color': token('--dsw-alias-state-warn-primary'), 'target-arrow-color': token('--dsw-alias-state-warn-primary') } },
         { selector: 'edge.depends_on', style: { 'line-style': 'dashed', 'line-color': token('--dsw-alias-state-business-primary'), 'target-arrow-color': token('--dsw-alias-state-business-primary') } },
@@ -288,11 +308,11 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
       const target = relationship.revision === undefined ? undefined : all.find(item => (
         item.graph.graphId === relationship.graphId && item.graph.revision === relationship.revision
       ))
-      return target === undefined ? [] : [{ label: `${relationship.kind} → r${String(target.graph.revision)}`, item: target }]
+      return target === undefined ? [] : [{ label: t('revision.related', { kind: relationship.kind, revision: target.graph.revision }), item: target }]
     }) ?? []),
     ...all.flatMap(candidate => candidate.lineage?.relationships.some(relationship => (
       relationship.graphId === detail.graph.graphId && relationship.revision === detail.graph.revision
-    )) === true ? [{ label: `corrected by → r${String(candidate.graph.revision)}`, item: candidate }] : []),
+    )) === true ? [{ label: t('revision.correctedBy', { revision: candidate.graph.revision }), item: candidate }] : []),
   ]
   const detailRunIds = new Set(detail?.runs.map(run => run.id) ?? [])
   const detailSubmissions = detail === undefined ? [] : Object.values(projection.submissions).filter(item => (
@@ -338,7 +358,7 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
           <strong>{preview.item.lineage?.title ?? preview.item.graph.objective}</strong>
           <span>{kindLabel(t, kindOf(preview.item))}</span>
           <p>{preview.item.lineage?.trigger.summary ?? t('revision.historicalUnknown')}</p>
-          <p>{dateTime(preview.item.metrics.startedAt, unavailable)} · {duration(preview.item.metrics.durationMs, unavailable)}</p>
+          <p>{dateTime(preview.item.metrics.startedAt, unavailable)} · {duration(preview.item.metrics.durationMs, unavailable, t)}</p>
           <p>{t('revision.subagents')}: {preview.item.metrics.subagentCount} · {t('revision.interactions')}: {preview.item.metrics.taskInteractions}
             {' · '}{t('revision.tokens')}: {preview.item.metrics.inputTokens + preview.item.metrics.outputTokens}</p>
           {preview.item.lineage === undefined ? null : <p>
@@ -350,7 +370,7 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
         </aside>}
         <ol className={css.revisionAccessibleList} aria-label={t('revision.listAria')}>
           {visible.map(item => <li key={item.id}><button type="button" onClick={() => { setDetailId(item.id); selectRevision(item.graph.graphId, item.graph.revision) }}>
-            {item.lineage?.title ?? item.graph.objective} · r{item.graph.revision}
+            {item.lineage?.title ?? item.graph.objective} {t('revision.eventRevision', { revision: item.graph.revision })}
           </button></li>)}
         </ol>
       </div>
@@ -358,12 +378,12 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
         <header>
           <span>{kindLabel(t, kindOf(detail))}</span>
           <h2>{detail.lineage?.title ?? detail.graph.objective}</h2>
-          <code>{detail.graph.graphId} · r{detail.graph.revision}</code>
+          <code>{detail.graph.graphId} · {t('node.revision', { revision: detail.graph.revision })}</code>
         </header>
         <div className={css.revisionMetrics}>
           {metric(t('revision.startedAt'), dateTime(detail.metrics.startedAt, unavailable))}
           {metric(t('revision.completedAt'), dateTime(detail.metrics.completedAt, unavailable))}
-          {metric(t('revision.duration'), duration(detail.metrics.durationMs, unavailable))}
+          {metric(t('revision.duration'), duration(detail.metrics.durationMs, unavailable, t))}
           {metric(t('revision.subagents'), detail.metrics.subagentCount)}
           {metric(t('revision.interactions'), detail.metrics.taskInteractions)}
           {metric(t('revision.agentTurns'), detail.metrics.agentTurns ?? unavailable)}
@@ -390,10 +410,10 @@ export function RevisionLineage({ projection, selectedGraphId, selectedRevision,
           selectRevision(item.item.graph.graphId, item.item.graph.revision)
         }}>{item.label}</button>)}</section>
         <section><h3>{t('revision.rawEvents')}</h3>
-          {detailSubmissions.map(item => <code key={item.id}>graph/submission · {item.id}</code>)}
-          {detail.runs.map(item => <code key={item.id}>graph/run · {item.id}</code>)}
-          {detailControls.map(item => <code key={item.id}>graph/control · {item.id}</code>)}
-          {detailSettlements.map(item => <code key={`${item.id}:${String(item.attempt)}`}>graph/settlement · {item.id}</code>)}
+          {detailSubmissions.map(item => <code key={item.id}>{t('node.event.submission', { id: item.id })}</code>)}
+          {detail.runs.map(item => <code key={item.id}>{t('node.event.run', { id: item.id })}</code>)}
+          {detailControls.map(item => <code key={item.id}>{t('node.event.control', { id: item.id })}</code>)}
+          {detailSettlements.map(item => <code key={`${item.id}:${String(item.attempt)}`}>{t('node.event.settlement', { id: item.id })}</code>)}
           {detailSubmissions.length + detail.runs.length + detailControls.length + detailSettlements.length === 0
             ? <p>{unavailable}</p>
             : null}

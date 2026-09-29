@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { forkIdentityEnvironment } from './desktop-identity-fixture.ts'
 
 const { verifyDesktopRuntime } = vi.hoisted(() => ({
   verifyDesktopRuntime: vi.fn<(root: string, expected: string) => Promise<void>>(async () => undefined),
@@ -11,7 +12,7 @@ vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
 }))
 
 const ENVIRONMENT = {
-  DSH_DESKTOP_APP_ID: 'com.example.installer',
+  ...forkIdentityEnvironment('com.example.installer'),
   DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
   DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
   DSH_DESKTOP_TARGET_PLATFORM: 'win32',

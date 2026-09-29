@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { Context } from '@deepseek-ai/cordis'
 import type { AddressInfo } from 'node:net'
 import { resolve } from 'node:path'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   GraphAttemptId,
   GraphControlOperationId,
@@ -15,7 +15,7 @@ import {
 } from '@deepseek-ai/dsh-graph'
 import { GraphWorkerId, GraphWorkspaceAllocationId, type GraphWorkerAssignment } from '@deepseek-ai/dsh-graph-worker'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import {
   GraphWorkerRemoteAudienceId,
   GraphWorkerRemotePrincipalId,
@@ -24,6 +24,11 @@ import {
   type GraphWorkerAuthHeaders,
   type HttpGraphWorkerOptions,
 } from '../src/index.ts'
+import { createWorkerTestParent } from '../../graph-worker/tests/parent.ts'
+
+const parentContext = new Context()
+const testParent = await createWorkerTestParent(parentContext, SessionId('parent'))
+afterAll(async () => { await parentContext.fiber.dispose() })
 
 const principal = GraphWorkerRemotePrincipalId('graph-host-east')
 const audience = GraphWorkerRemoteAudienceId('worker-west')
@@ -40,7 +45,7 @@ const assignment = (): GraphWorkerAssignment => ({
   generationId: GraphRunGenerationId('generation-http-1'),
   ownerEpoch: 3,
   fencingToken: 7,
-  parent: { id: SessionId('parent'), session: { header: { cwd: resolve('workspace') } } } as unknown as Agent,
+  parent: testParent,
   node: {
     id: GraphNodeId('node-http-1'), title: 'Remote task', objective: 'Execute remotely.', kind: 'implementation',
     roleId: GraphRoleId('engineer'), acceptanceCriteria: ['Return evidence.'], outputSchema: defaultGraphOutputSchema(),

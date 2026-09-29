@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, isAbsolute, join, posix, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {
   GraphArtifactCaptureRequest,
@@ -15,13 +16,13 @@ import type {
 import {
   GraphAttemptId,
   GraphControlOperationId,
+  GraphId,
   GraphNodeId,
   GraphRoleId,
   GraphRunGenerationId,
   GraphRunId,
   GraphWorkId,
   type GraphNode,
-  type GraphRole,
 } from '@deepseek-ai/dsh-graph'
 import {
   GraphArtifactManifestId,
@@ -54,7 +55,7 @@ import {
   type GraphSchedulerLeaseRequest,
   type GraphSchedulerRuntime,
 } from '@deepseek-ai/dsh-graph-scheduler'
-import { assertObjectJsonSchema, type ObjectJsonSchema, type ToolRestriction } from '@deepseek-ai/dsh-tools'
+import { assertObjectJsonSchema } from '@deepseek-ai/dsh-tools'
 import { z } from 'zod'
 import {
   GraphWorkerRemoteAudienceId,
@@ -96,18 +97,18 @@ export interface HttpGraphWorkerServerOptions {
   readonly basePath: string
   readonly journalPath: string
   readonly workerProvider: string
-  readonly graphWorkers: GraphWorkerRuntime
+  readonly graphWorkers: Pick<GraphWorkerRuntime, 'start' | 'reconcile'>
   /** Optional cross-Host resource route delegated to one same-process authority. */
   readonly resource?: {
     readonly routeName: string
     readonly providerName: string
-    readonly graphResources: GraphResourceRuntime
+    readonly graphResources: Pick<GraphResourceRuntime, 'observe' | 'reserve' | 'report' | 'reconcile'>
   }
   /** Optional cross-Host Artifact route delegated through bounded private staging. */
   readonly artifact?: {
     readonly routeName: string
     readonly providerName: string
-    readonly graphArtifacts: GraphArtifactRuntime
+    readonly graphArtifacts: Pick<GraphArtifactRuntime, 'capture' | 'materialize' | 'reconcile'>
     readonly tempRoot: string
     readonly maxFiles: number
     readonly maxBytes: number
@@ -116,7 +117,7 @@ export interface HttpGraphWorkerServerOptions {
   readonly scheduler?: {
     readonly routeName: string
     readonly providerName: string
-    readonly graphScheduler: GraphSchedulerRuntime
+    readonly graphScheduler: Pick<GraphSchedulerRuntime, 'acquire' | 'heartbeat' | 'release'>
   }
   /** Resolve the current caller secret once per request. */
   readonly resolveSecret: (principal: GraphWorkerRemotePrincipalId) => Promise<string | undefined>
@@ -164,7 +165,13 @@ const workspaceMode = z.enum(['read-only-snapshot', 'isolated-copy', 'git-worktr
 const cleanupPolicy = z.enum(['delete-on-settlement', 'retain-on-failure', 'retain'])
 const jsonSchema = z.record(z.string(), z.unknown())
 
-const contentBlockSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('type', [
+type WireContentBlock =
+  | { readonly type: 'text'; readonly text: string }
+  | { readonly type: 'reasoning'; readonly text: string }
+  | { readonly type: 'image'; readonly attachment: { readonly attachmentId: string; readonly mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; readonly bytes: number; readonly width: number; readonly height: number; readonly name?: string | undefined } }
+  | { readonly type: 'tool-call'; readonly id: string; readonly name: string; readonly arguments: string }
+
+const contentBlockSchema: z.ZodType<WireContentBlock> = z.lazy(() => z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string() }).strict(),
   z.object({ type: z.literal('reasoning'), text: z.string() }).strict(),
   z.object({
@@ -179,12 +186,6 @@ const contentBlockSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('type', 
     }).strict(),
   }).strict(),
   z.object({ type: z.literal('tool-call'), id: boundedId, name: boundedId, arguments: z.string() }).strict(),
-  z.object({
-    type: z.literal('tool-result'),
-    toolCallId: boundedId,
-    content: z.array(contentBlockSchema),
-    isError: z.boolean().optional(),
-  }).strict(),
 ]))
 
 const graphOutputSchema = z.object({
@@ -559,9 +560,64 @@ function parseWorkspace(value: string): GraphWorkspaceAllocation {
   }
 }
 
+function contentBlock(value: z.infer<typeof contentBlockSchema>): ContentBlock {
+  switch (value.type) {
+    case 'text':
+    case 'reasoning':
+      return value
+    case 'image':
+      return {
+        type: 'image',
+        attachment: {
+          attachmentId: brandString<Extract<ContentBlock, { type: 'image' }>['attachment']['attachmentId']>(value.attachment.attachmentId),
+          mediaType: value.attachment.mediaType,
+          bytes: value.attachment.bytes,
+          width: value.attachment.width,
+          height: value.attachment.height,
+          ...(value.attachment.name === undefined ? {} : { name: value.attachment.name }),
+        },
+      }
+    case 'tool-call':
+      return {
+        ...value,
+        id: brandString<Extract<ContentBlock, { type: 'tool-call' }>['id']>(value.id),
+      }
+  }
+}
+
+function artifactManifest(value: z.infer<typeof artifactManifestSchema>): GraphArtifactManifest {
+  return {
+    ...value,
+    id: GraphArtifactManifestId(value.id),
+    workId: GraphWorkId(value.workId),
+    operationId: GraphControlOperationId(value.operationId),
+    attemptId: GraphAttemptId(value.attemptId),
+    runId: GraphRunId(value.runId),
+    generationId: GraphRunGenerationId(value.generationId),
+    entries: value.entries.map(({ baseSha256, ...entry }) => ({
+      ...entry,
+      ...baseSha256 === undefined ? {} : { baseSha256 },
+    })),
+  }
+}
+
 function parseResult(value: string): GraphWorkerResult {
   const parsed = durableResultSchema.parse(JSON.parse(value))
-  return parsed as unknown as GraphWorkerResult
+  return {
+    outcome: parsed.outcome,
+    output: parsed.output.map(contentBlock),
+    ...(parsed.structured === undefined ? {} : { structured: parsed.structured }),
+    ...(parsed.childSessionId === undefined ? {} : { childSessionId: parsed.childSessionId }),
+    ...(parsed.artifactManifest === undefined ? {} : { artifactManifest: artifactManifest(parsed.artifactManifest) }),
+    ...(parsed.error === undefined ? {} : {
+      error: {
+        code: parsed.error.code,
+        message: parsed.error.message,
+        ...(parsed.error.retryable === undefined ? {} : { retryable: parsed.error.retryable }),
+        ...(parsed.error.retryAfterMs === undefined ? {} : { retryAfterMs: parsed.error.retryAfterMs }),
+      },
+    }),
+  }
 }
 
 function parseAuthority(value: string): z.infer<typeof durableAuthoritySchema> {
@@ -912,19 +968,88 @@ export class HttpGraphWorkerServer {
     assertObjectJsonSchema(value.node.outputSchema.schema)
     if (value.role.id !== value.node.roleId) throw new Error('remote Graph Worker role does not own the assigned node')
     if (Date.now() >= value.deadline) throw new Error('remote Graph Worker assignment deadline elapsed')
+    const node: GraphNode = {
+      id: GraphNodeId(value.node.id),
+      title: value.node.title,
+      objective: value.node.objective,
+      kind: value.node.kind,
+      roleId: GraphRoleId(value.node.roleId),
+      acceptanceCriteria: value.node.acceptanceCriteria,
+      outputSchema: {
+        id: value.node.outputSchema.id,
+        version: value.node.outputSchema.version,
+        maxBytes: value.node.outputSchema.maxBytes,
+        schema: value.node.outputSchema.schema,
+      },
+      maxAttempts: value.node.maxAttempts,
+      weight: value.node.weight,
+      executionBudget: value.node.executionBudget,
+      skippable: value.node.skippable,
+      effectPolicy: value.node.effectPolicy,
+      ...(value.node.expansion === undefined ? {} : { expansion: {
+        mode: value.node.expansion.mode,
+        maxNodes: value.node.expansion.maxNodes,
+        ...(value.node.expansion.itemPath === undefined ? {} : { itemPath: value.node.expansion.itemPath }),
+        ...(value.node.expansion.itemKeyPath === undefined ? {} : { itemKeyPath: value.node.expansion.itemKeyPath }),
+      } }),
+      ...(value.node.subgraph === undefined ? {} : { subgraph: {
+        graphId: GraphId(value.node.subgraph.graphId),
+        revision: value.node.subgraph.revision,
+        input: value.node.subgraph.input,
+        output: value.node.subgraph.output,
+      } }),
+      ...(value.node.workspace === undefined ? {} : { workspace: {
+        mode: value.node.workspace.mode,
+        readRoots: value.node.workspace.readRoots,
+        writeRoots: value.node.workspace.writeRoots,
+        cleanup: value.node.workspace.cleanup,
+      } }),
+    }
     return {
-      ...value,
+      protocolVersion: value.protocolVersion,
       workId: GraphWorkId(value.workId),
       operationId: GraphControlOperationId(value.operationId),
       attemptId: GraphAttemptId(value.attemptId),
       runId: GraphRunId(value.runId),
       generationId: GraphRunGenerationId(value.generationId),
-      node: { ...value.node, id: GraphNodeId(value.node.id), roleId: GraphRoleId(value.node.roleId) } as unknown as GraphNode,
-      role: { ...value.role, id: GraphRoleId(value.role.id) } as GraphRole,
-      prompt: value.prompt as readonly ContentBlock[],
-      outputSchema: value.outputSchema as ObjectJsonSchema,
-      toolFilter: value.toolFilter as ToolRestriction | undefined,
-    } as unknown as WireAssignment
+      activation: value.activation,
+      ownerEpoch: value.ownerEpoch,
+      fencingToken: value.fencingToken,
+      ...(value.activeSubagentLimit === undefined ? {} : { activeSubagentLimit: value.activeSubagentLimit }),
+      node,
+      role: {
+        id: GraphRoleId(value.role.id),
+        label: value.role.label,
+        description: value.role.description,
+        controller: value.role.controller,
+        enabled: value.role.enabled,
+        model: {
+          ...(value.role.model.provider === undefined ? {} : { provider: value.role.model.provider }),
+          ...(value.role.model.model === undefined ? {} : { model: value.role.model.model }),
+          ...(value.role.model.reasoningEffort === undefined ? {} : { reasoningEffort: value.role.model.reasoningEffort }),
+        },
+        prompt: value.role.prompt,
+        ...(value.role.workerProvider === undefined ? {} : { workerProvider: value.role.workerProvider }),
+        maxParallel: value.role.maxParallel,
+      },
+      prompt: value.prompt.map(contentBlock),
+      outputSchema: value.outputSchema,
+      budget: value.budget,
+      workspace: {
+        mode: value.workspace.mode,
+        sourceRoot: value.workspace.sourceRoot,
+        readRoots: value.workspace.readRoots,
+        writeRoots: value.workspace.writeRoots,
+        cleanup: value.workspace.cleanup,
+        ...(value.workspace.sourceRevision === undefined ? {} : { sourceRevision: value.workspace.sourceRevision }),
+        ...(value.workspace.baseContentHash === undefined ? {} : { baseContentHash: value.workspace.baseContentHash }),
+      },
+      deadline: value.deadline,
+      ...(value.toolFilter === undefined ? {} : { toolFilter: {
+        ...(value.toolFilter.allow === undefined ? {} : { allow: value.toolFilter.allow }),
+        ...(value.toolFilter.deny === undefined ? {} : { deny: value.toolFilter.deny }),
+      } }),
+    }
   }
 
   private async launch(jobId: GraphWorkerRemoteJobId, wire: WireAssignment): Promise<void> {
@@ -1333,7 +1458,7 @@ export class HttpGraphWorkerServer {
     if (row === undefined || row.public_reference !== value.providerReference || row.public_json !== JSON.stringify(value)) {
       throw new Error('remote Graph artifact manifest differs from its durable public record')
     }
-    return artifactManifestSchema.parse(JSON.parse(row.internal_json)) as unknown as GraphArtifactManifest
+    return artifactManifest(artifactManifestSchema.parse(JSON.parse(row.internal_json)))
   }
 
   private publishArtifact(publicManifest: GraphArtifactManifest, internalManifest: GraphArtifactManifest): GraphArtifactManifest {
@@ -1348,7 +1473,7 @@ export class HttpGraphWorkerServer {
       || row.public_json !== publicJson || row.internal_json !== internalJson) {
       throw new Error('remote Graph artifact identity conflicts with durable storage')
     }
-    return artifactManifestSchema.parse(JSON.parse(row.public_json)) as unknown as GraphArtifactManifest
+    return artifactManifest(artifactManifestSchema.parse(JSON.parse(row.public_json)))
   }
 
   private findArtifact(manifestId: string): ArtifactRow | undefined {

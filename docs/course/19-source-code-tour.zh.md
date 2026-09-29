@@ -85,7 +85,7 @@ $$M_k = \text{deriveMessages}(E_{0..k}) = \text{Fold}\left( \text{surfaceOp}, \e
 投影函数的具体折叠语义定义如下：
 
 - **消息追加**：当遇到 `user/message`、`assistant/message` 或 `tool/result` 时，根据 `surfaceOp: 'append'` 将结构化消息直接追加至当前列表末尾。
-- **因果溯源**：流式传输事件 `assistant/chunk` 仅在物理日志中存储以供实时下行传输和断点续传，不直接占用大模型上下文，而是由最终生成的 `assistant/message` 通过 `sourceEventSeqs: [seq_1, seq_2, ...]` 数组进行显式因果追踪。
+- **来源事件链接**：流式传输事件 `assistant/chunk` 仅在物理日志中存储以供实时下行传输和断点续传，不直接占用大模型上下文，而是由最终生成的 `assistant/message` 通过 `sourceEventSeqs: [seq_1, seq_2, ...]` 数组进行显式关联。
 - **历史压缩**：当触发会话压缩（Compaction）时，被遮蔽（Shadowed）的历史事件在物理日志中永远保留以供确定性回放，但在 `deriveMessages()` 投影时被单条结构化摘要（Summary）替换。
 
 #### 3. 关键代码文件与深度导读
@@ -127,8 +127,8 @@ stateDiagram-v2
 
 #### 2. 关键代码文件与深度导读
 
-- **`packages/session/session-persistence/src/write-behind.ts`**：写入后写缓冲控制器 `SessionWriteBehind`。为了避免每次微小的 `assistant/chunk` 都触发同步磁盘 I/O，系统维护了一个有界缓冲队列。采用基于定时器（`maxDelayMs`，默认 200ms）的批次合并策略；提供显式内存屏障 `flush()`：当遇到轮次结束、关键工具执行或会话导出时，强制触发 Quiescence 屏障，确保所有在途事件已物理落盘（`fsync`）。
-- **`packages/session/session-persistence/src/coordinator.ts`**：持久化协调器。负责多会话的生命周期接管、损坏检测（`SessionPersistenceCorruptionError`）、日志格式版本协商（`SESSION_FORMAT_VERSION`）以及崩溃恢复（Crash Recovery）。
+- **`packages/session/session-persistence-jsonl`**：写入后写缓冲控制器 `SessionWriteBehind`。为了避免每次微小的 `assistant/chunk` 都触发同步磁盘 I/O，系统维护了一个有界缓冲队列。采用基于定时器（`maxDelayMs`，默认 200ms）的批次合并策略；提供显式内存屏障 `flush()`：当遇到轮次结束、关键工具执行或会话导出时，强制触发 Quiescence 屏障，确保所有在途事件已物理落盘（`fsync`）。
+- **`packages/session/session-persistence-jsonl`**：持久化协调器。负责多会话的生命周期接管、损坏检测（`SessionPersistenceCorruptionError`）、日志格式版本协商（`SESSION_FORMAT_VERSION`）以及崩溃恢复（Crash Recovery）。
 - **`packages/host/apiproxy/src/api-proxy.ts`** 与 **`packages/host/apiproxy/src/api/`**：前后端通信网关。定义了基于四象限的可辨识联合类型（`ClientRequest`、`ServerResponse`、`ServerRequest`、`ClientResponse`）。所有 API 请求严格通过 Zod Schema 进行两层解析：先校验外层信封（Envelope），再校验业务载荷（Payload），并通过统一的 `RpcResult` 传递封闭错误码。
 - **`packages/client/runtime/src/`**：浏览器端 Cordis 运行时。包含 `ConversationNodeAssembler`、`SessionRuntime` 与 `WorkspaceRuntime`。它订阅来自 Host 的 Mux 事件流（`session/projection`），使用 Immer/Zustand 维护不可变的前端视图状态，实现无需刷新全量会话的增量 UI 渲染。
 

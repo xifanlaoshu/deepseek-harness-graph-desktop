@@ -1,9 +1,14 @@
 /** Resolve the Desktop auto-update channel and its Tencent COS destination. */
 
 import { valid } from 'semver'
+import { OFFICIAL_DESKTOP_APP_ID, resolveDesktopAppId } from './desktop-release-environment.mjs'
 
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV = 'DSH_DESKTOP_AUTO_UPDATE_ENV'
+export const DESKTOP_UPDATE_MODE_ENV = 'DSH_DESKTOP_UPDATE_MODE'
+
+const PRODUCTION_UPDATE_ORIGIN_ENV = 'DSH_DESKTOP_UPDATE_ORIGIN'
+const OFFICIAL_UPDATE_ORIGIN = 'https://download.deepseek.com'
 
 const UPDATE_ENVIRONMENTS = {
   test: {
@@ -15,7 +20,7 @@ const UPDATE_ENVIRONMENTS = {
   },
   production: {
     originEnvName: undefined,
-    fixedOrigin: 'https://download.deepseek.com',
+    fixedOrigin: OFFICIAL_UPDATE_ORIGIN,
     bucketEnvName: 'DOWNLOAD_PROD_COS_BUCKET',
     secretIdEnvName: 'DOWNLOAD_PROD_COS_SECRET_ID',
     secretKeyEnvName: 'DOWNLOAD_PROD_COS_SECRET_KEY',
@@ -23,6 +28,41 @@ const UPDATE_ENVIRONMENTS = {
 }
 
 const UPDATE_TARGETS = new Set(['mac-arm64', 'mac-x64', 'win-x64'])
+const DISABLED_UPDATE_CONFLICTS = [
+  DESKTOP_AUTO_UPDATE_ENV,
+  'DSH_DESKTOP_UPDATE_ORIGIN',
+  'DOWNLOAD_TEST_ORIGIN', 'DOWNLOAD_TEST_RELEASE_ID', 'DOWNLOAD_TEST_COS_BUCKET',
+  'DOWNLOAD_TEST_COS_SECRET_ID', 'DOWNLOAD_TEST_COS_SECRET_KEY',
+  'DOWNLOAD_PROD_COS_BUCKET', 'DOWNLOAD_PROD_COS_SECRET_ID', 'DOWNLOAD_PROD_COS_SECRET_KEY',
+  'DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN', 'DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN',
+  'DSH_DESKTOP_MANDATORY_UPDATE_CONFIG',
+]
+
+/**
+ * Resolve whether this application publishes updates through a feed.
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {'feed' | 'disabled'} Validated update mode.
+ */
+export function resolveDesktopUpdateMode(env) {
+  const value = env[DESKTOP_UPDATE_MODE_ENV]?.trim() || 'feed'
+  if (value !== 'feed' && value !== 'disabled') {
+    throw new Error(`desktop auto-update: ${DESKTOP_UPDATE_MODE_ENV} must be "feed" or "disabled"`)
+  }
+  if (value === 'disabled') {
+    const appId = resolveDesktopAppId(env)
+    if (appId === OFFICIAL_DESKTOP_APP_ID) {
+      throw new Error(`desktop auto-update: disabled mode is only available for custom application IDs`)
+    }
+    const configured = [...new Set([
+      ...DISABLED_UPDATE_CONFLICTS,
+      ...Object.keys(env).filter(name => /^(?:DOWNLOAD_(?:TEST|PROD)_|DSH_DESKTOP_MANDATORY_UPDATE_)/u.test(name)),
+    ])].filter(name => env[name]?.trim())
+    if (configured.length > 0) {
+      throw new Error(`desktop auto-update: disabled mode cannot include feed, upload, or mandatory-policy settings (${configured.join(', ')})`)
+    }
+  }
+  return value
+}
 
 /**
  * Resolve the update deployment, defaulting local release work to test.
@@ -125,14 +165,33 @@ function httpsOrigin(value, name) {
  * @param {NodeJS.Platform} platform - Target Node.js platform.
  * @param {string} arch - Target Node.js architecture.
  * @returns {{ environment: 'test' | 'production', target: 'mac-arm64' | 'mac-x64' | 'win-x64', origin: string, publicUrl: string, keyPrefix: string, binaryKeyPrefix: string }} Resolved updater configuration.
- * @throws {Error} When the test deployment lacks a valid HTTPS origin or a 32-character lowercase hexadecimal release ID.
+ * @throws {Error} When the deployment origin or release ID is invalid, or production identity lacks a separate update origin.
  */
 export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
+  if (resolveDesktopUpdateMode(env) === 'disabled') {
+    throw new Error('desktop auto-update: feed configuration is unavailable when updates are disabled')
+  }
   const environment = resolveDesktopAutoUpdateEnvironment(env)
   const target = resolveDesktopAutoUpdateTarget(platform, arch)
   const deployment = UPDATE_ENVIRONMENTS[environment]
   let origin = deployment.fixedOrigin
-  if (origin === undefined) {
+  if (environment === 'production') {
+    const configuredOrigin = env[PRODUCTION_UPDATE_ORIGIN_ENV]?.trim() ?? ''
+    const appId = resolveDesktopAppId(env)
+    if (configuredOrigin !== '') {
+      origin = httpsOrigin(configuredOrigin, PRODUCTION_UPDATE_ORIGIN_ENV)
+      if (appId !== OFFICIAL_DESKTOP_APP_ID && origin === OFFICIAL_UPDATE_ORIGIN) {
+        throw new Error(`desktop auto-update: ${PRODUCTION_UPDATE_ORIGIN_ENV} must not use the official update origin for ${appId}`)
+      }
+    }
+    else if (appId !== OFFICIAL_DESKTOP_APP_ID) {
+      throw new Error(`desktop auto-update: ${PRODUCTION_UPDATE_ORIGIN_ENV} must be set to a separate HTTPS origin for ${appId}`)
+    }
+  }
+  else {
+    if (env[PRODUCTION_UPDATE_ORIGIN_ENV]?.trim()) {
+      throw new Error(`desktop auto-update: ${PRODUCTION_UPDATE_ORIGIN_ENV} applies only to production; use DOWNLOAD_TEST_ORIGIN for test`)
+    }
     const { originEnvName } = deployment
     if (originEnvName === undefined) throw new Error('desktop auto-update: selected deployment has no origin')
     origin = httpsOrigin(requiredEnvironmentValue(env, originEnvName), originEnvName)
@@ -165,6 +224,9 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
  * @throws {Error} When the selected deployment lacks a bucket or valid updater configuration.
  */
 export function resolveDesktopUploadConfig(env, platform, arch) {
+  if (resolveDesktopUpdateMode(env) === 'disabled') {
+    throw new Error('desktop auto-update: uploads are unavailable when updates are disabled')
+  }
   const update = resolveDesktopAutoUpdateConfig(env, platform, arch)
   const deployment = UPDATE_ENVIRONMENTS[update.environment]
   return {

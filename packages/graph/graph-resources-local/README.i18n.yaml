@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graph/graph-resources-local/README.md
-README.md: f052761fe50cb8a69ecd07eef173005ee434e426
-README.zh.md: 0ed989ade2787cefab25744c4c8d8a8f21652522
+/:
+  en: b12e4028e8371215
+  zh: fa2d42d5b5870e89
+/deepseek-ai-dsh-graph-resources-local:
+  en: f7766dc2284b2f83
+  zh: 93c495a8012cd28f
+/deepseek-ai-dsh-graph-resources-local/summary:
+  en: 5f92fd353904852c
+  zh: 9e7ae4ec7ca551da
+/deepseek-ai-dsh-graph-resources-local/table-of-contents:
+  en: 22d9978e99929943
+  zh: cd4945ae7c59741b
+/deepseek-ai-dsh-graph-resources-local/configuration:
+  en: 70d6ade87915af31
+  zh: 2c3e69b9a426782d
+/deepseek-ai-dsh-graph-resources-local/contract:
+  en: 3d61a3065bcde9f4
+  zh: 7769a6a748881e04
+/deepseek-ai-dsh-graph-resources-local/dev-note:
+  en: ce58c37c6568c875
+  zh: 62c4ed820a490223
+/deepseek-ai-dsh-graph-resources-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-graph-resources-local/model-experience/local-capacity-evidence:
+  en: 5a54e39cc8b5db0d
+  zh: f07242759e9d39c9
+/deepseek-ai-dsh-graph-resources-local/model-experience/local-capacity-evidence/what-the-model-sees:
+  en: 7e7908f832a4102e
+  zh: 4fb41989d02e0a83
+/deepseek-ai-dsh-graph-resources-local/model-experience/local-capacity-evidence/token-effect:
+  en: 17b26ecf1e28949e
+  zh: 3c2910b8a8b819a0
+/deepseek-ai-dsh-graph-resources-local/model-experience/local-capacity-evidence/kv-cache-effect:
+  en: f63629d2247c5d32
+  zh: b92d168f469b46b6
+/deepseek-ai-dsh-graph-resources-local/known-limitations-and-deferred-work:
+  en: 518bfb224fdad757
+  zh: 572b75d49eccf9b5

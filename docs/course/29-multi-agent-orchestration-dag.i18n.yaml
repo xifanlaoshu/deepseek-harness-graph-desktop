@@ -1,6 +1,133 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 29-multi-agent-orchestration-dag.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/29-multi-agent-orchestration-dag.md
-29-multi-agent-orchestration-dag.md: 4314df25280b17a6fe958868cecdca4ade149123
-29-multi-agent-orchestration-dag.zh.md: 96d3b827d04f9277b50c7234d1d00f3b679915c3
+/chapter-29-multi-agent-orchestration-and-task-graph-design:
+  en: 295fa293656b5aeb
+  zh: fc258ebb9a668a6d
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration:
+  en: 6d75c1c1d2ddeaa4
+  zh: 0990802430d0401a
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-1-systems-programming-analogy-from-one-event-loop-to-a-distributed-task-graph:
+  en: 3e11a0eb213d036e
+  zh: 6885118bd9dbf30d
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-2-physical-limits-of-a-serial-agent-and-three-failure-barriers:
+  en: 6c4929d7a858154d
+  zh: a18195e1c8af03a4
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-2-physical-limits-of-a-serial-agent-and-three-failure-barriers/1-2-1-context-growth-and-linear-kv-cache-consumption:
+  en: b6c2163e744a4e13
+  zh: b6beea1c816f660b
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-2-physical-limits-of-a-serial-agent-and-three-failure-barriers/1-2-2-attention-dilution-and-lost-in-the-middle-effects:
+  en: a7f6364d0ab97fae
+  zh: 9113fbbf646004ef
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-2-physical-limits-of-a-serial-agent-and-three-failure-barriers/1-2-3-cascading-error-amplification:
+  en: b59d1bfe8825a886
+  zh: fdb75b7ed8f00ea5
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-3-engineering-failures-of-naive-scatter-gather-parallelism:
+  en: ba11472574ff8af0
+  zh: 4c262e8577beee07
+/chapter-29-multi-agent-orchestration-and-task-graph-design/1-why-multi-agent-work-is-more-than-parallelism-serial-agents-versus-dag-orchestration/1-4-when-to-use-a-multi-agent-dag-costs-and-trade-offs:
+  en: 8b6eac523315a3a8
+  zh: e2cb8dc4db82125d
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability:
+  en: e8c7d61841455336
+  zh: 1f2c441c07ef521e
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-1-node-artifacts-and-content-addressed-manifests:
+  en: 54051ec3fc17cb4f
+  zh: f19125fe9109ada0
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-2-measurable-acceptance-criteria:
+  en: 3200ff45bff3c329
+  zh: b3e159f3a7610ba8
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-3-non-overlapping-relative-write-roots-writeroots-and-workspace-isolation:
+  en: 44839aad1bd3aad1
+  zh: ff7c9a19075f7e04
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-3-non-overlapping-relative-write-roots-writeroots-and-workspace-isolation/2-3-1-detecting-path-prefix-overlap:
+  en: 6766d6ffda3744b4
+  zh: 171c2e9848eb1ebc
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-3-non-overlapping-relative-write-roots-writeroots-and-workspace-isolation/2-3-2-topological-reachability-and-the-concurrent-conflict-rule:
+  en: bc5bda8e634cc413
+  zh: 598f061a6a6ea644
+/chapter-29-multi-agent-orchestration-and-task-graph-design/2-task-graph-design-obligations-isolation-and-testability/2-4-structured-review-nodes-and-the-repair-state-machine:
+  en: cf1dd3d9426e733c
+  zh: 44416067e53fb373
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas:
+  en: d03ec3a190482b99
+  zh: 186d0144d4b26f47
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-1-deriving-the-critical-path-method-cpm:
+  en: 8640441c54544a11
+  zh: fbfa4d11598d93a8
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-1-deriving-the-critical-path-method-cpm/3-1-1-earliest-start-es-and-earliest-finish-ef:
+  en: ab2df26a117c4759
+  zh: f79c26673656e5dd
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-1-deriving-the-critical-path-method-cpm/3-1-2-latest-finish-lf-and-latest-start-ls:
+  en: 5d228119769ffdf7
+  zh: 51da202e95b3d5c4
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-1-deriving-the-critical-path-method-cpm/3-1-3-total-slack-float-and-critical-path-membership:
+  en: 58c0452e4f87848a
+  zh: eb5f1a44bdce011b
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-2-end-to-end-task-graph-duration:
+  en: 4a68b1b4ca3aab0e
+  zh: 15980b53c86e7bbf
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-3-worked-seven-node-engineering-graph:
+  en: c48b18ebe7d55187
+  zh: 1c2972266047454b
+/chapter-29-multi-agent-orchestration-and-task-graph-design/3-critical-path-scheduling-cpm-and-duration-formulas/3-4-resource-admission-and-deadlock-prevention:
+  en: 8766731f93b579f1
+  zh: e77214de1cda4716
+/chapter-29-multi-agent-orchestration-and-task-graph-design/4-campaign-and-batch-organization-avoid-copying-all-historical-nodes:
+  en: d1df6abe3db510ae
+  zh: 8c10ab343851557b
+/chapter-29-multi-agent-orchestration-and-task-graph-design/4-campaign-and-batch-organization-avoid-copying-all-historical-nodes/4-1-four-costs-of-copying-historical-nodes:
+  en: 30e6fd1b35e01184
+  zh: 13d0f8f37a4b0240
+/chapter-29-multi-agent-orchestration-and-task-graph-design/4-campaign-and-batch-organization-avoid-copying-all-historical-nodes/4-2-two-level-campaign-and-batch-topology:
+  en: b3f0eedc0dd55bab
+  zh: d23ce63553f7cd93
+/chapter-29-multi-agent-orchestration-and-task-graph-design/4-campaign-and-batch-organization-avoid-copying-all-historical-nodes/4-3-immutable-plan-prefix-and-dynamic-tail-extension-planextension:
+  en: 56d842748f8496d3
+  zh: f47aa91696c62ef9
+/chapter-29-multi-agent-orchestration-and-task-graph-design/4-campaign-and-batch-organization-avoid-copying-all-historical-nodes/4-4-passing-evidence-references:
+  en: f8476970648d3385
+  zh: 8ccd943e8af5c7c5
+/chapter-29-multi-agent-orchestration-and-task-graph-design/5-specialized-node-roles-and-responsibilities:
+  en: 83003fbf098a1070
+  zh: 0e34a01d06e33d40
+/chapter-29-multi-agent-orchestration-and-task-graph-design/5-specialized-node-roles-and-responsibilities/5-1-environment-nodes-isolate-host-changes-and-privileges:
+  en: 6b6c15f9a369a0d6
+  zh: 71cf16f1b45551df
+/chapter-29-multi-agent-orchestration-and-task-graph-design/5-specialized-node-roles-and-responsibilities/5-2-implementation-nodes-produce-code-in-a-restricted-sandbox:
+  en: 019ad87647b117cf
+  zh: facf4eafe24de643
+/chapter-29-multi-agent-orchestration-and-task-graph-design/5-specialized-node-roles-and-responsibilities/5-3-integration-nodes-merge-branches-and-resolve-drift:
+  en: 446a0ff000d5671e
+  zh: 6f9ce18888307022
+/chapter-29-multi-agent-orchestration-and-task-graph-design/5-specialized-node-roles-and-responsibilities/5-4-browser-tester-nodes-verify-real-end-to-end-web-flows:
+  en: b183b1bfd9be0cb3
+  zh: 3ccf3191574b23d4
+/chapter-29-multi-agent-orchestration-and-task-graph-design/6-typescript-implementation-a-dag-orchestration-engine:
+  en: ab954c27afecf5ef
+  zh: f03fda7eb63935aa
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses:
+  en: 15a8ffaea8e7ce9e
+  zh: 596b391283093d4c
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses/7-1-case-one-overlapping-worker-write-roots-overwrite-code-and-produce-a-dirty-git-commit:
+  en: cbd0fa3e436a6e4c
+  zh: 852360cf1a384965
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses/7-2-case-two-copying-all-historical-nodes-overflows-the-controller-prompt:
+  en: 75232b51f543ec55
+  zh: 3747cb69a78aa9cf
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses/7-3-case-three-worker-exit-leaves-a-lease-locked-and-downstream-work-blocked:
+  en: b2afc0bdadcb4e05
+  zh: 59f1fdaa8f3afba5
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses/7-4-case-four-an-environment-node-bypasses-approval-and-breaks-host-glibc:
+  en: 1a5208e4a91bbfd5
+  zh: 87e6d2288c003c2e
+/chapter-29-multi-agent-orchestration-and-task-graph-design/7-five-production-failure-cases-and-root-cause-analyses/7-5-case-five-leaked-browser-tester-pages-leave-zombie-chromium-processes:
+  en: b8b4a1d3ba78de51
+  zh: a8851d49b21c624a
+/chapter-29-multi-agent-orchestration-and-task-graph-design/8-chapter-summary-and-architecture-checklist:
+  en: 7a88c08aedd3de9e
+  zh: 8e049bf5c6589b2c
+/chapter-29-multi-agent-orchestration-and-task-graph-design/8-chapter-summary-and-architecture-checklist/8-1-task-graph-maturity-checklist:
+  en: 43ac9de4801f329c
+  zh: 93babf05f9d98fa8

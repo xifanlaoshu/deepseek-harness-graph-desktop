@@ -9,7 +9,7 @@ const WINDOWS = { platform: 'win32', arch: 'x64' } as const
 const MACOS = { platform: 'darwin', arch: 'arm64' } as const
 const POLICY = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
   DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
-const RELEASE = { ...POLICY, DSH_DESKTOP_APP_ID: 'com.example.desktop', DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
+const RELEASE = { ...POLICY, DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
   DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef' }
 const MAC_IDENTITY = { DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)', DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234' }
 
@@ -25,9 +25,11 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 describe('Desktop local packaging configuration', () => {
   it('takes cache concurrency from the Windows file and defaults to four without ambient overrides', async () => {
     await withDirectory(async (directory) => {
-      const parent = { DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '8' }
+      const parent = { DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY: '8', DSH_DESKTOP_UPDATE_ORIGIN: 'https://stale.example.com' }
       await writeFile(join(directory, '.env.windows'), '')
-      expect(resolveWindowsPackageSettings(loadDesktopPackageEnvironment('win32', parent, directory)).signatureCacheConcurrency).toBe(4)
+      const loaded = loadDesktopPackageEnvironment('win32', parent, directory)
+      expect(resolveWindowsPackageSettings(loaded).signatureCacheConcurrency).toBe(4)
+      expect(loaded.DSH_DESKTOP_UPDATE_ORIGIN).toBeUndefined()
       await writeFile(join(directory, '.env.windows'), 'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY=2\n')
       expect(resolveWindowsPackageSettings(loadDesktopPackageEnvironment('win32', parent, directory)).signatureCacheConcurrency).toBe(2)
     })
@@ -49,10 +51,10 @@ describe('Desktop local packaging configuration', () => {
 
   it('selects the platform file, preserves literal secrets, and excludes stale ambient release settings', async () => {
     await withDirectory(async (directory) => {
-      await writeFile(join(directory, '.env.windows'), '\uFEFFDSH_DESKTOP_APP_ID=com.example.windows\r\nDSH_DESKTOP_WINDOWS_TOKEN_PIN=" #!$%&literal "\r\nDSH_DESKTOP_WINDOWS_CER_FILE="keys/public certificate.cer"\r\n')
-      await writeFile(join(directory, '.env.macos'), 'DSH_DESKTOP_APP_ID=com.example.mac\nAPPLE_KEYCHAIN_PROFILE=release\nCSC_LINK=keys/signing.p12\nCSC_KEY_PASSWORD=" # literal "\n')
+      await writeFile(join(directory, '.env.windows'), '\uFEFFDSH_DESKTOP_APP_ID=com.example.windows\r\nDSH_DESKTOP_UPDATE_ORIGIN=https://windows-updates.example.com\r\nDSH_DESKTOP_WINDOWS_TOKEN_PIN=" #!$%&literal "\r\nDSH_DESKTOP_WINDOWS_CER_FILE="keys/public certificate.cer"\r\n')
+      await writeFile(join(directory, '.env.macos'), 'DSH_DESKTOP_APP_ID=com.example.mac\nDSH_DESKTOP_UPDATE_ORIGIN=https://mac-updates.example.com\nAPPLE_KEYCHAIN_PROFILE=release\nCSC_LINK=keys/signing.p12\nCSC_KEY_PASSWORD=" # literal "\n')
       const parent = {
-        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.stale.desktop',
+        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.stale.desktop', DSH_DESKTOP_UPDATE_ORIGIN: 'https://stale.example.com',
         DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: '{"origin":"https://stale.example.com"}',
         dsh_desktop_mandatory_update_config: 'stale-policy',
         DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://stale.example.com',
@@ -63,16 +65,60 @@ describe('Desktop local packaging configuration', () => {
         dsh_desktop_windows_key_container: 'case-insensitive-stale-container',
       }
       expect(loadDesktopPackageEnvironment('win32', parent, directory)).toEqual({
-        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.example.windows',
+        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.example.windows', DSH_DESKTOP_UPDATE_ORIGIN: 'https://windows-updates.example.com',
         DSH_DESKTOP_WINDOWS_TOKEN_PIN: ' #!$%&literal ',
         DSH_DESKTOP_WINDOWS_CER_FILE: join(directory, 'keys', 'public certificate.cer'),
       })
       expect(loadDesktopPackageEnvironment('darwin', parent, directory)).toEqual({
-        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.example.mac', APPLE_KEYCHAIN_PROFILE: 'release',
+        PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.example.mac', DSH_DESKTOP_UPDATE_ORIGIN: 'https://mac-updates.example.com', APPLE_KEYCHAIN_PROFILE: 'release',
         CSC_LINK: join(directory, 'keys/signing.p12'), CSC_KEY_PASSWORD: ' # literal ',
       })
       expect(parent.DSH_DESKTOP_WINDOWS_TOKEN_PIN).toBe('stale-pin')
       expect(parent.dsh_desktop_mandatory_update_config).toBe('stale-policy')
+    })
+  })
+
+  it('takes the optional Chrome payload directory only from the Windows dotenv file', async () => {
+    await withDirectory(async (directory) => {
+      await writeFile(join(directory, '.env.windows'), 'DSH_DESKTOP_CHROME_PAYLOAD_DIR=private/chrome\n')
+      const parent = { DSH_DESKTOP_CHROME_PAYLOAD_DIR: join(directory, 'ambient-chrome') }
+      expect(loadDesktopPackageEnvironment('win32', parent, directory).DSH_DESKTOP_CHROME_PAYLOAD_DIR)
+        .toBe(join(directory, 'private', 'chrome'))
+      await writeFile(join(directory, '.env.windows'), '')
+      expect(loadDesktopPackageEnvironment('win32', parent, directory).DSH_DESKTOP_CHROME_PAYLOAD_DIR).toBeUndefined()
+      await writeFile(join(directory, '.env.macos'), 'DSH_DESKTOP_CHROME_PAYLOAD_DIR=private/chrome\n')
+      expect(() => loadDesktopPackageEnvironment('darwin', {}, directory)).toThrow(/unsupported setting DSH_DESKTOP_CHROME_PAYLOAD_DIR/u)
+    })
+  })
+
+  it('accepts update mode only from the release dotenv and removes stale ambient mode', async () => {
+    await withDirectory(async (directory) => {
+      const parent = { DSH_DESKTOP_UPDATE_MODE: 'disabled' }
+      await writeFile(join(directory, '.env.windows'), 'DSH_DESKTOP_UPDATE_MODE=feed\n')
+      expect(loadDesktopPackageEnvironment('win32', parent, directory).DSH_DESKTOP_UPDATE_MODE).toBe('feed')
+      await writeFile(join(directory, '.env.windows'), '')
+      expect(loadDesktopPackageEnvironment('win32', parent, directory).DSH_DESKTOP_UPDATE_MODE).toBeUndefined()
+    })
+  })
+
+  it('loads fork identity fields only from the selected dotenv and validates them before packaging', async () => {
+    await withDirectory(async (directory) => {
+      const identity = 'DSH_DESKTOP_PRODUCT_NAME=DSH Graph Desktop\nDSH_DESKTOP_PROTOCOL_SCHEME=dshgraph\nDSH_DESKTOP_USER_DATA_DIR_NAME=DSH-Graph-Desktop\n'
+      await writeFile(join(directory, '.env.windows'), `DSH_DESKTOP_APP_ID=com.example.dshfork\n${identity}`)
+      const parent = {
+        DSH_DESKTOP_PRODUCT_NAME: 'Stale Product', DSH_DESKTOP_PROTOCOL_SCHEME: 'stale',
+        DSH_DESKTOP_USER_DATA_DIR_NAME: 'Stale-Data',
+      }
+      const loaded = loadDesktopPackageEnvironment('win32', parent, directory)
+      expect(loaded).toMatchObject({
+        DSH_DESKTOP_PRODUCT_NAME: 'DSH Graph Desktop', DSH_DESKTOP_PROTOCOL_SCHEME: 'dshgraph',
+        DSH_DESKTOP_USER_DATA_DIR_NAME: 'DSH-Graph-Desktop',
+      })
+      expect(parent.DSH_DESKTOP_PRODUCT_NAME).toBe('Stale Product')
+      expect(() =>{  validateDesktopPackageEnvironment({ ...loaded, DSH_DESKTOP_PROTOCOL_SCHEME: 'dsh-app' }, WINDOWS, { unsigned: true }) })
+        .toThrow(/DSH_DESKTOP_PROTOCOL_SCHEME/u)
+      await writeFile(join(directory, '.env.macos'), 'DSH_DESKTOP_PROTOCOL_SCHEME=dshmac\n')
+      expect(loadDesktopPackageEnvironment('darwin', {}, directory).DSH_DESKTOP_PROTOCOL_SCHEME).toBe('dshmac')
     })
   })
 

@@ -127,7 +127,7 @@ export async function updateProjectLabelAntiPattern(ctx: Context, label: string)
 
 1. **生命周期粒度错配（Lifecycle Scope Mismatch）**：`Settings` 在架构中属于**配置（Configuration）**——它是静态的、声明式的环境意图，其作用域通常是“工作区（Workspace）”或“当前用户（User Profile）”。而项目标签是**会话级（Session Scope）**的动态运行时状态。将单个会话的操作持久化到全局 Settings，将导致同一工作区下并发运行的其他会话被静默篡改。
 
-2. **缺乏历史因果链（Loss of Causality & Provenance）**：`Settings` 存储的是状态的“最终值（Latest Value）”，它不包含时间戳、不包含是谁在哪个 Step 触发的修改，也无法与特定的模型交互 Turn 关联。这使得自动化评测（Eval）与调试排障完全失去对账线索。
+2. **缺乏变更历史**：`Settings` 只保存最新值，不记录修改者、发生修改的 Step 或受影响的模型 Turn。因此，自动化评测（Eval）与调试排障缺少重建变更所需的证据。
 
 ### 2.3 方案 C：不可变事件溯源账本（Session Event Sourcing WAL）
 

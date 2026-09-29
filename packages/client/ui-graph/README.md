@@ -1,10 +1,39 @@
+---
+description: "Choose and inspect durable Graph designs, runs, revisions, and node evidence in the browser client. The page also explains Graph role-template settings and their host-owned validation."
+kind: "package-reference"
+---
+
 # `@deepseek-ai/dsh-client-ui-graph`
 
 English | [中文](README.zh.md)
 
+## Summary
+
+Use the browser Graph panel to inspect immutable designs, execution evidence, revisions, and campaign batches, and to manage session and global role settings. The Host remains authoritative for graph state and validates every durable operation.
+
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
+<a id="use-this-package"></a>
+## Use this package
+
+Use the Graph client when you need to inspect runs, revise settings, or control supported node operations from a session.
+
+<a id="understand-the-implementation"></a>
+## Understand the implementation
+
+The client renders Host projections and sends revision-, generation-, and attempt-fenced commands; it does not own authoritative Graph state.
+
 The Graph workspace has Design, Execution, and Revisions as three primary tabs. Revisions renders logical tasks as vertical lanes and their immutable revisions from left to right. Typed curved links distinguish planning refactors, execution corrections, historical parents, and cross-Batch dependencies. Search covers task text, roles, actual model routes, and error codes; type and Run-state filters plus bounded expansion keep long histories navigable. A delayed hover preview gives the objective and trigger, while selection opens a persistent drawer with creation reason, graph difference, runtime metrics, relationships, safe event references, and direct navigation to the selected Design or Execution view. Historical submissions without lineage remain visible as unclassified, and unavailable child telemetry is never displayed as zero.
 
-The browser half registers a session-header action that renders only while the session's `graph` projection is active. Design contains only the controller-authored immutable graph. Execution places the selected run graph on the left and a scrollable node summary list on the right; selecting a graph node or summary opens the complete evidence and control dialog. DOM controls and every Cytoscape canvas share one cross-platform reading font stack with restrained 400/500 weights, while structured JSON, checkpoints, and identifiers use a Cascadia Mono/Consolas-style stack without ligatures. Cytoscape renders the active read-only directed canvas with smooth dependency curves, medium-weight node labels, explicit fit and zoom controls, arrow-key node navigation, and an overview for large graphs. Run evidence and node selection preserve the active viewport; the canvas lays out and fits again only when the selected immutable revision changes or the user requests fit-to-view. The node dialog shows the enforced output schema, conditional members and branch decisions, expansion or subgraph definition, execution provenance, checkpoints, per-node timing, effective role/model/worker routing, attempts, outputs, artifacts, operation journal, settlements, terminal rule, LoopX claim ids, and child-session links. Its title bar exposes the authoritative full-child-session action for the latest attempt so the complete messages and tool events are immediately reachable; continuation-session actions remain attached to their originating attempts.
+The browser half registers a session-header action that renders only while the session's `graph` projection is active. Design contains only the controller-authored immutable graph. Execution places the selected run graph on the left and a scrollable node summary list on the right; selecting a graph node or summary opens the complete evidence and control dialog. DOM controls and every Cytoscape canvas share one cross-platform reading font stack with restrained 400/500 weights, while structured JSON, checkpoints, and identifiers use a Cascadia Mono/Consolas-style stack without ligatures. Cytoscape renders the active read-only directed canvas with smooth dependency curves, medium-weight node labels, explicit fit and zoom controls, arrow-key node navigation, and an overview for large graphs. Run evidence and node selection preserve the active viewport; the canvas lays out and fits again only when the selected immutable revision changes or the user requests fit-to-view. The node dialog shows the enforced output schema, conditional members and branch decisions, expansion or subgraph definition, source-run references, checkpoints, per-node timing, effective role/model/worker routing, attempts, outputs, artifacts, operation journal, settlements, terminal rule, LoopX claim ids, and child-session links. Its title bar exposes the authoritative full-child-session action for the latest attempt so the complete messages and tool events are immediately reachable; continuation-session actions remain attached to their originating attempts.
 
 When the projection contains a Campaign, the panel places an ordered horizontal Batch track above the canvas. The heading shows the durable plan revision. Each card shows the plan revision that introduced it, objective, durable status, latest Revision, and Settlement count; its tooltip includes any extension reason and source Batch, Run, and Settlement count. Selecting a completed card opens that Batch's independent historical Graph; it does not merge the Batch nodes into the current Graph or change the durable current graph identity. A planned Batch remains disabled until the controller creates its graph.
 
@@ -16,6 +45,18 @@ The header settings action opens an editor for the durable Graph Mode configurat
 
 The Plugins settings page also registers a Graph role-template tab independent of the active session. It reads the session-independent model directory and exposes the same concurrency, controller fallback, and compaction settings as the session editor, validates the complete template, rejects millisecond policy values above the Node timer limit `2_147_483_647`, and saves through the revision-fenced `graph-mode` settings namespace. Concurrent edits retain the local draft and require an explicit reload. A session copies the template only on its first Graph activation, so later global edits cannot change an existing session's role prompts, model route, limits, compaction, replay, or recovery.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because Graph state is projected by Host and client tests cover slot teardown.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Graph panel and settings

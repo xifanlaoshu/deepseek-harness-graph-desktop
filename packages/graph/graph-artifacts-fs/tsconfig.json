@@ -8,7 +8,6 @@
     { "path": "../../util/atomic-write" },
     { "path": "../graph" },
     { "path": "../graph-worker" },
-    { "path": "../graph-artifacts" },
-    { "path": "../../runtime-diagnostics/invariants" }
+    { "path": "../graph-artifacts" }
   ]
 }

@@ -1,9 +1,28 @@
+---
+description: "Observe expiring model-resource capacity and reserve it for fenced Graph work. This reference describes the provider-neutral service and its evidence limits."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-resources
 
 English | [中文](README.zh.md)
 
+## Summary
+
+Observe expiring capacity and reserve resources for fenced Graph work. Providers supply telemetry and reservation policy while durable Graph limits remain hard ceilings.
+
+## Table of Contents
+
+- [Dev Note](#dev-note)
+- [Contract](#contract)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
 `ctx.graphResources` is the Service Definition for expiring model-resource observations, fenced reservations, and runtime capacity outcomes used by Graph admission. Static Graph configuration remains the hard ceiling; Provider telemetry can only reduce or delay eligibility.
 
+<a id="contract"></a>
 ## Contract
 
 - A snapshot identifies one exact provider/model route and may report route status, active requests, queue depth, concurrency and weight limits, context/output capacity, memory class, available device memory, recent OOM, and rate-limit expiry. Unknown fields remain absent.
@@ -14,6 +33,18 @@ English | [中文](README.zh.md)
 - Telemetry never authorizes an unconfigured model, raises a configured parallel or weight limit, or proves an external effect completed.
 - Every Provider runs the shared resource conformance suite. It verifies stable reservation replay, conflicting-request rejection, monotonic replacement fencing, stale-write rejection, capacity waiting, idempotent release and recovery, and OOM backoff.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because resource observations expire and are validated on every operation.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Resource evidence

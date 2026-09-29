@@ -1,5 +1,6 @@
 /** Ordinary feed polling; policy queries and user-authorized transfers keep their own lifetimes. */
 
+import { resolveDurationMs } from './duration-env.ts'
 import type { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import type { DesktopUpdateState } from './ipc.ts'
 
@@ -16,15 +17,8 @@ export interface DesktopUpdateScheduleConfig {
  * @returns Validated durations and fractional jitter.
  */
 export function resolveDesktopUpdateScheduleConfig(env: NodeJS.ProcessEnv): DesktopUpdateScheduleConfig {
-  function duration(name: string, fallback: number): number {
-    const value = Number(env[name] ?? fallback)
-    if (!Number.isSafeInteger(value) || value < 1_000 || value > 2_147_483_647) {
-      throw new Error(`${name} must be an integer from 1000 through 2147483647`)
-    }
-    return value
-  }
-  const intervalMs = duration('DSH_DESKTOP_UPDATE_CHECK_INTERVAL_MS', 600_000)
-  const maxBackoffMs = duration('DSH_DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS', Math.max(intervalMs, 3_600_000))
+  const intervalMs = resolveDurationMs(env, 'DSH_DESKTOP_UPDATE_CHECK_INTERVAL_MS', 600_000)
+  const maxBackoffMs = resolveDurationMs(env, 'DSH_DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS', Math.max(intervalMs, 3_600_000))
   const jitter = Number(env.DSH_DESKTOP_UPDATE_CHECK_JITTER ?? 0.2)
   if (!Number.isFinite(jitter) || jitter < 0 || jitter > 1 || maxBackoffMs < intervalMs) {
     throw new Error('desktop update: check jitter must be in [0, 1] and max backoff must cover the check interval')
@@ -46,12 +40,14 @@ export class DesktopUpdateSchedule {
    * @param config - Validated polling options.
    * @param random - Instance-local uniform sample in [0, 1).
    * @param now - Monotonic milliseconds, independent of wall-clock corrections.
+   * @param enabled - Whether ordinary update checks are available for this packaged product.
    */
   constructor(
     private readonly updates: Pick<DesktopUpdateCoordinator, 'check' | 'state'>,
     private readonly config: DesktopUpdateScheduleConfig,
     private readonly random: () => number = Math.random,
     private readonly now: () => number = () => performance.now(),
+    private readonly enabled = true,
   ) {
     this.delay = config.intervalMs
   }
@@ -64,6 +60,7 @@ export class DesktopUpdateSchedule {
    */
   async check(manual = false, force = manual): Promise<DesktopUpdateState> {
     if (this.disposed) throw new Error('desktop update: polling is disposed')
+    if (!this.enabled) return this.updates.state
     if (this.pending !== undefined && !manual) return this.pending
     if (!force && this.now() < this.nextCheck) return this.updates.state
     clearTimeout(this.timer)
@@ -97,7 +94,7 @@ export class DesktopUpdateSchedule {
   }
 
   private schedule(failed: boolean): void {
-    if (this.disposed) return
+    if (this.disposed || !this.enabled) return
     const { intervalMs, maxBackoffMs, jitter } = this.config
     this.delay = failed ? Math.min(maxBackoffMs, this.delay * 2) : intervalMs
     const lower = Math.max(1_000, this.delay * (1 - jitter))

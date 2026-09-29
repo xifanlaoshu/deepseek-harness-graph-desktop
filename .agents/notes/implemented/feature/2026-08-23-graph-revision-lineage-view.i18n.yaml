@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-23-graph-revision-lineage-view.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-23-graph-revision-lineage-view.md
-2026-08-23-graph-revision-lineage-view.md: 6d4a3b5f4b8a3d50a73bfae6209bb980927542b1
-2026-08-23-graph-revision-lineage-view.zh.md: bd9cfe5c9c9c141eee83239b69d20f15abdd3d87
+/agent-note-graph-revision-lineage-view:
+  en: f37cc115a18b4193
+  zh: 587a70b9dd267765
+/agent-note-graph-revision-lineage-view/problem:
+  en: c920f399d5cb596b
+  zh: 883f2a2c5a70dfbc
+/agent-note-graph-revision-lineage-view/decision:
+  en: fd88c5ce8373ce94
+  zh: 5fab8a746340b20d
+/agent-note-graph-revision-lineage-view/projection-and-metrics:
+  en: 3ac985dea4275426
+  zh: 0209a12948f64f0f
+/agent-note-graph-revision-lineage-view/presentation-and-navigation:
+  en: 5c9f14b0c5d8d9de
+  zh: 8e1a4d216ce0ea68
+/agent-note-graph-revision-lineage-view/verification:
+  en: 807dbc0842df0ebc
+  zh: 15ae7ae6955ce977
+/agent-note-graph-revision-lineage-view/alternatives-considered:
+  en: 582e74d8ff5518bc
+  zh: 4ba87ef5c29ce8cc
+/agent-note-graph-revision-lineage-view/consequences:
+  en: 47499107895ab8fd
+  zh: 3dccd9f51680552f

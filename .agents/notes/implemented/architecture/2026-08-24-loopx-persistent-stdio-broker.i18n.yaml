@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-24-loopx-persistent-stdio-broker.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-24-loopx-persistent-stdio-broker.md
-2026-08-24-loopx-persistent-stdio-broker.md: 0030bf1bac2e8bdb449a814480f2e63804f35495
-2026-08-24-loopx-persistent-stdio-broker.zh.md: 31e747acc0645a87daadd2b1d43369ef18d8c9a7
+/agent-note-persistent-stdio-broker-for-execution-world-loopx:
+  en: 288f91b7647d8473
+  zh: 326ef68bc9c43a8c
+/agent-note-persistent-stdio-broker-for-execution-world-loopx/problem:
+  en: 7798aa35ad7cbe84
+  zh: 4c9e5298c6742b59
+/agent-note-persistent-stdio-broker-for-execution-world-loopx/decision:
+  en: eaf7d50a058a0717
+  zh: 451b5f75bf8a8233
+/agent-note-persistent-stdio-broker-for-execution-world-loopx/alternatives-considered:
+  en: 353c99e212a70c45
+  zh: f5581cb30d14f937
+/agent-note-persistent-stdio-broker-for-execution-world-loopx/consequences:
+  en: 459c563e9b3d5165
+  zh: 8f8c5bf509e26b88

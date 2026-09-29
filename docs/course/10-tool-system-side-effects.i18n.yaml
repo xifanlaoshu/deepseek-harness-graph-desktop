@@ -1,6 +1,178 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 10-tool-system-side-effects.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/10-tool-system-side-effects.md
-10-tool-system-side-effects.md: 12c647bf59fe3b5b858166ef4d0b7386738c72b9
-10-tool-system-side-effects.zh.md: 607250815eda13713e74460b5e1cdc64db69e30b
+/chapter-10-the-tool-system-and-side-effect-control:
+  en: 3c0fb7dd9cf8376f
+  zh: 2b850ce2c2df56ae
+/chapter-10-the-tool-system-and-side-effect-control/10-1-mental-model-tools-as-rpc-dispatch-and-operating-system-calls:
+  en: 10f24c5dd35350f7
+  zh: 057c3128a711e6fa
+/chapter-10-the-tool-system-and-side-effect-control/10-1-mental-model-tools-as-rpc-dispatch-and-operating-system-calls/10-1-1-mapping-tool-calls-to-systems-concepts:
+  en: ca6879da0f3e62a0
+  zh: 333ef2ce2364cc17
+/chapter-10-the-tool-system-and-side-effect-control/10-1-mental-model-tools-as-rpc-dispatch-and-operating-system-calls/10-1-2-why-a-controlled-side-effect-layer-is-necessary:
+  en: e2b220bdc4cde32d
+  zh: 9c50156c79330e72
+/chapter-10-the-tool-system-and-side-effect-control/10-1-mental-model-tools-as-rpc-dispatch-and-operating-system-calls/10-1-3-core-architecture-of-the-harness-tool-subsystem:
+  en: 1874aa047c91c68e
+  zh: 758c763ea3707fc2
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api:
+  en: 601d18b652909143
+  zh: a98684b6e2fc480b
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api/10-2-1-the-tooldefinition-interface:
+  en: 66e74dc2c2850c52
+  zh: 8f1c6016f32b0bf3
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api/10-2-2-parameter-schema-dsl-and-compiler:
+  en: 5848c89abe93459c
+  zh: 0051adc56bd46411
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api/10-2-2-parameter-schema-dsl-and-compiler/schema-validation-and-normalization:
+  en: 2f736c6d22467c46
+  zh: 904af06e43bf76d2
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api/10-2-3-deterministic-results-and-separate-projections:
+  en: 2f32857f31d2c245
+  zh: 05edbbe80b103708
+/chapter-10-the-tool-system-and-side-effect-control/10-2-the-tool-registry-and-its-api/10-2-4-ui-presentation-intents:
+  en: 82e30bee03557d96
+  zh: 289b21022022d4d1
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall:
+  en: e0cbc8df203809a4
+  zh: 08626ce51163dda7
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-1-stage-one-tools-pre-execute-permission-interception-and-monotonic-guards:
+  en: 49cd2c01dd9b1dde
+  zh: b8fbfca8e35fe876
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-1-stage-one-tools-pre-execute-permission-interception-and-monotonic-guards/combining-decisions-with-monotonic-guards:
+  en: 19929b3848690507
+  zh: d36f6bd06aa216c7
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-1-stage-one-tools-pre-execute-permission-interception-and-monotonic-guards/interactive-approval-ask-state-machine:
+  en: fbe885436e0bf4f5
+  zh: 677121afe88cbb30
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-2-stage-two-tools-execute-wrappers-for-timeouts-and-sandboxes:
+  en: 36ec19bc00afe70f
+  zh: 1dd2a0a5808b0e87
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-2-stage-two-tools-execute-wrappers-for-timeouts-and-sandboxes/signal-fusion-and-non-detachment:
+  en: f631adebe98a5279
+  zh: beed66614ead6d17
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-3-stage-three-tools-post-execute-and-large-result-spill:
+  en: 9d8a7c854fa6e425
+  zh: 3b21dce5047ae889
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-3-stage-three-tools-post-execute-and-large-result-spill/spill-policy-and-memory-protection:
+  en: 23a9523930c58998
+  zh: d71c2e5f9ba916dc
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-3-stage-three-tools-post-execute-and-large-result-spill/spill-prompt-and-retrieval-guidance:
+  en: c5c259d0663fcdc7
+  zh: 95a28e4e72ba77e9
+/chapter-10-the-tool-system-and-side-effect-control/10-3-the-tool-execution-waterfall/10-3-4-stage-four-tools-result-broadcast-and-deep-freeze:
+  en: 0dc227dbdb9bbd2e
+  zh: b4f75a0e06db6ce4
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction:
+  en: c08e2d2035c41892
+  zh: be74498ea3dfe05b
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-1-the-challenge-noncommuting-operations-and-causal-order:
+  en: b04bf22e0d12d36a
+  zh: ea6841f25d679a17
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-2-exclusive-barriers-and-bounded-parallel-groups:
+  en: c83f88a2fc0d7a2e
+  zh: 3ea314648e6dde82
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-3-reconstructing-causal-order:
+  en: 5ed870017533b5b4
+  zh: 1195a708b209163b
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-3-reconstructing-causal-order/worked-example-reconstructing-causal-order:
+  en: 50c9223d1693666c
+  zh: bd597fb3024aaf59
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-4-sliding-window-execution-in-tool-calls-ts:
+  en: 9dba5fef6b90fdfb
+  zh: 876da26cff875dea
+/chapter-10-the-tool-system-and-side-effect-control/10-4-concurrency-and-causal-order-reconstruction/10-4-5-cancellation-order-and-synthetic-result-injection:
+  en: b9fcfe5b08b9c5a5
+  zh: 1332fe3f6895975a
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation:
+  en: e40a21f423f29cf9
+  zh: 0ae0fe3e8142ca72
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-1-five-capability-layers:
+  en: be7db5323aa037e5
+  zh: 91039e1046d6550c
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-2-kernel-level-sandbox-mechanisms:
+  en: 0c7ada22b9f09ed2
+  zh: c31857f39543d6b8
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-2-kernel-level-sandbox-mechanisms/1-linux-landlock-lsm-and-bubblewrap-bwrap:
+  en: e57abc4b7fba018d
+  zh: bc69ed1532c8a6ac
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-2-kernel-level-sandbox-mechanisms/2-macos-seatbelt-sandbox-policy-language-sbpl:
+  en: 510954fe0c2127ae
+  zh: bcf289d99fa1a9fc
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-2-kernel-level-sandbox-mechanisms/3-windows-restricted-tokens-and-workspace-acl-sids:
+  en: 0ea2426be7adb7d5
+  zh: 970e5fc4bcbf8003
+/chapter-10-the-tool-system-and-side-effect-control/10-5-runtime-capability-layers-and-sandbox-isolation/10-5-3-comparing-isolation-mechanisms:
+  en: c2d09e00e040c65f
+  zh: dcf78f71a329968b
+/chapter-10-the-tool-system-and-side-effect-control/10-6-code-mode-a-different-tool-calling-model-and-dynamic-sdk-generation:
+  en: d5069d2295fe6428
+  zh: f32b446ba1f89822
+/chapter-10-the-tool-system-and-side-effect-control/10-6-code-mode-a-different-tool-calling-model-and-dynamic-sdk-generation/10-6-1-tool-collapse:
+  en: 23f44a75108f8456
+  zh: b22f4ecdc49c5c9d
+/chapter-10-the-tool-system-and-side-effect-control/10-6-code-mode-a-different-tool-calling-model-and-dynamic-sdk-generation/10-6-2-dynamic-sdk-rendering:
+  en: 3e785957de21c23d
+  zh: f63d0483f67c82f1
+/chapter-10-the-tool-system-and-side-effect-control/10-6-code-mode-a-different-tool-calling-model-and-dynamic-sdk-generation/10-6-3-nested-code-dispatch:
+  en: 4ed6d75a3432a124
+  zh: 5d4e4692dce1bdf7
+/chapter-10-the-tool-system-and-side-effect-control/10-7-production-exercise-a-sandboxed-idempotent-tool-with-ui-presentation:
+  en: 34640b47b81f9e45
+  zh: c015171cc59fd05b
+/chapter-10-the-tool-system-and-side-effect-control/10-7-production-exercise-a-sandboxed-idempotent-tool-with-ui-presentation/10-7-1-complete-typescript-implementation:
+  en: 1a9731495085bbef
+  zh: 4df0820b21e6af10
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention:
+  en: cb381d80230241a8
+  zh: aafa56cdbc4670ca
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-1-failure-1-non-idempotent-concurrent-calls-tear-a-file:
+  en: 1afa5a292f0e30a0
+  zh: 1aee36bb80ff55eb
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-1-failure-1-non-idempotent-concurrent-calls-tear-a-file/symptom:
+  en: acbbfbd64d679f58
+  zh: 13bf670faeac5871
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-1-failure-1-non-idempotent-concurrent-calls-tear-a-file/root-cause:
+  en: b6b446cf814d636f
+  zh: 61cb7a20d3c2dc00
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-1-failure-1-non-idempotent-concurrent-calls-tear-a-file/fix:
+  en: ee3a943b5bc1139a
+  zh: 327e7326358591cd
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-2-failure-2-unspilled-stdout-exhausts-context-and-causes-a-retry-loop:
+  en: d5bc89e774555d6d
+  zh: c57c9b7046fdd674
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-2-failure-2-unspilled-stdout-exhausts-context-and-causes-a-retry-loop/symptom:
+  en: 2cf87c2d649be3d8
+  zh: 732636846d390ab9
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-2-failure-2-unspilled-stdout-exhausts-context-and-causes-a-retry-loop/fix:
+  en: 393ed90cb169a704
+  zh: 01da67313b9940f9
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-3-failure-3-broken-abort-propagation-leaves-an-orphaned-process-and-lock:
+  en: d3b2e1f71873caba
+  zh: 6d10b151811f79e9
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-3-failure-3-broken-abort-propagation-leaves-an-orphaned-process-and-lock/symptom:
+  en: 9c8ae98569469300
+  zh: b27dc0ab09eda073
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-3-failure-3-broken-abort-propagation-leaves-an-orphaned-process-and-lock/root-cause:
+  en: 52ea412867734a64
+  zh: decde1457ad3450d
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-3-failure-3-broken-abort-propagation-leaves-an-orphaned-process-and-lock/fix:
+  en: f4242e13edb048eb
+  zh: c0f7bffb512d753a
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-4-failure-4-prompt-injection-attempts-to-cross-the-file-system-sandbox:
+  en: 4408c3f17c636eb1
+  zh: 11899e390c8bcab6
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-4-failure-4-prompt-injection-attempts-to-cross-the-file-system-sandbox/symptom:
+  en: 7d63b531012552fa
+  zh: 2a0f83cfa36eff28
+/chapter-10-the-tool-system-and-side-effect-control/10-8-production-incidents-and-failure-prevention/10-8-4-failure-4-prompt-injection-attempts-to-cross-the-file-system-sandbox/fix:
+  en: e5ba4a34e5a3a12e
+  zh: b8b8bacaaeea5a5f
+/chapter-10-the-tool-system-and-side-effect-control/10-9-summary-and-system-architecture-checklist:
+  en: a4fae50b67ab6a43
+  zh: 369c64ce97fd4d2b
+/chapter-10-the-tool-system-and-side-effect-control/10-9-summary-and-system-architecture-checklist/system-architecture-checklist:
+  en: 2509d5d910419ee4
+  zh: 34036b198162746c

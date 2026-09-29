@@ -1,9 +1,29 @@
+---
+description: "Coordinate Graph model-resource reservations across processes with SQLite and durable fencing. This reference covers database configuration, telemetry, and deployment limits."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-graph-resources-sqlite
 
 English | [中文](README.zh.md)
 
+## Summary
+
+Coordinate expiring Graph resource reservations across processes with SQLite persistence and fencing. Shared telemetry and backoff state survive process restarts; SQLite transactions block the JavaScript thread briefly.
+
+## Table of Contents
+
+- [Configuration](#configuration)
+- [Contract](#contract)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
 SQLite Provider for [`dsh-graph-resources`](../graph-resources/README.md). It persists exact model-route reservations, fencing tokens, terminal outcomes, OOM backoff, and rate-limit expiry so Web sessions and Host processes using the same database share one capacity authority.
 
+<a id="configuration"></a>
 ## Configuration
 
 - `providerName` registers the resource Provider; default `sqlite-resources`.
@@ -12,6 +32,7 @@ SQLite Provider for [`dsh-graph-resources`](../graph-resources/README.md). It pe
 - `observationTtlMs`, `leaseMs`, `retryMs`, and `oomBackoffMs` bound observations, ownership, waiting, and OOM degradation.
 - `telemetryMaxBytes` bounds one telemetry file. `busyTimeoutMs` bounds SQLite lock waiting. `journalMode` selects `wal`, `delete`, or `truncate` after database identity validation.
 
+<a id="contract"></a>
 ## Contract
 
 Every admission runs in a SQLite `BEGIN IMMEDIATE` transaction. The Provider removes expired leases, reuses an identical operation and owner epoch, derives a stable reservation id, allocates a monotonic fencing token, and evaluates route capacity before committing. Concurrent processes therefore cannot both consume the same final capacity slot.
@@ -24,6 +45,18 @@ Terminal reports are idempotent under reservation id and fencing token. OOM and 
 
 All processes opening one database must use the same resource configuration. A different configuration is accepted only when no reservation remains; already-open Providers then reject further operations until they reload. A foreign application id, unsupported schema version, or non-empty unowned database is rejected before journal mode changes.
 
+<a id="dev-note"></a>
+## Dev Note
+No invariant companion is published because SQLite transactions validate reservations and fenced terminal transitions.
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Persistent capacity evidence

@@ -2792,7 +2792,7 @@ export type InferredAgentSandboxSettings = Schema.Type<typeof AgentSandboxSettin
 |                          pnpm 11 Symlink Virtual Store Architecture                               |
 +---------------------------------------------------------------------------------------------------+
   packages/session/session-persistence-sqlite/node_modules/
-    ├── @deepseek-ai/dsh-session ──► Symlink to packages/session/session
+    ├── @deepseek-ai/dsh-session ──► Symlink to packages/core/session
     └── (Zero undeclared packages exist here!)
 
   .pnpm/ (Content-Addressable Virtual Store)
@@ -5973,7 +5973,7 @@ Base Rows [A, B]
    v Snapshot 4 (+ CLI --patch)     ---> Rows [A'', B, C', D](D inserted by CLI)
 ```
 
-最终生成的 YAML 会按连续块插入 `# ==` 溯源注释。
+最终生成的 YAML 会按连续块插入 `# ==` 注释，标明每个条目的原始层与修改层。
 
 ### 7.6.2 命令行使用演练
 
@@ -6248,7 +6248,7 @@ export function renderConfigDump(
 
   let previous = baseEntries
   let previousWarningsCount = 0
-  const provenance: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
+  const entryLayerHistory: { origin: string; patchedBy: string[] }[] = baseEntries.map(() => ({
     origin: baseLabel,
     patchedBy: [],
   }))
@@ -6267,9 +6267,9 @@ export function renderConfigDump(
     const beforeStrings = previous.map(e => JSON.stringify(e))
     for (let idx = 0; idx < composed.length; idx++) {
       if (idx >= beforeStrings.length) {
-        provenance.push({ origin: layer.label, patchedBy: [] })
+        entryLayerHistory.push({ origin: layer.label, patchedBy: [] })
       } else if (JSON.stringify(composed[idx]) !== beforeStrings[idx]) {
-        provenance[idx]?.patchedBy.push(layer.label)
+        entryLayerHistory[idx]?.patchedBy.push(layer.label)
       }
     }
     previous = composed
@@ -6289,7 +6289,7 @@ export function renderConfigDump(
   }
 
   for (let idx = 0; idx < composed.length; idx++) {
-    const record = provenance[idx]
+    const record = entryLayerHistory[idx]
     const header = record.patchedBy.length === 0
       ? record.origin
       : `${record.origin}, patched by ${record.patchedBy.join(', ')}`
@@ -6684,7 +6684,7 @@ export interface AgentFactory {
 所有的队列变更（追加、前插、原地替换、删除、清空、认领），在内存数组改变**之前**，都必须先向 Session 追加一条标准化的 `agent/inbox/spliced` 事件：
 
 ```typescript
-// packages/core/agent/src/inbox.ts
+// packages/core/agent-loop/src/inbox.ts
 export class Inbox {
   private readonly state: InboxState = { 'next-turn': [], 'next-step': [] }
 
@@ -9708,7 +9708,7 @@ export interface SessionEventMap {
 当外部插件（例如上下文压缩插件 `@deepseek-ai/dsh-compaction` 或钩子拦截协议 `@deepseek-ai/dsh-hook-protocol`）引入新的事实时，只需在自己的模块声明文件中进行接口叠加：
 
 ```typescript
-// 在 packages/plugins/compaction/src/types.ts 中扩展
+// 在 packages/compaction/compaction/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'compaction/start': { compactionId: string; targetRange: { start: number; end: number } }
@@ -9717,7 +9717,7 @@ declare module '@deepseek-ai/dsh-session' {
   }
 }
 
-// 在 packages/plugins/hook-protocol/src/types.ts 中扩展
+// 在 packages/hooks/hook-protocol/src/types.ts 中扩展
 declare module '@deepseek-ai/dsh-session' {
   interface SessionEventMap {
     'hook/invoked': { hookName: string; handlerId: string; payload: JsonValue }
@@ -9850,7 +9850,7 @@ export function deriveEventMessage(event: SessionEvent): Message | null {
 }
 ```
 
-### 3.3 `SurfaceManager` 状态机与因果追溯（Provenance）断言
+### 3.3 `SurfaceManager` 状态机与来源事件引用断言
 
 `SurfaceManager` 负责在事件写入日志前进行**两阶段提议-提交校验**，确保 Surface 的拓扑结构在任何时刻都保持合法。
 
@@ -9951,7 +9951,7 @@ export class SurfaceManager implements SessionSurface {
     }
 
     if (op === 'append') {
-      this.assertProvenance(event, [])
+      this.assertSourceEventReferences(event, [])
       return { kind: 'append', seq: expectedSeq }
     }
 
@@ -9970,7 +9970,7 @@ export class SurfaceManager implements SessionSurface {
 
     const shadowedSeqs = this._nodes.slice(startIdx, endIdx + 1)
     // 因果追溯校验：replace 节点必须在 sourceEventSeqs 中显式声明所有被它遮蔽的节点
-    this.assertProvenance(event, shadowedSeqs)
+    this.assertSourceEventReferences(event, shadowedSeqs)
 
     return {
       kind: 'replace',
@@ -9983,14 +9983,14 @@ export class SurfaceManager implements SessionSurface {
     }
   }
 
-  private assertProvenance(event: SessionEvent, shadowedSeqs: readonly number[]): void {
+  private assertSourceEventReferences(event: SessionEvent, shadowedSeqs: readonly number[]): void {
     const raw = event as SessionEvent & { sourceEventSeqs?: number[] }
     const sources = new Set<number>(raw.sourceEventSeqs ?? [])
 
     // 检查是否有前向引用非法序号（引用了未来尚未发生的事件）
     for (const src of sources) {
       if (src >= event.seq) {
-        throw new Error(`Provenance violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
+        throw new Error(`Source event reference violation: sourceEventSeq ${src} >= current seq ${event.seq}`)
       }
     }
 
@@ -10836,7 +10836,7 @@ graph TD
 以下是浏览器端初始化 Client Cordis 容器并装载核心插件的工业级实现：
 
 ```ts ignore-check
-// packages/client/runtime/src/client/bootstrap.ts
+// packages/client/locale/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection'
@@ -11036,7 +11036,7 @@ $$T_{\text{typert}} = T_{\text{json\_parse}}(S_{\text{raw}}) + \sum_{i=1}^K T_{\
 以下是 Host 端 Typert RPC 调度网关的工业级实现，具备完整的参数校验、Lookup 解析、生命周期绑定与异常防御：
 
 ```ts ignore-check
-// packages/api/gateway/src/typert-gateway.ts
+// packages/api/gateway/src/index.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -11473,7 +11473,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 
 ### 5.2 状态存储引擎与避免 Zustand 原生 Persist 的设计复盘
 
-在 `packages/client/runtime/src/client/contract/store.ts` 中，Harness 实现了一套独立的 `defineStore` 与 `createSnapshotStore` 引擎。
+在 `packages/client/store/src/index.ts` 中，Harness 实现了一套独立的 `defineStore` 与 `createSnapshotStore` 引擎。
 
 #### 为什么弃用 Zustand 官方的 `persist` 中间件？
 
@@ -11485,7 +11485,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 因此，Harness 实现了自研的全值 JSON 持久化，并提供完善的 Storage 失败熔断保护（在隐私模式或 Quota 超限时不抛异常，优雅降级）：
 
 ```ts ignore-check
-// packages/client/runtime/src/client/contract/store.ts
+// packages/client/store/src/index.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { shallow } from 'zustand/shallow'
@@ -11579,7 +11579,7 @@ export function createSnapshotStore<T>(
 在 UI 渲染层，组件通过 `useSyncExternalStoreWithSelector` 接入快照源：
 
 ```tsx
-// packages/client/ui-renderer/src/client/hooks.ts
+// packages/client/ui-renderer/src/client/index.ts
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import { shallowEqual } from '@deepseek-ai/dsh-client-runtime/client'
@@ -11655,7 +11655,7 @@ Harness 实现了精细的页面级路由控制：
 Harness 在 MCP 客户端适配层建立了严格的路径沙箱转换器：
 
 ```ts
-// packages/bundle/browser-chrome-devtools/src/path-resolver.ts
+// packages/experimental/browser-use-chrome-devtools-mcp
 import { resolve, normalize, relative, isAbsolute } from 'node:path'
 
 export class WorkspacePathGuard {
@@ -15063,11 +15063,11 @@ Harness 确保所有来自 LoopX 的动态元数据（`Observation`、`Todo ID`�
 
 | Harness 子系统 | 对应包路径 | 传统系统编程 / 分布式架构映射 | 核心职责与设计约束 |
 | :--- | :--- | :--- | :--- |
-| **Client / Web UI** | `packages/web/web-app`<br>`packages/client/client-connection` | **GUI 客户端 / 响应式前端** | 管理乐观更新、维护本地 Zustand 状态树、处理双向 RPC 与 WebSocket |
+| **Client / Web UI** | `packages/client/ui-chat`<br>`packages/client/client-connection` | **GUI 客户端 / 响应式前端** | 管理乐观更新、维护本地 Zustand 状态树、处理双向 RPC 与 WebSocket |
 | **API Gateway** | `packages/api/gateway`<br>`packages/api/remotes` | **API 网关 / RPC Dispatcher** | 校验 Wire 协议、解析 Session 路由、鉴权与双向事件转发 |
 | **Agent Core & Inbox**| `packages/core/agent`<br>`packages/core/agent-loop` | **Actor 邮箱 / 状态机引擎** | 维护 Turn/Step 事务边界、消费队列消息、驱动 ReAct 死循环 |
 | **Cordis Runtime** | `@deepseek-ai/cordis` | **微内核 IoC 容器 / 事件总线** | 服务依赖注入、生命周期析构（`ctx.effect`）、Waterfall 拦截链 |
-| **Context & Prompt** | `packages/context/system-prompt` | **动态编译器 / AST 模板引擎** | 组装不可变系统提示词、提取工具 JSON Schema、动态投影运行时上下文 |
+| **Context & Prompt** | `packages/core/system-prompt` | **动态编译器 / AST 模板引擎** | 组装不可变系统提示词、提取工具 JSON Schema、动态投影运行时上下文 |
 | **Session Ledger** | `packages/core/session` | **Write-Ahead Log (WAL) / 账本** | 纯追加（Append-Only）事件溯源存储，派生模型可见表面（Surface） |
 | **LLM Driver & MLA** | `packages/llm/llm`<br>`packages/llm/llm-openai` | **概率纯函数 / 向量加速计算** | 管理 SSE 流式传输、Block 解析、KV Cache 前缀命中与 Token 预算 |
 | **Tool Sandbox & Spill**| `packages/core/tools`<br>`packages/fs/tool-fs`<br>`packages/spill/spill-policy` | **POSIX 系统调用拦截 / 溢出缓冲** | 有界并发调度、Exclusive 互斥屏障、沙箱路径越界防御、超长输出 Spill |
@@ -15154,7 +15154,7 @@ sequenceDiagram
 #### 源码文件与类方法
 - **源码文件**：[`packages/client/client-connection/src/connection.ts`](file:///d:/git/deepseek-harness/packages/client/client-connection/src/connection.ts)
 - **核心方法**：`Connection.callRemote<T>(endpoint: string, params: unknown, options?: CallOptions): Promise<T>`
-- **前端状态管理**：[`packages/web/web-app/src/stores/session-store.ts`](file:///d:/git/deepseek-harness/packages/web/web-app/src/stores/session-store.ts) 中的 `useSessionStore.getState().appendOptimisticUserMessage()`
+- **前端状态管理**：[`packages/client/ui-chat`](file:///d:/git/deepseek-harness/packages/client/ui-chat) 中的 `useSessionStore.getState().appendOptimisticUserMessage()`
 
 #### 网络报文样例 (Wire Payload)
 前端通过 HTTP POST 向 Host 发起 JSON-RPC 2.0 兼容的 Typert RPC 请求：
@@ -15217,7 +15217,7 @@ Host 进程中的 API Gateway 充当请求准入控制器。它必须在微秒�
 #### 源码文件与类方法
 - **源码文件**：[`packages/api/gateway/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/gateway/src/index.ts)
 - **核心类与方法**：`TypertGatewayService.invokeRemote(endpoint, params, signal)`
-- **路由解析文件**：[`packages/api/remotes/src/agent-lookup.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/agent-lookup.ts) 中的 `createApiRemoteAgentResolver(ctx)`
+- **路由解析文件**：[`packages/api/remotes/src/index.ts`](file:///d:/git/deepseek-harness/packages/api/remotes/src/index.ts) 中的 `createApiRemoteAgentResolver(ctx)`
 
 #### 关键实现代码解析
 
@@ -15276,7 +15276,7 @@ Agent 的设计遵循 **Actor 邮箱模型**。所有外部输入（用户的常
 ```
 
 #### 源码文件与类方法
-- **源码文件**：[`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts)
+- **源码文件**：[`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts)
 - **核心方法**：`Inbox.splice(target: InboxTarget, start: number, deleteCount: number, items: UserMessage[])`
 - **驱动控制文件**：[`packages/core/agent-loop/src/agent.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/agent.ts) 中的 `ReactLoopAgent.send()` 与 `ReactLoopAgent.wakeDriver()`
 
@@ -15466,8 +15466,8 @@ export type PreStepDecision =
 ```
 
 #### 源码文件与类方法
-- **系统提示词文件**：[`packages/context/system-prompt/src/assemble.ts`](file:///d:/git/deepseek-harness/packages/context/system-prompt/src/assemble.ts) 中的 `assembleSystemPrompt()`
-- **工具注册表文件**：[`packages/core/tools/src/registry.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/registry.ts) 中的 `ToolRegistry.exportSchemas()`
+- **系统提示词文件**：[`packages/core/system-prompt/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/system-prompt/src/index.ts) 中的 `assembleSystemPrompt()`
+- **工具注册表文件**：[`packages/core/tools/src/index.ts`](file:///d:/git/deepseek-harness/packages/core/tools/src/index.ts) 中的 `ToolRegistry.exportSchemas()`
 
 ---
 
@@ -15551,7 +15551,7 @@ $$\text{Memory}_{\text{MLA}} = (d_c + d_R) \times n_{\text{layers}} \times \text
 相比于标准 LLaMA-3-70B 的 MHA（约 $320\text{ KB/Token}$），MLA 实现了 **9.3 倍的显存压缩**，使得 DeepSeek 能以极低显存代价支撑 128K 超长上下文！
 
 #### 源码文件与类方法
-- **适配器抽象**：[`packages/llm/llm/src/adapter.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/adapter.ts)
+- **适配器抽象**：[`packages/llm/llm/src/index.ts`](file:///d:/git/deepseek-harness/packages/llm/llm/src/index.ts)
 - **流式适配实现**：[`packages/llm/llm-openai/src/stream.ts`](file:///d:/git/deepseek-harness/packages/llm/llm-openai/src/stream.ts) 中的 `openAiStreamAdapter()`
 
 ---
@@ -15779,8 +15779,8 @@ private async turn(): Promise<boolean> {
 - 基于 React 19 的局部 Selector 仅重渲染受影响的消息组件，实现高帧率、无闪烁的极致 UI 体验。
 
 #### 源码文件与类方法
-- **写缓冲控制器**：[`packages/session/session-persistence/src/write-behind.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/write-behind.ts) 中的 `SessionWriteBehind.enqueue()` 与 `flush()`
-- **持久化协调器**：[`packages/session/session-persistence/src/coordinator.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence/src/coordinator.ts)
+- **写缓冲控制器**：[`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl) 中的 `SessionWriteBehind.enqueue()` 与 `flush()`
+- **持久化协调器**：[`packages/session/session-persistence-jsonl`](file:///d:/git/deepseek-harness/packages/session/session-persistence-jsonl)
 - **SQLite 存储实现**：[`packages/session/session-persistence-sqlite/src/store.ts`](file:///d:/git/deepseek-harness/packages/session/session-persistence-sqlite/src/store.ts)
 
 ---
@@ -15926,11 +15926,11 @@ function applyEventWithReorder(state: EventReconcilerState, incomingEvent: Sessi
 | :--- | :--- | :--- | :--- | :--- |
 | **Step 1** | 网络接入 | 客户端生成 `rpcId`，提交乐观 UI | `packages/client/client-connection/src/connection.ts` | `Connection.callRemote()` |
 | **Step 2** | 网关分发 | Wire 协议校验与 Session 路由 | `packages/api/gateway/src/index.ts` | `TypertGatewayService.invokeRemote()` |
-| **Step 3** | 邮箱入队 | 消息压入 Inbox 队列 | `packages/core/agent/src/inbox.ts` | `Inbox.splice()` |
+| **Step 3** | 邮箱入队 | 消息压入 Inbox 队列 | `packages/core/agent-loop/src/inbox.ts` | `Inbox.splice()` |
 | **Step 4** | 实时广播 | WebSocket 向客户端推送入队确认 | `packages/api/remotes/src/remote-events.ts` | `API_REMOTE_FORWARDED_EVENTS` |
 | **Step 5** | 状态机激活 | 启动 Turn，写入 `turn/start` | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.wakeDriver()` |
 | **Step 6** | 前置拦截 | `agent/pre-step` Waterfall 审查 | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.preStep()` |
-| **Step 7** | 提示词装配 | 写入 `step/start`，装配 Prompt 与 Schemas | `packages/context/system-prompt/src/assemble.ts` | `assembleSystemPrompt()` |
+| **Step 7** | 提示词装配 | 写入 `step/start`，装配 Prompt 与 Schemas | `packages/core/system-prompt/src/index.ts` | `assembleSystemPrompt()` |
 | **Step 8** | 历史投影 | 折叠事件账本，构造不可变请求 | `packages/core/session/src/surface.ts` | `Session.deriveMessages()` |
 | **Step 9** | 模型调用 | 建立 SSE 长连接，触发 MLA 推理 | `packages/llm/llm-openai/src/stream.ts` | `openAiStreamAdapter()` |
 | **Step 10**| 流式消费 | 逐 Chunk 解析并追加至账本 | `packages/llm/llm/src/assembler.ts` | `BlockAssembler.push()` |
@@ -15938,7 +15938,7 @@ function applyEventWithReorder(state: EventReconcilerState, incomingEvent: Sessi
 | **Step 12**| 工具沙箱 | 鉴权 -> 沙箱执行 -> Spill 溢出控制 | `packages/core/agent-loop/src/tool-calls.ts` | `executeToolCalls()` |
 | **Step 13**| 结果反馈 | 追加 `tool/result`，触发多步迭代 | `packages/core/agent-loop/src/tool-calls.ts` | `appendToolResult()` |
 | **Step 14**| 轮次结算 | 输出最终回答，写入 `turn/end`，重置为 idle | `packages/core/agent-loop/src/agent.ts` | `ReactLoopAgent.turn()` |
-| **Step 15**| 异步落盘 | Write-Behind 触发，Zstd 压缩与 SQLite WAL | `packages/session/session-persistence/src/write-behind.ts` | `SessionWriteBehind.flush()` |
+| **Step 15**| 异步落盘 | Write-Behind 触发，Zstd 压缩与 SQLite WAL | `packages/session/session-persistence-jsonl` | `SessionWriteBehind.flush()` |
 
 ---
 
@@ -17085,7 +17085,7 @@ graph TD
 在 Cordis 依赖注入架构中，服务（Service）与上下文（Context）的扩展采用 TypeScript 的**声明合并（Declaration Merging）**特性：
 
 ```ts ignore-check
-// packages/session/session/src/index.ts (Host 端)
+// packages/core/session/src/index.ts (Host 端)
 declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService
@@ -17573,7 +17573,7 @@ graph TD
 为了在 CI 无网络、无 API 密钥环境下精准回放大模型会话，Harness 实现了如下基于流式 Chunk 驱动的确定性回放 Provider：
 
 ```ts ignore-check
-// File: packages/test-support/llm-replay/src/replay-provider.ts
+// File: packages/test-support/llm-replay/src/index.ts
 import type { LlmProvider, StreamChunk, CompletionRequest } from '@deepseek-ai/dsh-llm';
 
 export interface RecordedTranscriptStep {
@@ -17956,7 +17956,7 @@ $$M_k = \text{deriveMessages}(E_{0..k}) = \text{Fold}\left( \text{surfaceOp}, \e
 投影函数的具体折叠语义定义如下：
 
 - **消息追加**：当遇到 `user/message`、`assistant/message` 或 `tool/result` 时，根据 `surfaceOp: 'append'` 将结构化消息直接追加至当前列表末尾。
-- **因果溯源**：流式传输事件 `assistant/chunk` 仅在物理日志中存储以供实时下行传输和断点续传，不直接占用大模型上下文，而是由最终生成的 `assistant/message` 通过 `sourceEventSeqs: [seq_1, seq_2, ...]` 数组进行显式因果追踪。
+- **来源事件链接**：流式传输事件 `assistant/chunk` 仅在物理日志中存储以供实时下行传输和断点续传，不直接占用大模型上下文，而是由最终生成的 `assistant/message` 通过 `sourceEventSeqs: [seq_1, seq_2, ...]` 数组进行显式关联。
 - **历史压缩**：当触发会话压缩（Compaction）时，被遮蔽（Shadowed）的历史事件在物理日志中永远保留以供确定性回放，但在 `deriveMessages()` 投影时被单条结构化摘要（Summary）替换。
 
 #### 3. 关键代码文件与深度导读
@@ -17998,8 +17998,8 @@ stateDiagram-v2
 
 #### 2. 关键代码文件与深度导读
 
-- **`packages/session/session-persistence/src/write-behind.ts`**：写入后写缓冲控制器 `SessionWriteBehind`。为了避免每次微小的 `assistant/chunk` 都触发同步磁盘 I/O，系统维护了一个有界缓冲队列。采用基于定时器（`maxDelayMs`，默认 200ms）的批次合并策略；提供显式内存屏障 `flush()`：当遇到轮次结束、关键工具执行或会话导出时，强制触发 Quiescence 屏障，确保所有在途事件已物理落盘（`fsync`）。
-- **`packages/session/session-persistence/src/coordinator.ts`**：持久化协调器。负责多会话的生命周期接管、损坏检测（`SessionPersistenceCorruptionError`）、日志格式版本协商（`SESSION_FORMAT_VERSION`）以及崩溃恢复（Crash Recovery）。
+- **`packages/session/session-persistence-jsonl`**：写入后写缓冲控制器 `SessionWriteBehind`。为了避免每次微小的 `assistant/chunk` 都触发同步磁盘 I/O，系统维护了一个有界缓冲队列。采用基于定时器（`maxDelayMs`，默认 200ms）的批次合并策略；提供显式内存屏障 `flush()`：当遇到轮次结束、关键工具执行或会话导出时，强制触发 Quiescence 屏障，确保所有在途事件已物理落盘（`fsync`）。
+- **`packages/session/session-persistence-jsonl`**：持久化协调器。负责多会话的生命周期接管、损坏检测（`SessionPersistenceCorruptionError`）、日志格式版本协商（`SESSION_FORMAT_VERSION`）以及崩溃恢复（Crash Recovery）。
 - **`packages/host/apiproxy/src/api-proxy.ts`** 与 **`packages/host/apiproxy/src/api/`**：前后端通信网关。定义了基于四象限的可辨识联合类型（`ClientRequest`、`ServerResponse`、`ServerRequest`、`ClientResponse`）。所有 API 请求严格通过 Zod Schema 进行两层解析：先校验外层信封（Envelope），再校验业务载荷（Payload），并通过统一的 `RpcResult` 传递封闭错误码。
 - **`packages/client/runtime/src/`**：浏览器端 Cordis 运行时。包含 `ConversationNodeAssembler`、`SessionRuntime` 与 `WorkspaceRuntime`。它订阅来自 Host 的 Mux 事件流（`session/projection`），使用 Immer/Zustand 维护不可变的前端视图状态，实现无需刷新全量会话的增量 UI 渲染。
 
@@ -18853,7 +18853,7 @@ Agent 状态机内部的**单次物理原子迭代（Single Atomic Iteration）*
 **Erlang / Akka Actor 模型的 Mailbox 消息信箱**。
 
 #### 【在 DeepSeek Harness 中的具体源码位置】
-- 实现：[`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts) 的 `Inbox` 类。
+- 实现：[`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts) 的 `Inbox` 类。
 - 事件：`'agent/inbox/inserted'`, `'agent/inbox/claimed'`, `'agent/inbox/discarded'`。
 
 ---
@@ -19295,7 +19295,7 @@ $$\text{Context}_{\text{final}} = \text{Prompt}_{\text{system}} \oplus \text{Top
 | 25 | **Campaign** | 跨批次长期史诗 (Epic / Saga) | 有序 Batch 链表与终态证据 | 超长跨版本开发目标推进 |
 | 26 | **Batch** | 迭代分段作业 (Sprint / Chunk) | 独立局部有界 DAG | 阶段性成果交付与隔离 |
 | 27 | **Revision** | 写时复制快照 (Git Commit / RCU) | 不可变拓扑数据结构 | 架构重构与失败拓扑纠偏 |
-| 28 | **Lineage** | 数据血统与演化链 (Provenance) | 类型化关系因果图 | 修订意图与结构差异审计 |
+| 28 | **Lineage** | 数据血统与演化链（来源事件链接） | 类型化关系因果图 | 修订意图与结构差异审计 |
 | 29 | **Run** | 工作流单次执行 (Pipeline Run) | 执行实例状态机 | 拓扑图物理调度与跟踪 |
 | 30 | **Generation** | 调度任期代际 (Raft Term / Epoch) | 单调递增整型代际编号 | 淘汰上一代旧调度残留 |
 | 31 | **Activation** | 任务独占租约句柄 (Lease Handle) | 临时激活唯一标识 | 关联外部协同与执行证据 |
@@ -19881,7 +19881,7 @@ export class Context {
 #### 4. 工业级 TypeScript 状态机核心驱动器完整实现
 
 ```typescript
-// packages/core/agent-loop/src/driver.ts
+// packages/core/agent-loop/src/agent.ts
 
 import { Context } from '../../cordis-mini/src/container.js';
 
@@ -20119,7 +20119,7 @@ $$\forall m \in \text{ModelContext}, \quad m = \mathcal{P}(\text{SessionLog})$$
 #### 4. 工业级 TypeScript 事件溯源与投影算法完整实现
 
 ```typescript
-// packages/core/session/src/session.ts
+// packages/core/session/src/index.ts
 
 export type SessionEventType =
   | 'turn/start'
@@ -20277,14 +20277,14 @@ export class Session {
                                          | 实现接口
 +-----------------------------------------------------------------------------------+
 | 2. Service Provider (具体能力提供方实现包)                                         |
-|    - packages/provider/fs-local: 基于 Node.js 本地文件系统实现                    |
-|    - packages/provider/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
+|    - packages/fs/fs-local: 基于 Node.js 本地文件系统实现                    |
+|    - packages/fs/fs-sandbox: 基于 Linux Landlock / Docker 远程沙箱实现      |
 +-----------------------------------------------------------------------------------+
                                          ^
                                          | 消费注入 (ctx.fs)
 +-----------------------------------------------------------------------------------+
 | 3. Consumer / Tools (面向大模型的工具消费包)                                      |
-|    - packages/tools/fs-tools: 向模型暴露 read_file / write_file 工具 DSL          |
+|    - packages/fs/tool-fs: 向模型暴露 read_file / write_file 工具 DSL          |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -20323,7 +20323,7 @@ Step 开始
 #### 4. 工业级 TypeScript 受控工具执行流水线完整实现
 
 ```typescript
-// packages/core/tools/src/pipeline.ts
+// packages/core/tools/src/index.ts
 
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
@@ -20490,7 +20490,7 @@ Host A (Worker 1)          Scheduler (Coordination)         Shared Storage (Auth
 #### 4. 工业级 TypeScript 分布式 Fencing 存储与对账实现
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -20747,7 +20747,7 @@ export class ManagedProcessExecutor {
 引入带有 Fencing Token 强校验的原子写入适配器：
 
 ```typescript
-// packages/graph/graph-scheduler/src/fenced-storage.ts
+// packages/graph/graph-scheduler/src/index.ts
 
 export interface FencedWriteRequest<T> {
   workId: string;
@@ -20802,7 +20802,7 @@ export class FencedArtifactStore {
 在会话层引入原子排队写屏障与启动期自动空洞修补对账算法：
 
 ```typescript
-// packages/core/session/src/persistence-repair.ts
+// packages/core/session/src/repair.ts
 
 import { SessionEvent } from './session.js';
 
@@ -27180,7 +27180,7 @@ $$\mathbf{h}_N = \sum_{j=1}^{k} A_{N, j} \mathbf{v}_j + \sum_{j=k+1}^{N} A_{N, j
 | :--- | :--- | :--- | :--- |
 | **Spoofing (身份伪造)** | 伪造用户身份或证书 | 伪造 Tool Call ID、伪造 MCP 服务身份、伪造 Subagent 来源 | 加密签名上下文、会话 UUID 强校验、不可篡改租约 |
 | **Tampering (数据篡改)** | 篡改传输报文或数据库数据 | 篡改会话事件账本（Session Log）、篡改工作区配置文件（`.git/config`） | 仅追加写（Append-Only）日志、只读挂载系统目录 |
-| **Repudiation (抵赖性)** | 否认曾执行过某项操作 | 模型否认执行过高危 Shell 写入、多 Agent 间互相推诿操作责任 | 审计事件流强溯源、全量 stdout/stderr 磁盘归档 |
+| **Repudiation (抵赖性)** | 否认曾执行过某项操作 | 模型否认执行过高危 Shell 写入、多 Agent 间互相推诿操作责任 | 审计事件流中的来源事件链接、全量 stdout/stderr 磁盘归档 |
 | **Information Disclosure (信息泄密)** | 未授权读取敏感数据 | 通过 Prompt 诱导打印环境变量、通过报错回显提取 `.env` 凭据 | 熵值脱敏过滤器、环境变量白名单清洗、内存凭据剥离 |
 | **Denial of Service (拒绝服务)** | 耗尽带宽、CPU 或内存 | 输出爆炸（Output Bomb）、Token 窗口耗尽（Token Flooding）、Zip 炸弹 | 内存硬阈值、磁盘溢出 Spill 策略、解压配额预检 |
 | **Elevation of Privilege (特权提升)** | 普通用户越权获取 Root 权限 | 只读 Agent 派生出具备写入权限的 Subagent、绕过用户审批执行高危 Shell | 权限单调收窄格（$\sqsubseteq$）、Fail-Closed 审批仲裁器 |
@@ -28445,7 +28445,7 @@ struct landlock_path_beneath_attr {
 | **有向边 (Graph Edge)** | **Makefile / Ninja 依赖规则** | 显式声明数据流与控制流前后依赖，构建偏序关系 | 循环依赖死锁、悬挂指针、虚假依赖 |
 | **写入根 (`writeRoots`)** | **内存页表隔离 / 命名空间挂载 (Mount NS)** | 声明 Worker 唯一合法的文件系统写入相对路径集合 | 越权写入、并发写冲突、目录逃逸 |
 | **控制器 (Controller)** | **分布式调度协调器 (Coordinator / Master)** | 负责解析意图、生成最小不可变 DAG、分发任务与对账 | 单点脑裂、主控提示词膨胀、幻觉调度 |
-| **不可变版本 (Revision)** | **Git 提交快照 (Git Commit Tree / Merkle DAG)** | 任务图拓扑的每次变更生成全局自增的不可变修订版本 | 状态就地修改导致的重放不一致、溯源断裂 |
+| **不可变版本 (Revision)** | **Git 提交快照 (Git Commit Tree / Merkle DAG)** | 任务图拓扑的每次变更生成全局自增的不可变修订版本 | 状态就地修改导致的重放不一致、来源事件引用断裂 |
 | **战役批次 (Campaign / Batch)** | **多阶段微内核事务 (Multi-Stage Transaction)** | 将长远目标拆解为独立批次，前缀不可变，尾部增量扩展 | 跨批次上下文爆炸、历史幽灵节点干扰 |
 
 ### 1.2 串行单 Agent 的物理极限与三大失效壁垒
@@ -31058,7 +31058,7 @@ export async function updateProjectLabelAntiPattern(ctx: Context, label: string)
 
 1. **生命周期粒度错配（Lifecycle Scope Mismatch）**：`Settings` 在架构中属于**配置（Configuration）**——它是静态的、声明式的环境意图，其作用域通常是“工作区（Workspace）”或“当前用户（User Profile）”。而项目标签是**会话级（Session Scope）**的动态运行时状态。将单个会话的操作持久化到全局 Settings，将导致同一工作区下并发运行的其他会话被静默篡改。
 
-2. **缺乏历史因果链（Loss of Causality & Provenance）**：`Settings` 存储的是状态的“最终值（Latest Value）”，它不包含时间戳、不包含是谁在哪个 Step 触发的修改，也无法与特定的模型交互 Turn 关联。这使得自动化评测（Eval）与调试排障完全失去对账线索。
+2. **缺乏变更历史**：`Settings` 存储的是状态的“最终值（Latest Value）”，它不包含时间戳、不包含是谁在哪个 Step 触发的修改，也无法与特定的模型交互 Turn 关联。这使得自动化评测（Eval）与调试排障完全失去对账线索。
 
 ### 2.3 方案 C：不可变事件溯源账本（Session Event Sourcing WAL）
 
@@ -35397,7 +35397,7 @@ stateDiagram-v2
 #### 核心代码产物：`production-agent-loop.ts`
 
 ```typescript
-// packages/runtime/src/agent/agent-loop.ts
+// packages/core/agent-loop/src/agent.ts
 import { z } from "zod";
 
 export type AgentStepState = "PRE_STEP" | "CALLING_MODEL" | "EXECUTING_TOOLS" | "SETTLING" | "TERMINATED";
@@ -35562,7 +35562,7 @@ export class ProductionAgentLoop {
 #### 核心代码产物：`event-sourced-session-store.ts`
 
 ```typescript
-// packages/persistence/src/session/event-session-store.ts
+// packages/session/session-persistence-jsonl/src/storage.ts
 export interface SessionEvent {
   id: string;
   sessionId: string;
@@ -35735,7 +35735,7 @@ export class FencedStorage<T> {
 ```
 
 ```typescript
-// packages/security/src/sandbox/os-sandbox-interceptor.ts
+// packages/sandbox/sandbox-local/src/index.ts
 import path from "node:path";
 
 export interface SandboxPolicy {

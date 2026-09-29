@@ -8,8 +8,8 @@ export interface DesktopPolicyEnvironment {
 }
 
 /**
- * Resolve policy settings before artifact preparation or signing.
+ * Resolve policy settings before artifact preparation or signing; disabled update mode rejects policy configuration.
  * @param environment File-owned release settings; only the selected origin is required.
- * @returns Policy metadata with deployment-selected origin and authentication.
+ * @returns Policy metadata with deployment-selected origin and authentication, or undefined when updates are disabled.
  */
-export function resolveDesktopPolicyEnvironment(environment: NodeJS.ProcessEnv): DesktopPolicyEnvironment
+export function resolveDesktopPolicyEnvironment(environment: NodeJS.ProcessEnv): DesktopPolicyEnvironment | undefined

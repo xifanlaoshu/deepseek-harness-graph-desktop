@@ -388,7 +388,7 @@ Controller 先输出语义草案，再由确定性代码解析 ID、依赖、sch
 
 ### 8.4 Revision 与下游失效
 
-每次图修改都会创建新 Revision，不会覆盖旧 Revision。假设 `architect` 的设计发生变化，`engineer-backend`、`engineer-ui` 和 `reviewer` 都是它的传递后继，那么它们在新 Revision 中必须重新执行；不受影响且已接受的节点可以携带 provenance 复用。
+每次图修改都会创建新 Revision，不会覆盖旧 Revision。假设 `architect` 的设计发生变化，`engineer-backend`、`engineer-ui` 和 `reviewer` 都是它的传递后继，那么它们在新 Revision 中必须重新执行；不受影响且已接受的节点可以携带来源运行记录引用进行复用。
 
 ```mermaid
 flowchart LR

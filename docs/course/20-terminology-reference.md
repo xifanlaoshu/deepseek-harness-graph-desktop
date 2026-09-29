@@ -439,7 +439,7 @@ A **concurrency-safe mailbox** attached to an agent instance. Messages from exte
 **The mailbox in an Erlang/Akka Actor model**.
 
 #### Where to Find It in DeepSeek Harness
-- Implementation: `Inbox` in [`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts).
+- Implementation: `Inbox` in [`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts).
 - Events: `'agent/inbox/inserted'`, `'agent/inbox/claimed'`, and `'agent/inbox/discarded'`.
 
 ---
@@ -881,7 +881,7 @@ An independent-lifecycle subagent spawned by a parent agent for a risky or compl
 | 25 | **Campaign** | Long-running cross-batch Epic / Saga | Ordered Batch sequence and terminal evidence | Advancing long-running, cross-version goals |
 | 26 | **Batch** | Iterative segmented work (Sprint / Chunk) | Independent bounded local DAG | Staged delivery and isolation |
 | 27 | **Revision** | Copy-on-write snapshot (Git commit / RCU) | Immutable topology data | Architectural refactoring and failure correction |
-| 28 | **Lineage** | Data lineage / provenance | Typed causal relationship graph | Auditing revision intent and structural differences |
+| 28 | **Lineage** | Data lineage / source-event links | Typed causal relationship graph | Auditing revision intent and structural differences |
 | 29 | **Run** | One pipeline execution | Execution-instance state machine | Physical graph scheduling and tracking |
 | 30 | **Generation** | Scheduler term / epoch (Raft) | Monotonically increasing generation number | Discarding stale scheduler work |
 | 31 | **Activation** | Exclusive task-lease handle | Temporary unique activation ID | Linking external coordination and execution evidence |

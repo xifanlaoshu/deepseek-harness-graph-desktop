@@ -10,6 +10,12 @@ import { downloadArtifact } from '@electron/get'
 import extractZip from 'extract-zip'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
+import { prepareDesktopCli } from './prepare-cli.ts'
+import { prepareCommandLink } from './prepare-command-link.ts'
+import { prepareDesktopBrowserRuntime } from '../src/browser-runtime.ts'
+import { prepareChromiumRuntime, resolveChromiumPayloadMode } from './prepare-chromium-runtime.ts'
+import { readPrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
+import { prepareLoopxRuntime } from './prepare-loopx-runtime.ts'
 
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const RUNTIME_ROOT = BUILD_PATHS.runtime
@@ -41,6 +47,8 @@ async function main(): Promise<void> {
   const nodeVersion = execFileSync(executable, ['-p', 'process.versions.node'], {
     encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
   }).trim()
+  const macosMinimumVersion = platform === 'darwin' ? execFileSync('/usr/libexec/PlistBuddy',
+    ['-c', 'Print LSMinimumSystemVersion', join(BUILD_PATHS.electron, 'Electron.app', 'Contents', 'Info.plist')], { encoding: 'utf8' }).trim() : undefined
   rmSync(RUNTIME_ROOT, { recursive: true, force: true })
   mkdirSync(RUNTIME_ROOT, { recursive: true })
   const pnpmVersion = preparePnpm()
@@ -51,8 +59,33 @@ async function main(): Promise<void> {
     node: nodeVersion,
     pnpm: pnpmVersion,
   }, undefined, 2)}\n`)
+  await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'prepare:cli',
+    async () => prepareDesktopCli(join(RUNTIME_ROOT, 'cli'), platform))
+  if (macosMinimumVersion !== undefined) prepareCommandLink(join(RUNTIME_ROOT, 'cli'), arch, macosMinimumVersion)
+  cpSync(join(import.meta.dirname, '..', 'lib', 'command-manager-entry.js'), join(RUNTIME_ROOT, 'cli', 'command-manager.js'))
+  cpSync(join(import.meta.dirname, 'command-path.ps1'), join(RUNTIME_ROOT, 'cli', 'command-path.ps1'))
+  const browserMode = resolveChromiumPayloadMode(platform, process.env.DSH_DESKTOP_APP_ID?.trim(),
+    process.env.DSH_DESKTOP_CHROME_PAYLOAD_DIR)
+  if (browserMode === 'snapshot') {
+    await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'prepare:chromium-runtime',
+      () => prepareChromiumRuntime(RUNTIME_ROOT, join(BUILD_PATHS.downloads, 'chromium')))
+  } else if (browserMode === 'directory') {
+    prepareDesktopBrowserRuntime(process.env.DSH_DESKTOP_CHROME_PAYLOAD_DIR, RUNTIME_ROOT)
+  }
   await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'prepare:primary-runtime',
     () => preparePrimaryRuntime({ deferSmoke: values['defer-primary-runtime-smoke'] }))
+  if (platform === 'win32') {
+    await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'prepare:loopx-runtime', async () => {
+      const primaryRuntime = join(RUNTIME_ROOT, 'primary-runtime')
+      const primaryManifest = await readPrimaryRuntime(primaryRuntime)
+      const pythonExecutable = workspaceDependencyPaths(primaryRuntime, primaryManifest).python
+      return prepareLoopxRuntime({
+        pythonExecutable,
+        output: join(RUNTIME_ROOT, 'loopx'),
+        cache: join(BUILD_PATHS.downloads, 'loopx'),
+      })
+    })
+  }
 }
 
 await main()

@@ -349,7 +349,7 @@ In a monorepo with more than 50 packages, dependency management is fundamental t
 |                          pnpm 11 Symlink Virtual Store Architecture                               |
 +---------------------------------------------------------------------------------------------------+
   packages/session/session-persistence-sqlite/node_modules/
-    ├── @deepseek-ai/dsh-session ──► Symlink to packages/session/session
+    ├── @deepseek-ai/dsh-session ──► Symlink to packages/core/session
     └── (Zero undeclared packages exist here!)
 
   .pnpm/ (Content-Addressable Virtual Store)

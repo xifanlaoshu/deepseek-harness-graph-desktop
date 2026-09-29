@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-22-graph-browser-verification.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-22-graph-browser-verification.md
-2026-08-22-graph-browser-verification.md: 2ef6f380b2ee6fb40aec6d5fbc3f347067493cfb
-2026-08-22-graph-browser-verification.zh.md: 7934e5d5855adbd6597a8a4ecd10cfeffa71fbd9
+/agent-note-graph-browser-verification:
+  en: 72afce9f7e959859
+  zh: ff420c1a1707f678
+/agent-note-graph-browser-verification/problem:
+  en: 491c8a053a4f5531
+  zh: 4709aecab47d39be
+/agent-note-graph-browser-verification/decision:
+  en: d7c12771ccba75a2
+  zh: f6d6f66f6f302fd3
+/agent-note-graph-browser-verification/alternatives-considered:
+  en: 50a4370a1bb7ed78
+  zh: 5ebf1f1bf268bf30
+/agent-note-graph-browser-verification/consequences:
+  en: 8885110cff6b6fa8
+  zh: 29f445b40e401da8

@@ -5,11 +5,11 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { Context } from '@deepseek-ai/cordis'
 import type {
   GraphArtifactCaptureRequest,
   GraphArtifactMaterializeRequest,
   GraphArtifactReconcileRequest,
-  GraphArtifactRuntime,
 } from '@deepseek-ai/dsh-graph-artifacts'
 import {
   GraphAttemptId,
@@ -30,7 +30,6 @@ import {
   type GraphWorkerReconcileRequest,
   type GraphWorkerResult,
   type GraphWorkerRun,
-  type GraphWorkerRuntime,
   type GraphWorkspaceAllocation,
   type GraphArtifactManifest,
 } from '@deepseek-ai/dsh-graph-worker'
@@ -40,7 +39,6 @@ import {
   type GraphResourceReconcileRequest,
   type GraphResourceReservationRequest,
   type GraphResourceRoute,
-  type GraphResourceRuntime,
 } from '@deepseek-ai/dsh-graph-resources'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import {
@@ -49,9 +47,8 @@ import {
   type GraphSchedulerAcquireRequest,
   type GraphSchedulerLease,
   type GraphSchedulerLeaseRequest,
-  type GraphSchedulerRuntime,
 } from '@deepseek-ai/dsh-graph-scheduler'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import {
   GraphWorkerRemoteAudienceId,
   GraphWorkerRemotePrincipalId,
@@ -62,6 +59,7 @@ import {
   HttpGraphSchedulerProvider,
   type HttpGraphWorkerOptions,
 } from '../src/index.ts'
+import { createWorkerTestParent } from '../../graph-worker/tests/parent.ts'
 
 const principal = GraphWorkerRemotePrincipalId('graph-host-east')
 const audience = GraphWorkerRemoteAudienceId('worker-west')
@@ -69,6 +67,9 @@ const secret = '0123456789abcdef0123456789abcdef'
 const roots: string[] = []
 const servers: Server[] = []
 const services: HttpGraphWorkerServer[] = []
+const parentContext = new Context()
+const workerParent = await createWorkerTestParent(parentContext, SessionId('worker-service-parent'))
+afterAll(async () => { await parentContext.fiber.dispose() })
 
 interface Pending {
   resolve: (result: GraphWorkerResult) => void
@@ -161,14 +162,14 @@ class ResourceStub {
         fencingToken: 9,
         acquiredAt: now,
         expiresAt: now + 30_000,
-        provider: request.provider,
+        ...request.provider === undefined ? {} : { provider: request.provider },
         model: request.model,
         snapshot: {
           providerId: 'local-resources',
           observedAt: now,
           expiresAt: now + 30_000,
           status: 'available' as const,
-          provider: request.provider,
+          ...request.provider === undefined ? {} : { provider: request.provider },
           model: request.model,
           activeRequests: 1,
           concurrencyLimit: 2,
@@ -321,7 +322,7 @@ function assignment(): GraphWorkerAssignment {
 }
 
 function parent(): Agent {
-  return { id: SessionId('worker-service-parent'), session: { header: { cwd: resolve('workspace') } } } as unknown as Agent
+  return workerParent
 }
 
 function journal(): string {
@@ -343,19 +344,19 @@ function service(
     basePath: '/graph-worker',
     journalPath,
     workerProvider: 'local-worker',
-    graphWorkers: worker as unknown as GraphWorkerRuntime,
+    graphWorkers: worker,
     ...resources === undefined ? {} : {
       resource: {
         routeName: 'remote-resources',
         providerName: 'local-resources',
-        graphResources: resources as unknown as GraphResourceRuntime,
+        graphResources: resources,
       },
     },
     ...artifacts === undefined ? {} : {
       artifact: {
         routeName: 'remote-artifacts',
         providerName: 'local-artifacts',
-        graphArtifacts: artifacts as unknown as GraphArtifactRuntime,
+        graphArtifacts: artifacts,
         tempRoot: join(dirname(journalPath), 'artifact-staging'),
         maxFiles: 100,
         maxBytes: 1_000_000,
@@ -365,7 +366,7 @@ function service(
       scheduler: {
         routeName: 'remote-scheduler',
         providerName: 'local-scheduler',
-        graphScheduler: scheduler as unknown as GraphSchedulerRuntime,
+        graphScheduler: scheduler,
       },
     },
     resolveSecret: async candidate => candidate === principal ? secret : undefined,

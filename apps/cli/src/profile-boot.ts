@@ -23,6 +23,7 @@ import {
   installFailLoud,
   loadOverlayPatches,
   loadProfile,
+  reportSkippedBundles,
   PluginPackages,
   PROFILE_PATCH_FILENAME,
   PROFILE_TEMPLATES,
@@ -166,6 +167,7 @@ export function initializeProfileFromDefault(
 export function prepareProfile(name: string, userLayer = true, fromDefaultProfile?: string): Profile {
   if (fromDefaultProfile !== undefined) initializeProfileFromDefault(name, fromDefaultProfile)
   const profile = loadProfile(NAME, name, INSTALL_ANCHOR, undefined, { userLayer })
+  reportSkippedBundles(NAME, profile)
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
   return profile
 }
@@ -230,6 +232,8 @@ export interface RunProfileOptions {
   args: readonly string[]
   /** Application-owned package runtime, scoped to plugin package operations. */
   packageManager?: ProfileContext['packageManager']
+  /** Quiesce application-owned consumers before the profile fiber is disposed. */
+  beforeDispose?: (ctx: Context) => void | Promise<void>
 }
 
 /**
@@ -253,7 +257,11 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   let disposal: Promise<void> | undefined
   const dispose = (): Promise<void> => disposal ??= (async () => {
     const failures: unknown[] = []
-    for (const release of [() => app.current?.fiber.dispose(), disposeProxy]) {
+    const current = app.current
+    if (current !== undefined && options.beforeDispose !== undefined) {
+      try { await options.beforeDispose(current) } catch (error) { failures.push(error) }
+    }
+    for (const release of [() => current?.fiber.dispose(), disposeProxy]) {
       try { await release() } catch (error) { failures.push(error) }
     }
     if (failures.length === 1) throw failures[0]
@@ -277,9 +285,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     // complete; SIGINT is a user interrupt and reports 130.
     process.on('SIGTERM', () => { interrupt(0) })
     process.on('SIGINT', () => { interrupt(130) })
-    installFailLoud(NAME, process, async () => {
-      await app.current?.fiber.dispose()
-    })
+    installFailLoud(NAME, process, dispose)
 
     const rootConfig = join(composed.profile.dir, PROFILE_ROOT_FILENAME)
     const profileContext: ProfileContext = {

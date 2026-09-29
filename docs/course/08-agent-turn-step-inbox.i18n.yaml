@@ -1,6 +1,97 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 08-agent-turn-step-inbox.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/08-agent-turn-step-inbox.md
-08-agent-turn-step-inbox.md: a4ac2e6972fc5e13a3ead843da3597e63acc19cb
-08-agent-turn-step-inbox.zh.md: 8f9cfaa547e5efb0545dcfaa88f059cbf621140a
+/chapter-08-agents-turns-steps-and-the-inbox:
+  en: a9f9065c312f7073
+  zh: 97302d0a1cd47290
+/chapter-08-agents-turns-steps-and-the-inbox/8-1-engineering-intuition-systems-level-mapping-of-the-agent-runtime:
+  en: e4993ebb2491b02c
+  zh: 6fa53e7fcb8fcf4c
+/chapter-08-agents-turns-steps-and-the-inbox/8-2-formal-modeling-and-algebraic-state-machine-derivation:
+  en: 8f4bf39338bbe2a8
+  zh: 86d4c6513c9a40f3
+/chapter-08-agents-turns-steps-and-the-inbox/8-2-formal-modeling-and-algebraic-state-machine-derivation/8-2-1-state-transition-dynamics-and-a-worked-example:
+  en: 80d1912596e7293e
+  zh: 48d344d7b6f235b0
+/chapter-08-agents-turns-steps-and-the-inbox/8-3-core-agent-architecture-and-the-three-layer-object-model:
+  en: c3d1d9b8adbfb636
+  zh: ae956f6c9902e22d
+/chapter-08-agents-turns-steps-and-the-inbox/8-3-core-agent-architecture-and-the-three-layer-object-model/8-3-1-the-abstract-agent-interface-contract:
+  en: 243105d48787130a
+  zh: 10bca60f3a9e5070
+/chapter-08-agents-turns-steps-and-the-inbox/8-3-core-agent-architecture-and-the-three-layer-object-model/8-3-2-why-must-reactloopagent-remain-package-internal:
+  en: b98e31ed398fb7a4
+  zh: 6f88a78879c159f5
+/chapter-08-agents-turns-steps-and-the-inbox/8-4-inbox-queues-and-steering:
+  en: 5b07618c5bde29ab
+  zh: 22fef5fd28fed1ae
+/chapter-08-agents-turns-steps-and-the-inbox/8-4-inbox-queues-and-steering/8-4-1-two-level-queue-and-orthogonal-delivery-matrix:
+  en: f1daa5342bd6a122
+  zh: 71f59f0421337907
+/chapter-08-agents-turns-steps-and-the-inbox/8-4-inbox-queues-and-steering/8-4-2-normalized-inbox-splice-projection-under-event-sourcing:
+  en: 89b961b39d2f9926
+  zh: d671b974041a1db6
+/chapter-08-agents-turns-steps-and-the-inbox/8-5-turn-and-step-lifecycles-and-event-ordering:
+  en: 5731751f1666f079
+  zh: 55f802977d4efbf6
+/chapter-08-agents-turns-steps-and-the-inbox/8-5-turn-and-step-lifecycles-and-event-ordering/8-5-1-core-extension-points-and-waterfall-pipelines:
+  en: 14b9ab4ed7b24b59
+  zh: 6155bf22ff04933a
+/chapter-08-agents-turns-steps-and-the-inbox/8-6-concurrent-tool-call-scheduling-barriers-and-bounded-parallelism:
+  en: fe3b1de5721f68c0
+  zh: 9a2f4981c6016f2c
+/chapter-08-agents-turns-steps-and-the-inbox/8-6-concurrent-tool-call-scheduling-barriers-and-bounded-parallelism/8-6-1-model-order-commit-invariant:
+  en: 0db903980ec8eeed
+  zh: e96479af5af9c5dd
+/chapter-08-agents-turns-steps-and-the-inbox/8-7-cooperative-cancellation-and-reverse-order-teardown:
+  en: 3a50f27574856b52
+  zh: 4096a0e58f30b524
+/chapter-08-agents-turns-steps-and-the-inbox/8-7-cooperative-cancellation-and-reverse-order-teardown/8-7-1-cancellation-causes-and-keepinbox-semantics:
+  en: 9ff8679973cd7a2b
+  zh: 13999eba707038ca
+/chapter-08-agents-turns-steps-and-the-inbox/8-7-cooperative-cancellation-and-reverse-order-teardown/8-7-2-a-cancellation-race-the-cancel-convergence-wake-latch:
+  en: 2c34c81b3529b6ba
+  zh: 3ae3ba92aef32524
+/chapter-08-agents-turns-steps-and-the-inbox/8-7-cooperative-cancellation-and-reverse-order-teardown/8-7-3-memoized-reverse-teardown:
+  en: 5374cf5efe608631
+  zh: 938d41ed1d185cb6
+/chapter-08-agents-turns-steps-and-the-inbox/8-8-complete-production-grade-typescript-implementation:
+  en: 4870a458e1720c71
+  zh: 8495beb05a37db15
+/chapter-08-agents-turns-steps-and-the-inbox/8-9-memory-and-data-layout-message-and-event-stream-examples:
+  en: 83dc78c9a8d7e656
+  zh: 39b4996b5dc08a7d
+/chapter-08-agents-turns-steps-and-the-inbox/8-9-memory-and-data-layout-message-and-event-stream-examples/8-9-1-normalized-agent-inbox-spliced-event:
+  en: a88a4d1e327a898d
+  zh: 4157865bd3332f92
+/chapter-08-agents-turns-steps-and-the-inbox/8-9-memory-and-data-layout-message-and-event-stream-examples/8-9-2-compact-event-stream-for-a-complete-turn-jsonl-storage-view:
+  en: 7f85605dce1674f6
+  zh: 5260c8bb0dc8eae6
+/chapter-08-agents-turns-steps-and-the-inbox/8-10-production-failure-diagnosis:
+  en: d0f76a6691ab5160
+  zh: a9c6687d87e6a215
+/chapter-08-agents-turns-steps-and-the-inbox/8-10-production-failure-diagnosis/failure-1-failure-to-propagate-abortsignal-leaks-external-processes-and-connections:
+  en: 5badc4bcaac4ce39
+  zh: d2853c7b7054bdac
+/chapter-08-agents-turns-steps-and-the-inbox/8-10-production-failure-diagnosis/failure-2-unhandled-promise-rejection-in-a-waterfall-extension-point-hangs-a-turn:
+  en: ee0141259aa0fa80
+  zh: 0fa78ad5a057cb1c
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises:
+  en: 83adf6a9dfd7dac0
+  zh: 6f80b8ce6e599732
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises/summary-of-core-concepts:
+  en: 1a388e357a5473dc
+  zh: ebf9209ad41a34b0
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises/hands-on-exercises:
+  en: 3f0c89cc186bee69
+  zh: 25a4ab0f69bccf45
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises/hands-on-exercises/exercise-1-implement-a-steering-rate-limiter:
+  en: 43a10435798953b9
+  zh: fc59644a455f4281
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises/hands-on-exercises/exercise-2-implement-transaction-rollback-maintenance-with-an-in-memory-snapshot:
+  en: c042b429ffcc1249
+  zh: 87d33ed2df1e4ebf
+/chapter-08-agents-turns-steps-and-the-inbox/8-11-chapter-summary-and-exercises/hands-on-exercises/exercise-3-stress-test-cancellation-races:
+  en: c01906ec6856f5e9
+  zh: 3950cd3e169a55ff

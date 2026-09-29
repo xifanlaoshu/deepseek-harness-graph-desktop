@@ -50,7 +50,7 @@ Python SDK 遵循相同的应用架构。其运行时 wheel 把普通 `dsh` CLI 
 
 ## 桌面应用
 
-[Electron 桌面应用](../apps/desktop/README.zh.md)在签名资源中携带精确匹配的 dsh 生产运行时，并拥有保留的 `$DSH_HOME/profiles/desktop`。共享 profile helper 初始化其文件、协调已安装 bundle，并解析安装与 bundle 的依赖而不替换 pnpm 拥有的包。CLI 与 Desktop 共享产品数据，可执行包、启用选择与锁文件保持独立。公开 CLI 不能管理 Desktop profile。
+[Electron 桌面应用](../apps/desktop/README.zh.md)在签名资源中携带精确匹配的 dsh 生产运行时，并拥有保留的 `$DSH_HOME/profiles/desktop`。共享 helper 初始化 profile 文件、协调 bundle，并解析安装与 bundle 的依赖而不替换 pnpm 拥有的包。Desktop 与 npm CLI 共享产品数据，但包、启用选择与锁文件保持独立。Desktop 内置 CLI 管理其已初始化的插件。
 
 Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共享 CLI profile runner 与完整 Web 应用。窗口立即加载打包 Web 资源，等待启动注入后在同一文档中激活客户端插件。Web 负责 RPC 与流；桌面载体将本地页面连接到已认证的 Host。Node IPC 承载启动注入、就绪、致命错误与关闭。Desktop 默认端口为 `19387`，profile 配置可覆盖。壳拥有的 UI 通过内置 pnpm 执行插件事务，并遵循正常用户与 profile 配置。
 
@@ -85,23 +85,7 @@ AgentLoop 在启动已排队工作前等待串行 `agent/created` 初始化。�
 
 ## Graph Mode
 
-[`dsh-graph`](../packages/graph/graph/README.zh.md) 在不修改 agent loop 的前提下增加会话所有的多代理编排领域。`/graph` 激活主控策略和 `graph_submit` 工具。主控会判断之后的每次人类输入：新任务创建新的不可变 DAG；调整则为当前任务图创建下一个修订。任务图定义和完整运行快照都是会话事件，因此重新加载、检查和 Web 投影会重建相同的修订与证据。
-
-有顺序的长目标会在 Revision 层之上使用 Campaign。每个 Batch 拥有独立 Graph 且只包含当前工作；Campaign Event 保留 Batch 依赖、状态、紧凑结果与 Settlement 引用。已登记 Batch 定义构成不可变前缀；全部已登记 Batch 验收后，主控可以把新发现的有序后缀作为可审计计划修订追加，并持久保留原因、前序 Run 与 Settlement 证据。成功 Batch 通过主控 Follow-up 激活下一个就绪 Batch，修正则只调整失败 Batch Graph。这样会把跨任务历史与任务内修订谱系分开，避免已完成节点不断堆积到后续 DAG。
-
-[`dsh-graph-mode`](../packages/graph/graph-mode/README.zh.md) 通过 [`dsh-graph-worker`](../packages/graph/graph-worker/README.zh.md) 接口调度已就绪节点。必需边要求前置节点完成；结构化条件边只检查已发布 JSON，不包含可执行代码。修订先找出直接变更节点，再按拓扑顺序让所有传递后继失效。不在该闭包内的成功节点保留已发布输出，并记录明确来源。子代理启动前，准入器同时执行全局、角色、精确提供方／模型及可选加权限额；主控预留会阻止 Worker 饱和占用全部配置许可。可选的 [`dsh-graph-resources`](../packages/graph/graph-resources/README.zh.md) 提供方可以根据会过期的路由遥测进一步延迟或拒绝工作，但不能提高这些静态上限。
-
-宿主变更使用显式环境节点，而不是扩大 Worker 权限。主控会在依赖它的工程工作之前放置有界的精确命令计划，并列出所需的网络、包安装或 Docker 能力。部署策略校验计划后，Graph 会停在人工检查点。批准仅对下一个执行 Generation 生效；Graph Mode 通过 Shell 能力执行不可变命令并记录稳定 Settlement，绝不会给模型子 agent 开放式高权限轮次。失败、不确定或回滚副作用都需要新的人工决定。
-
-每个不可变节点都携带已解析的执行预算，覆盖模型输出、无持久进度的推理、首次动作、进度静默、检查点、墙钟时间和续跑次数。准入前，Graph Mode 会解析精确 LLM 路由、校验推理强度、用实时资源信息共同限制输出与并行度，并把实际模型画像保存在 Attempt 中。子会话事件会把模型活动与可恢复工程进度分开；只有成功的文件修改、聚焦验证命令和已接受的结构化结果会推进检查点。达到 token 上限或被看门狗终止的 Activation 只能从持久检查点续跑。停止时没有检查点则会把精确路由、容量、预算、计数器和最新证据交回主控；主控必须把不安全工作修订成 10–30 分钟且可独立验证的节点，而不能重新分派同一粗粒度任务。
-
-整图运行所有权与节点执行相互独立。[`dsh-graph-scheduler`](../packages/graph/graph-scheduler/README.zh.md) 向获准推进运行的 Host 授予一个可过期且带围栏的租约；Graph Mode 在调度期间持续发送心跳，并将其 token 用作 `ownerEpoch`。恢复扫描会重新取得没有本地执行器的 `queued` 或 `running` 持久工作，而仍然存活的租约会阻止重复执行。Graph 状态读取会优先使用持续增量维护的 Session Projection，避免大日志阻塞租约 Heartbeat。SQLite Provider 在本地 Host 进程之间串行化所有权，并在租约过期和重启后保留 Fencing 计数。多 Host 部署应替换为经过认证的分布式 Provider；LoopX 节点 claim 不能替代这一租约。
-
-外部进度协调是独立的 capability seam。[`dsh-graph-coordination`](../packages/graph/graph-coordination/README.zh.md) 管理准备、带围栏的认领、心跳、观察与等待、有限进度、取消、结算和对账；[LoopX 提供方](../packages/graph/graph-coordination-loopx/README.zh.md) 将这些操作映射到已有 goal 和已注册 peer。认领已经终态的 Activation 时会返回其已接受的 Terminal Disposition，绝不会再次分派 Worker。Graph 在接受终态前持久化操作、Worker、工作区、模型预留、产物、结算、检查点和人工控制证据。Harness 仍是执行和会话轨迹的权威来源。协调记录只接收有长度上限且可公开的摘要，子代理消息和工具事件保留在对应子会话中。
-
-产物传输也是可替换的 Seam。[`dsh-graph-artifacts`](../packages/graph/graph-artifacts/README.zh.md) 把每份 Manifest 绑定到一个带 Fencing 的 Attempt，并校验路径、结果 Hash、源 Hash、总字节数和 Provider 所有权。隔离实现 Attempt 会把完整 Manifest 持久化到 Graph 运行证据。集成节点收集所有传递上游 Manifest，在任何 Materialize 之前拒绝同路径分歧和源工作区漂移，以稳定 Settlement 导入每份 Manifest，并让自身已接受的 Manifest 通过相同检查。文件系统 Provider 为共享同一文件系统的 Host 存储不可变 Blob；经过认证的对象存储或 RPC Provider 可以替换它，而无需修改 Graph Mode 或 Worker Assignment。
-
-远程执行使用 [`dsh-graph-worker-remote`](../packages/graph/graph-worker-remote/README.zh.md)。其 HTTP Client 与 Server 通过 Credential Reference 认证 Worker、Scheduler、Resource 和 Artifact 操作，在分派前持久化确定性的逻辑作业身份，对丢失响应后的重试去重，使用持久化服务 Epoch 阻止被替代进程继续写入，在重启后隔离不确定的非终态作业，并把对账映射到精确底层 Provider 引用。可选路由会公开跨 Host Scheduler、Resource 权威源和带持久化不透明映射、端到端摘要校验的有界内容寻址 Artifact 传输。SQLite Resource Provider 可以根据可信模型运行时或 Sidecar 发布的带过期时间队列与设备显存 Snapshot 拒绝放行。Worker Journal 只是单个活动服务的持久化权威；它不提供可恢复远程进程、复制式高可用、原生模型服务器指标适配器或对象存储。
+Graph Mode 在不修改 agent loop 的前提下，为会话提供 DAG 修订与运行。主控把每次用户输入判定为新任务或调整；Campaign Batch 将长期目标保存在相互独立的图中。带围栏的 Worker 在模型与资源限额内执行，Graph 记录节点证据与 Settlement。Scheduler、协调、产物和远程 Worker Provider 均可替换。详见[图编排](subsystems/graph.zh.md)与 [Graph 包映射](../packages/graph/README.zh.md)。
 
 <a id="turn-flow"></a>
 
@@ -134,9 +118,11 @@ turn/end
 
 输入通过同一个 inbox 到达驱动器；注入的上下文等待一条唤醒消息。AgentLoop 的持久 `inbox` 投影使待处理输入在没有活跃 Agent 时仍可读取。
 
-`agent/pre-step` 决定接纳的输入。监听器可以改写或拒绝已领取消息；首次领取被拒绝或为空时，关闭不含步骤的持久轮次。enter 决策可设置 `startsRequestSeries`：循环记录新的 `request/header`（原因为 `series`，或在封装同时变化时为携带 `startsSeries: true` 的 `change`）。包装监听器通过 `{ ...decision, messages }` 保留该声明。组装与 `step/start` 之后，`agent/request` 和 `prepareCall()` 先解析实际路由，再提交系统提示词与已接纳用户消息；在任一异步阶段取消都不会提交这两者。提示词准入依据已准备调用的能力，而非先前的 `request/context`。每次尝试同步协调同一份已渲染组装结果、仅在首次尝试追加用户消息、按需记录 header/context、派生并冻结请求，再通过绑定调用发起流式请求。重试不重复组装或 `agent/pre-step`。附接后的 surface 替换和图片省略决定开启新请求序列，包括恢复后的首次 pre-step 中发生的替换；未变化的恢复延续序列。首次接纳的步骤在用户消息之前预留系统头节点，即使提示词为空（不产生协议消息）。提示词仅通过 `system/message` 历史传递：空渲染文本清除所有生效的系统节点，模型不再看到旧提示词；具备能力的路由可在缓存前缀之后追加非空更新；不具备能力的路由与新请求序列将非空提示词文本归并到首个系统节点，并为非空的后续系统节点记录空内容替换（[决策](../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md)；[决策规则](../packages/core/agent-loop/README.zh.md#understand-the-implementation)）。
+`agent/pre-step` 决定接纳的输入。监听器可以改写或拒绝已领取消息；首次领取被拒绝或为空时，关闭不含步骤的持久轮次。enter 决策可设置 `startsRequestSeries`：循环记录新的 `request/header`（原因为 `series`，或在封装同时变化时为携带 `startsSeries: true` 的 `change`）。包装监听器通过 `{ ...decision, messages }` 保留该声明。组装与 `step/start` 之后，`agent/request` 和 `prepareCall()` 先解析实际路由，再提交系统提示词与已接纳用户消息；在任一异步阶段取消都不会提交这两者。提示词准入依据已准备调用的能力，而非先前的 `request/context`。每次尝试同步协调同一份已渲染组装结果、仅在首次尝试追加用户消息、按需记录 header/context、派生并冻结请求，再通过绑定调用发起流式请求。重试不重复组装或 `agent/pre-step`。附接后的 surface 替换和图片省略决定开启新请求序列，包括恢复后的首次 pre-step 中发生的替换；未变化的恢复延续序列。首次接纳的步骤在用户消息之前预留系统头节点，即使提示词为空（不产生协议消息）。提示词仅通过 `system/message` 历史传递：空渲染文本清除所有生效的系统节点，模型不再看到旧提示词；具备能力的路由可在缓存前缀之后追加非空更新，包括同时发生的受支持工具更新；不具备能力的路由与新请求序列将非空提示词文本归并到首个系统节点，并为非空的后续系统节点记录空内容替换（[决策](../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md)；[决策规则](../packages/core/agent-loop/README.zh.md#understand-the-implementation)）。
 
-循环发送不可变请求，同时保留实时取消能力。只有已由该循环完整冻结的消息对象身份才能复用冻结证明；[agent-loop](../packages/core/agent-loop/README.zh.md)拥有请求构造与取消原因记录规则。
+循环发送不可变请求，同时保持取消有效，仅对完全冻结的对象复用冻结证据；[agent-loop](../packages/core/agent-loop/README.zh.md) 负责请求构建与取消原因。
+
+失败步骤会[记录缺失的工具结果](../packages/core/agent-loop/README.zh.md#understand-the-implementation)。
 
 详情见[时序图](agent-lifecycle.zh.md)、[工具流水线](tool-execution-pipeline.zh.md)和[取消与错误恢复](subsystems/core.zh.md#the-agent-handle)。
 
@@ -146,7 +132,7 @@ turn/end
 
 Session 消费方只了解当前逻辑格式。仅 header 的 `stat` 与 `list` 会重新扫描每个 Session 目录，选择数值最高的规范 generation，并在不加载事件或发布后继的情况下转换受支持的历史 header。已存储 Session 的 `open` 选择同一 generation，拒绝未来版本，或只 Decode 并组合一次构建时静态确定的相邻迁移链，再返回经过校验的当前逻辑事件。只读 open 直接使用这份内存结果，不发布后继；写 open 则先编码、校验并在未改变源的旁边排他发布最终版本命名的后继。未被后续事件封住的普通中断尾部仍由句柄消费方修复；只有在后续 `turn/start` 已经封住一种有限的已发布 restart 时，migration 才会插入缺失的 interrupted `turn/end`。JSONL v0 使用 `session.jsonl[.zstd]`，v1 及后续版本使用小写 `session.vN.jsonl[.zstd]`；已提交 generation 路径绝不重命名、替换或删除。JSONL provider 负责物理 framing、压缩、generation 选择与排他发布，每个相邻迁移包只负责一个 `vN -> vN+1` 步骤（[决策](../.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md)）。
 
-**模型可见即已记录。** 抵达模型请求的一切都必须能从日志重建，并由一项运行时不变量断言这一点。新增模型可见输入需要一个会话事件。修改现有消息内容的插件注册[纯消息投影](subsystems/session.zh.md#plugin-owned-message-projections)，独立读取器显式传入相同的处理器。
+**模型可见即已记录。** 运行时不变量检查模型请求是否可从日志重建。新增模型可见输入需要会话事件。修改现有消息内容的插件注册[纯消息投影](subsystems/session.zh.md#plugin-owned-message-projections)，独立读取器显式传入相同的处理器。 工具变更不依赖能力；[Session 工具历史](../packages/core/session/README.zh.md)提供提供方声明。
 
 **投影 seam。** `dsh-session-projection` 提供 `ctx.sessionProjections`：已注册单元增量折叠已提交事件，host 消费方通过 `stateOf()` 读取单个类型化状态，载体通过 `snapshot()` 批量取得裁剪后的客户端视图。host 读取方要么在激活时要求该服务，要么在注册表或必需 key 缺席时明确失败。贡献方可以保留 `ctx.inject(['sessionProjections'], ...)` 注册，但不能为缺失的 host 值静默提供默认值。agent loop 为读取方注册共享的 `turnBoundary` 状态（[决策](../.agents/notes/implemented/architecture/2026-08-19-session-projection-mandatory-seam.zh.md)）。
 

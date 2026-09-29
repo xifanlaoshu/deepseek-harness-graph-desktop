@@ -388,7 +388,7 @@ Global settings are only templates copied when a new Graph is first activated. T
 
 ### 8.4 Revisions and downstream invalidation
 
-Every graph modification creates a new Revision instead of overwriting the previous one. Suppose the `architect` design changes, and `engineer-backend`, `engineer-ui`, and `reviewer` are its transitive successors. All must rerun in the new Revision; unaffected accepted nodes may be reused with provenance.
+Every graph modification creates a new Revision instead of overwriting the previous one. Suppose the `architect` design changes, and `engineer-backend`, `engineer-ui`, and `reviewer` are its transitive successors. All must rerun in the new Revision; unaffected accepted nodes may be reused with a source-run reference.
 
 ```mermaid
 flowchart LR

@@ -439,7 +439,7 @@ Agent 状态机内部的**单次物理原子迭代（Single Atomic Iteration）*
 **Erlang / Akka Actor 模型的 Mailbox 消息信箱**。
 
 #### 【在 DeepSeek Harness 中的具体源码位置】
-- 实现：[`packages/core/agent/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent/src/inbox.ts) 的 `Inbox` 类。
+- 实现：[`packages/core/agent-loop/src/inbox.ts`](file:///d:/git/deepseek-harness/packages/core/agent-loop/src/inbox.ts) 的 `Inbox` 类。
 - 事件：`'agent/inbox/inserted'`, `'agent/inbox/claimed'`, `'agent/inbox/discarded'`。
 
 ---
@@ -881,7 +881,7 @@ $$\text{Context}_{\text{final}} = \text{Prompt}_{\text{system}} \oplus \text{Top
 | 25 | **Campaign** | 跨批次长期史诗 (Epic / Saga) | 有序 Batch 链表与终态证据 | 超长跨版本开发目标推进 |
 | 26 | **Batch** | 迭代分段作业 (Sprint / Chunk) | 独立局部有界 DAG | 阶段性成果交付与隔离 |
 | 27 | **Revision** | 写时复制快照 (Git Commit / RCU) | 不可变拓扑数据结构 | 架构重构与失败拓扑纠偏 |
-| 28 | **Lineage** | 数据血统与演化链 (Provenance) | 类型化关系因果图 | 修订意图与结构差异审计 |
+| 28 | **Lineage** | 数据血统与演化链（来源事件链接） | 类型化关系因果图 | 修订意图与结构差异审计 |
 | 29 | **Run** | 工作流单次执行 (Pipeline Run) | 执行实例状态机 | 拓扑图物理调度与跟踪 |
 | 30 | **Generation** | 调度任期代际 (Raft Term / Epoch) | 单调递增整型代际编号 | 淘汰上一代旧调度残留 |
 | 31 | **Activation** | 任务独占租约句柄 (Lease Handle) | 临时激活唯一标识 | 关联外部协同与执行证据 |

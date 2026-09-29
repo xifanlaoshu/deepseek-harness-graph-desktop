@@ -1,6 +1,106 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 35-eight-week-roadmap-graduation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/35-eight-week-roadmap-graduation.md
-35-eight-week-roadmap-graduation.md: 64ab550fa77d0243f56854c6e76a512d4055e6f6
-35-eight-week-roadmap-graduation.zh.md: ec3b4a50b4c3982c5d9766ac0fd42f806f2ab794
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview:
+  en: 2f0743bf73da7585
+  zh: a100359abe60b466
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap:
+  en: 487c0941bf4f2a45
+  zh: 85863eb7bbfc17db
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-1-week-1-ai-modeling-probability-and-computational-geometry:
+  en: 60baf0e9ce689bdb
+  zh: d7070d227f11fff7
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-1-week-1-ai-modeling-probability-and-computational-geometry/core-mathematical-review:
+  en: 937f22c3215d168b
+  zh: 8d4db322cfe0db3c
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-1-week-1-ai-modeling-probability-and-computational-geometry/code-deliverables-kv-cache-calculator-ts-and-bpe-simulator-ts:
+  en: fd7ad712a7691384
+  zh: 46b005423a79d84c
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-2-week-2-harness-microkernel-ioc-context-trees-and-lifecycles:
+  en: 735d37d3c622e7d0
+  zh: 6780f770a238cee4
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-2-week-2-harness-microkernel-ioc-context-trees-and-lifecycles/code-deliverable-micro-cordis-container-ts:
+  en: 1936f5e570dfc412
+  zh: c0fa00fcea78c05e
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-3-week-3-agent-loop-state-machine-turn-step-transactions-and-streaming:
+  en: 1b7d0e38cec3000e
+  zh: 0aa102b3e40568c6
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-3-week-3-agent-loop-state-machine-turn-step-transactions-and-streaming/code-deliverable-production-agent-loop-ts:
+  en: dbc940dbabdcff3a
+  zh: 07f3a558956048f9
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-4-week-4-immutable-event-ledger-persistence-and-crash-recovery:
+  en: 288f7dea057b7494
+  zh: f414de12184e01ee
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-4-week-4-immutable-event-ledger-persistence-and-crash-recovery/code-deliverable-event-sourced-session-store-ts:
+  en: 2171884458ae1921
+  zh: fa47b859112b2190
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-5-week-5-concurrency-cooperative-cancellation-fencing-and-sandboxing:
+  en: 1b058b92639eb0b9
+  zh: bb91ac1489bb6f8a
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-5-week-5-concurrency-cooperative-cancellation-fencing-and-sandboxing/code-deliverables-fenced-task-executor-ts-and-os-sandbox-interceptor-ts:
+  en: 80cddde7e7f88cfb
+  zh: 883f6b06d7524604
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-6-week-6-context-engineering-hybrid-rag-multi-agent-dags-and-critical-paths:
+  en: 6d7e769487f3a2bc
+  zh: 89fdb986fe1cc0c9
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-6-week-6-context-engineering-hybrid-rag-multi-agent-dags-and-critical-paths/code-deliverables-dag-task-scheduler-ts-and-hybrid-rag-retriever-ts:
+  en: 971cafe8177840c6
+  zh: 0240baea32d0742a
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-7-week-7-loopx-coordination-leases-and-end-to-end-tracing:
+  en: 57ceb084a5003c2c
+  zh: 701309ea84ab3712
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-7-week-7-loopx-coordination-leases-and-end-to-end-tracing/code-deliverable-loopx-lease-coordinator-ts:
+  en: 49e9f613916ecaa3
+  zh: 0d1501c7de7ce2c5
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-8-week-8-production-failure-analysis-system-design-interview-and-graduation-defense:
+  en: 92d5751c90eaea1d
+  zh: 03f011d2aa2ea109
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/1-eight-week-intensive-systems-roadmap/1-8-week-8-production-failure-analysis-system-design-interview-and-graduation-defense/code-deliverable-eval-matrix-suite-ts:
+  en: 0851a41d29062124
+  zh: a621076c662aecb9
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/2-three-level-proficiency-matrix-across-five-domains:
+  en: d7b23119e53d1821
+  zh: aa020fea990e5cb5
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric:
+  en: 2964c725d5c063fc
+  zh: 7fd424f3246f49fd
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric/3-1-criterion-1-state-machine-modeling-and-loop-control-0-4:
+  en: 7270c271b3291cee
+  zh: 46791cbce99c5516
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric/3-2-criterion-2-event-sourcing-persistence-and-side-effect-reconciliation-0-4:
+  en: 79379f2ac2eed319
+  zh: 35f97052d7a704bc
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric/3-3-criterion-3-cooperative-cancellation-fencing-tokens-and-late-write-prevention-0-4:
+  en: 0b9d50096d78ecc3
+  zh: 9730fb4eba7cd1dc
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric/3-4-criterion-4-sandbox-security-prompt-isolation-and-automated-evaluation-0-4:
+  en: af1ba1979eb73d4f
+  zh: 5f01a8e1743f5434
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/3-twenty-point-mock-interview-rubric/3-5-criterion-5-source-code-mapping-ioc-and-enterprise-delivery-0-4:
+  en: fa561b14fb984766
+  zh: 4f7517acaf04ed08
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects:
+  en: 96dd89583db5b239
+  zh: a2c4d39185acd5e9
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-1-project-one-production-style-single-agent-with-durable-events-tool-sandbox-hybrid-rag-cancellation-and-crash-recovery:
+  en: e727f40639ac4861
+  zh: b09e0cbb625e88bb
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-1-project-one-production-style-single-agent-with-durable-events-tool-sandbox-hybrid-rag-cancellation-and-crash-recovery/acceptance-test-specifications:
+  en: 9004c78a4804585f
+  zh: 28dc740cda74373f
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-2-project-two-multi-agent-task-graph-with-campaign-batches-immutable-revisions-environment-approval-and-browser-dom-acceptance:
+  en: 09b915ae95faa482
+  zh: 35314cabfb3eed18
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-2-project-two-multi-agent-task-graph-with-campaign-batches-immutable-revisions-environment-approval-and-browser-dom-acceptance/dom-automation-acceptance-tests:
+  en: df39f2a84557fb94
+  zh: f72d8b38a655f5d5
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-3-project-three-enterprise-agent-technical-design-document-tdd:
+  en: 2a46764b12eb81b5
+  zh: f4ce4f7a03a0cf7f
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/4-specifications-for-three-graduation-portfolio-projects/4-3-project-three-enterprise-agent-technical-design-document-tdd/capacity-model-calculation-example:
+  en: d7570597b2fac99e
+  zh: 78f3e0d93787bd52
+/chapter-35-eight-week-roadmap-graduation-assessment-and-mock-interview/5-conclusion-from-practitioner-to-agent-systems-architect:
+  en: a31ab72bf1bae3ee
+  zh: 525bc4e735d96dd8

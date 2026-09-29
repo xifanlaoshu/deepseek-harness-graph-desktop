@@ -163,7 +163,7 @@ graph TD
 以下是浏览器端初始化 Client Cordis 容器并装载核心插件的工业级实现：
 
 ```ts ignore-check
-// packages/client/runtime/src/client/bootstrap.ts
+// packages/client/locale/src/client/bootstrap.ts
 import { Context } from '@deepseek-ai/cordis'
 import { createWebConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection'
@@ -363,7 +363,7 @@ $$T_{\text{typert}} = T_{\text{json\_parse}}(S_{\text{raw}}) + \sum_{i=1}^K T_{\
 以下是 Host 端 Typert RPC 调度网关的工业级实现，具备完整的参数校验、Lookup 解析、生命周期绑定与异常防御：
 
 ```ts ignore-check
-// packages/api/gateway/src/typert-gateway.ts
+// packages/api/gateway/src/index.ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { RpcError, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 
@@ -800,7 +800,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 
 ### 5.2 状态存储引擎与避免 Zustand 原生 Persist 的设计复盘
 
-在 `packages/client/runtime/src/client/contract/store.ts` 中，Harness 实现了一套独立的 `defineStore` 与 `createSnapshotStore` 引擎。
+在 `packages/client/store/src/index.ts` 中，Harness 实现了一套独立的 `defineStore` 与 `createSnapshotStore` 引擎。
 
 #### 为什么弃用 Zustand 官方的 `persist` 中间件？
 
@@ -812,7 +812,7 @@ $$T_{\text{total}} = N \cdot T_{\text{produce}} + 1 \cdot \left( T_{\text{react\
 因此，Harness 实现了自研的全值 JSON 持久化，并提供完善的 Storage 失败熔断保护（在隐私模式或 Quota 超限时不抛异常，优雅降级）：
 
 ```ts ignore-check
-// packages/client/runtime/src/client/contract/store.ts
+// packages/client/store/src/index.ts
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { shallow } from 'zustand/shallow'
@@ -906,7 +906,7 @@ export function createSnapshotStore<T>(
 在 UI 渲染层，组件通过 `useSyncExternalStoreWithSelector` 接入快照源：
 
 ```tsx
-// packages/client/ui-renderer/src/client/hooks.ts
+// packages/client/ui-renderer/src/client/index.ts
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import { shallowEqual } from '@deepseek-ai/dsh-client-runtime/client'
@@ -982,7 +982,7 @@ Harness 实现了精细的页面级路由控制：
 Harness 在 MCP 客户端适配层建立了严格的路径沙箱转换器：
 
 ```ts
-// packages/bundle/browser-chrome-devtools/src/path-resolver.ts
+// packages/experimental/browser-use-chrome-devtools-mcp
 import { resolve, normalize, relative, isAbsolute } from 'node:path'
 
 export class WorkspacePathGuard {

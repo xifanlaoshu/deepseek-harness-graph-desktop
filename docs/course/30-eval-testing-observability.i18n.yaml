@@ -1,6 +1,148 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 30-eval-testing-observability.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/30-eval-testing-observability.md
-30-eval-testing-observability.md: fc061fe06f51d5497c8458a5c0564a0f547145a5
-30-eval-testing-observability.zh.md: de1e89421ee49ceafb620244608085964db03c51
+/chapter-30-evaluation-testing-and-observability:
+  en: ae0064f1273ef97d
+  zh: 04f73d77c26c9844
+/chapter-30-evaluation-testing-and-observability/1-core-concept-mapping-from-traditional-qa-apm-to-agent-evaluation-and-observability:
+  en: f52d1ed5efbe4ba7
+  zh: 865acf2efbc2c91f
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models:
+  en: e3c06641993b6b34
+  zh: 03e3793c320937b8
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-1-task-effectiveness-pass-k-and-pass-k:
+  en: bc52dd2a1ecb5b75
+  zh: 94207b9192b0fe52
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-1-task-effectiveness-pass-k-and-pass-k/2-1-1-deriving-an-unbiased-pass-k-estimator:
+  en: 224c94104f5c2f36
+  zh: c3ecde93d57556da
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-1-task-effectiveness-pass-k-and-pass-k/2-1-2-worked-example:
+  en: 0299760960e31ab9
+  zh: 201d8da4b8b2705b
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-1-task-effectiveness-pass-k-and-pass-k/2-1-3-pass-k-consistency-of-success:
+  en: 3c6239f696d44228
+  zh: 174f92252b17f819
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-2-acceptance-criteria-pass-rate-acpr:
+  en: 83dea3336abf1d9a
+  zh: 02c018dd76727c1b
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-3-tool-call-precision-and-parameter-hallucination:
+  en: 5913d453b0020552
+  zh: 3cafac925238865a
+/chapter-30-evaluation-testing-and-observability/2-multidimensional-agent-evaluation-metrics-and-mathematical-models/2-4-runtime-efficiency-and-economics:
+  en: cd4e0436323a8260
+  zh: e7b163b8f7f29aa6
+/chapter-30-evaluation-testing-and-observability/3-offline-evaluation-dataset-construction-and-benchmark-design:
+  en: 4aff752d2eba31f5
+  zh: fa26d209ee1311a6
+/chapter-30-evaluation-testing-and-observability/3-offline-evaluation-dataset-construction-and-benchmark-design/3-1-golden-dataset-metadata-schema:
+  en: da2d4bb38ad850c2
+  zh: 67f65f4183ae01a6
+/chapter-30-evaluation-testing-and-observability/3-offline-evaluation-dataset-construction-and-benchmark-design/3-2-mutation-testing-and-data-augmentation:
+  en: 7f574535f77b51d8
+  zh: 830f85c7eda7fa67
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge:
+  en: 4ac4c05dc45f564f
+  zh: c51d5e3b5a871c37
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-1-deterministic-programmatic-assertions:
+  en: b922ffe5f2426955
+  zh: a72fdb735f2824dd
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-2-designing-an-llm-as-judge-and-mitigating-bias:
+  en: 4902f348176c37da
+  zh: 2f72c7d188f273d6
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-2-designing-an-llm-as-judge-and-mitigating-bias/4-2-1-correcting-position-bias:
+  en: 9b47550f91b08b15
+  zh: 7a5f570ab6d86311
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-2-designing-an-llm-as-judge-and-mitigating-bias/4-2-2-human-judge-agreement-deriving-cohen-s-kappa:
+  en: 8b8beb05af42c9a2
+  zh: 90668de7a666c4e4
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-2-designing-an-llm-as-judge-and-mitigating-bias/4-2-2-human-judge-agreement-deriving-cohen-s-kappa/worked-example:
+  en: 43b8e8520ca22912
+  zh: 6ccb0bf1b02ab840
+/chapter-30-evaluation-testing-and-observability/4-comparing-evaluation-methods-deterministic-assertions-vs-llm-as-judge/4-2-designing-an-llm-as-judge-and-mitigating-bias/4-2-2-human-judge-agreement-deriving-cohen-s-kappa/engineering-reference-for-kappa:
+  en: 444abaa6845a5206
+  zh: 6e86b4a54ff6cb53
+/chapter-30-evaluation-testing-and-observability/5-snapshot-replay-testing-preventing-production-agent-regressions:
+  en: a15f2717276f2648
+  zh: bb690fa1e8b55e26
+/chapter-30-evaluation-testing-and-observability/5-snapshot-replay-testing-preventing-production-agent-regressions/5-1-sanitizing-recordings-and-normalizing-the-environment:
+  en: 596920b991e48a75
+  zh: d517306868247324
+/chapter-30-evaluation-testing-and-observability/5-snapshot-replay-testing-preventing-production-agent-regressions/5-2-keyless-ci-cd-integration:
+  en: 9ba6115655de03cf
+  zh: fd1a23750f205a50
+/chapter-30-evaluation-testing-and-observability/6-end-to-end-observability-and-opentelemetry-telemetry-architecture:
+  en: e2b3e614381932c1
+  zh: 14bd82d97cc76a6a
+/chapter-30-evaluation-testing-and-observability/6-end-to-end-observability-and-opentelemetry-telemetry-architecture/6-1-opentelemetry-genai-semantic-conventions:
+  en: d895b67e378e7567
+  zh: 1abee860d490fc5c
+/chapter-30-evaluation-testing-and-observability/6-end-to-end-observability-and-opentelemetry-telemetry-architecture/6-2-core-prometheus-metrics-and-promql-dashboard-expressions:
+  en: 8b315161a07f071d
+  zh: d86e2ade3d070d25
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework:
+  en: c3c4e0a989bf7656
+  zh: 48aac8f48a7aa5db
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-1-types-and-interfaces-types-ts:
+  en: ff017f026a66e25c
+  zh: 1ed3d9e9729d80fd
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-2-deterministic-programmatic-evaluator-deterministicevaluator-ts:
+  en: 81281fbde6476368
+  zh: b5de53966f8fd4a7
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-3-double-blind-position-swapped-judge-doubleblindjudge-ts:
+  en: 913d42ac4cb333bc
+  zh: af50084f668cf993
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-4-snapshot-replay-recorder-and-interceptor-snapshotreplayinterceptor-ts:
+  en: 8e82833cb2c42354
+  zh: 05d8c5c070c327ba
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-5-opentelemetry-telemetry-and-prometheus-collector-agenttelemetry-ts:
+  en: be1045fc57e1c294
+  zh: 6eb3206039ff44d9
+/chapter-30-evaluation-testing-and-observability/7-production-code-an-evaluation-engine-and-replay-framework/7-6-complete-evaluation-runner-evalrunner-ts:
+  en: 31558363db098258
+  zh: e719df102d3e38fe
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting:
+  en: a08716179d2131be
+  zh: f89af25e28c6c027
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-1-case-one-judge-verbosity-bias-inflates-prompts-and-costs:
+  en: 5bd433f7e9317dd0
+  zh: 701a4a4ce9a1eda4
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-1-case-one-judge-verbosity-bias-inflates-prompts-and-costs/symptoms:
+  en: d568437f59679036
+  zh: 9159967152b2bb51
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-1-case-one-judge-verbosity-bias-inflates-prompts-and-costs/root-cause:
+  en: c4bb7d21d9d59f5a
+  zh: 021dc4aee72e1664
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-1-case-one-judge-verbosity-bias-inflates-prompts-and-costs/production-fix:
+  en: 96857f960e4d3b2e
+  zh: 787e0e4744f017ee
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-2-case-two-timestamps-and-host-paths-cause-snapshot-failures-in-ci:
+  en: 76ae5fea89445b78
+  zh: 9ef921df760fbe28
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-2-case-two-timestamps-and-host-paths-cause-snapshot-failures-in-ci/symptoms:
+  en: 7bbf703c03506cbc
+  zh: 9ba7b3c0cb6cd9ff
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-2-case-two-timestamps-and-host-paths-cause-snapshot-failures-in-ci/root-cause:
+  en: 4079937df0ecee32
+  zh: 8846702644f54ebe
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-2-case-two-timestamps-and-host-paths-cause-snapshot-failures-in-ci/production-fix:
+  en: 480ed26a24f3668e
+  zh: 79003c7e57384e8e
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-3-case-three-lost-tracecontext-creates-thousands-of-orphan-spans:
+  en: 7a8262a219ae9c2d
+  zh: a21e1913bb00dbd2
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-3-case-three-lost-tracecontext-creates-thousands-of-orphan-spans/symptoms:
+  en: 3db513e553f292ad
+  zh: c0dbd1fae65a5bea
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-3-case-three-lost-tracecontext-creates-thousands-of-orphan-spans/root-cause:
+  en: 4fb312c41db14c00
+  zh: f0ef2136c049ef2f
+/chapter-30-evaluation-testing-and-observability/8-production-failure-cases-and-troubleshooting/8-3-case-three-lost-tracecontext-creates-thousands-of-orphan-spans/production-fix:
+  en: 2efc7928100161c2
+  zh: 08fb18b2178b4d3c
+/chapter-30-evaluation-testing-and-observability/9-chapter-summary-and-mind-map:
+  en: e68ad4b04d1d5c4e
+  zh: ed7ea6e2b15df217
+/chapter-30-evaluation-testing-and-observability/9-chapter-summary-and-mind-map/self-check-and-exercises:
+  en: 94d4583153b4958b
+  zh: 07c0e95e198accf6

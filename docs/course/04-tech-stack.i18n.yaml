@@ -1,6 +1,127 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 04-tech-stack.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/04-tech-stack.md
-04-tech-stack.md: 678b5f483f679e8f739d85829022f422b6101497
-04-tech-stack.zh.md: 40cad337f665544cab3b6197dcc0aaa470c7109c
+/chapter-04-the-technology-stack:
+  en: 860d91f43fa50b57
+  zh: 010c124eb6de32c6
+/chapter-04-the-technology-stack/4-1-architecture-overview-selection-principles-and-system-layers:
+  en: 362ae9640cd9886b
+  zh: fa38eb34c44c2255
+/chapter-04-the-technology-stack/4-1-architecture-overview-selection-principles-and-system-layers/4-1-1-the-layered-agent-runtime-from-a-systems-programming-perspective:
+  en: 559cec8c2bee11a6
+  zh: 47b3cc002bbd4308
+/chapter-04-the-technology-stack/4-1-architecture-overview-selection-principles-and-system-layers/4-1-2-four-technology-selection-rules:
+  en: 1812c5c986a56a3c
+  zh: d36bd05832867bc7
+/chapter-04-the-technology-stack/4-1-architecture-overview-selection-principles-and-system-layers/4-1-3-technology-stack-comparison-table:
+  en: c67657a47cb625cc
+  zh: 715bbc342c72a0ce
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6:
+  en: d2820e6e9b72733e
+  zh: c2c37f058f800885
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-1-why-native-esm-on-node-js-22-19-24:
+  en: 1fff15b34ecdf6ae
+  zh: 2745d86184b51292
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-1-why-native-esm-on-node-js-22-19-24/1-eliminating-native-c-build-dependencies-no-node-gyp:
+  en: 58aba4ecde00c01b
+  zh: 187cdd9d60748147
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-1-why-native-esm-on-node-js-22-19-24/2-why-the-architecture-uses-esm-throughout:
+  en: 6d3c8b3fd014eeb8
+  zh: d4cd18408f9858b9
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-1-why-native-esm-on-node-js-22-19-24/3-comparing-bun-and-deno:
+  en: 24f94e69f49b3d2f
+  zh: 7eacca83aabe1612
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-2-typescript-6-strict-mode-and-discriminated-union-state-machines:
+  en: 7644546a9e37e876
+  zh: 0ab67089a1f7a05d
+/chapter-04-the-technology-stack/4-2-language-and-runtime-node-js-esm-and-typescript-6/4-2-2-typescript-6-strict-mode-and-discriminated-union-state-machines/discriminated-unions-as-algebraic-data-types:
+  en: a5bf8bf4f459c293
+  zh: 886206915ffd2bb3
+/chapter-04-the-technology-stack/4-3-modularity-and-inversion-of-control-vendored-cordis-and-schemastery:
+  en: 2e9b4e26b51b21ff
+  zh: 465d9e3c8e6e6dc1
+/chapter-04-the-technology-stack/4-3-modularity-and-inversion-of-control-vendored-cordis-and-schemastery/4-3-1-why-cordis-for-microkernel-ioc:
+  en: f6746b3621294773
+  zh: 464088c6e104c5f2
+/chapter-04-the-technology-stack/4-3-modularity-and-inversion-of-control-vendored-cordis-and-schemastery/4-3-2-schemastery-one-definition-and-bidirectional-type-inference:
+  en: 29db46de1f290629
+  zh: fe0328761c94e90a
+/chapter-04-the-technology-stack/4-4-engineering-dependency-isolation-and-builds-pnpm-11-tsdown-and-vite:
+  en: 5c4b22368c963d5e
+  zh: c3640d6f8e32d3ed
+/chapter-04-the-technology-stack/4-4-engineering-dependency-isolation-and-builds-pnpm-11-tsdown-and-vite/4-4-1-pnpm-11-workspaces-and-dependency-graph-isolation:
+  en: 28657328c1467821
+  zh: 2e8518cb81a0ed2c
+/chapter-04-the-technology-stack/4-4-engineering-dependency-isolation-and-builds-pnpm-11-tsdown-and-vite/4-4-2-dual-face-build-pipeline-tsdown-and-vite:
+  en: 340302b21ba80cfb
+  zh: 09e13721c3038774
+/chapter-04-the-technology-stack/4-5-model-layer-and-protocol-adaptation-deepseek-api-and-pi-ai:
+  en: b13cf18bf28a4034
+  zh: 2921bce7493678d1
+/chapter-04-the-technology-stack/4-5-model-layer-and-protocol-adaptation-deepseek-api-and-pi-ai/4-5-1-sse-streaming-throughput-and-backpressure:
+  en: ebb5c9506e245240
+  zh: 21fd9939c0210a2c
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite:
+  en: 6dc397158454f3b3
+  zh: d877fd07ed865b92
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite/4-6-1-why-concatenated-independent-zstandard-frames:
+  en: f47b8282f111b7dd
+  zh: 20df5fc5166dac00
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite/4-6-1-why-concatenated-independent-zstandard-frames/limitations-of-conventional-approaches:
+  en: 4985963f676f6bfc
+  zh: ab4d2208a27395d0
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite/4-6-1-why-concatenated-independent-zstandard-frames/concatenating-zstandard-frames:
+  en: 0272bec159efc2b9
+  zh: 5e3f8d45e2b85ea4
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite/4-6-1-why-concatenated-independent-zstandard-frames/torn-frame-detection-and-truncation:
+  en: d4dcbb64a5c6ece3
+  zh: 5611f0c098a72142
+/chapter-04-the-technology-stack/4-6-persistence-and-the-event-record-jsonl-zstandard-and-node-sqlite/4-6-2-why-node-sqlite-instead-of-prisma-or-typeorm:
+  en: 9ef52516a6eac086
+  zh: fecf1862195a8e7e
+/chapter-04-the-technology-stack/4-7-frontend-and-full-stack-rpc-react-18-zustand-immer-and-typert:
+  en: f035b4605510dc09
+  zh: 2f0143d858804b1e
+/chapter-04-the-technology-stack/4-7-frontend-and-full-stack-rpc-react-18-zustand-immer-and-typert/4-7-1-react-18-concurrent-rendering-and-zustand-immer-state-flow:
+  en: f6ba88dcac3dfe4d
+  zh: 194a6b36f896075f
+/chapter-04-the-technology-stack/4-7-frontend-and-full-stack-rpc-react-18-zustand-immer-and-typert/4-7-2-typert-automatic-type-graph-inference-and-bidirectional-websocket-rpc:
+  en: 33690f81af667634
+  zh: f1ed18d788863fbb
+/chapter-04-the-technology-stack/4-8-concurrency-isolation-and-kernel-sandboxes-worker-threads-landlock-and-seatbelt:
+  en: 8e9e08e8fc2ccedc
+  zh: 9f23b3e59936f704
+/chapter-04-the-technology-stack/4-8-concurrency-isolation-and-kernel-sandboxes-worker-threads-landlock-and-seatbelt/4-8-1-thread-level-isolation-with-node-js-worker-threads:
+  en: e432ceec89712802
+  zh: 65d6eea8791a5971
+/chapter-04-the-technology-stack/4-8-concurrency-isolation-and-kernel-sandboxes-worker-threads-landlock-and-seatbelt/4-8-2-kernel-sandbox-matrix-for-three-operating-systems:
+  en: 0f2fff2ed6219e53
+  zh: 2c554ef32c97c155
+/chapter-04-the-technology-stack/4-9-end-to-end-coordination-and-ownership:
+  en: 8523b2b0aa9c7c94
+  zh: 6fb1969da5db8b4d
+/chapter-04-the-technology-stack/4-9-end-to-end-coordination-and-ownership/three-part-ownership-pattern-across-packages:
+  en: 6f31996a804fb564
+  zh: 29c3116cb96d7529
+/chapter-04-the-technology-stack/4-10-production-pitfalls-and-diagnosis:
+  en: e33fec9b009e87e6
+  zh: 3f0f3aebf19a1d7e
+/chapter-04-the-technology-stack/4-10-production-pitfalls-and-diagnosis/4-10-1-pitfall-1-concurrent-asynchronous-zstd-appends-interleave-frames:
+  en: e6c5e89426a81c63
+  zh: c578598e2e1d72f8
+/chapter-04-the-technology-stack/4-10-production-pitfalls-and-diagnosis/4-10-2-pitfall-2-large-cross-thread-transfers-cause-gc-pauses:
+  en: 7cfb4c689f82e39b
+  zh: 3005836f9fec2362
+/chapter-04-the-technology-stack/4-10-production-pitfalls-and-diagnosis/4-10-3-pitfall-3-inherited-windows-acls-permit-sandbox-escape:
+  en: da547859d3d43f6c
+  zh: b75dc7c9be4d21be
+/chapter-04-the-technology-stack/4-11-chapter-summary-and-self-check:
+  en: f2f4c1b3b02a7814
+  zh: 22d2df464cff54e1
+/chapter-04-the-technology-stack/4-11-chapter-summary-and-self-check/architectural-takeaways:
+  en: 0155852e30853e3c
+  zh: a32915e54172ca70
+/chapter-04-the-technology-stack/4-11-chapter-summary-and-self-check/engineer-s-self-check:
+  en: ec4bcd8633cbaddb
+  zh: 9b5b4dcff4e824fe

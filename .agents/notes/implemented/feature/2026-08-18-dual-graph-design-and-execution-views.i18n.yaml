@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-dual-graph-design-and-execution-views.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-dual-graph-design-and-execution-views.md
-2026-08-18-dual-graph-design-and-execution-views.md: 7949d161df378cc481ac713edb359606cde11944
-2026-08-18-dual-graph-design-and-execution-views.zh.md: 794c479a2ea0cbc8efb9d3eb964b89ab689a3bb9
+/agent-note-dual-graph-design-and-execution-views:
+  en: 0f5099eca13e3a5b
+  zh: e6642d48ebd9aed8
+/agent-note-dual-graph-design-and-execution-views/problem:
+  en: 3f96214be719652f
+  zh: 755671fdebe588f8
+/agent-note-dual-graph-design-and-execution-views/decision:
+  en: 98f9cb01cb6f7c50
+  zh: 1dd4aeb3f390117d
+/agent-note-dual-graph-design-and-execution-views/verification:
+  en: 00365b8729c170c4
+  zh: 4a63878677c45da9
+/agent-note-dual-graph-design-and-execution-views/alternatives-considered:
+  en: e56adf192e6444f9
+  zh: 2f42c45e2a6298d4
+/agent-note-dual-graph-design-and-execution-views/consequences:
+  en: 25e7abc3cf7aa981
+  zh: e738bc579ece50fe

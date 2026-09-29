@@ -42,11 +42,11 @@ Before the first V4 publication, every integration of a newer V3-writing master 
 ## Release record
 
 ```yaml session-format-release
-latestReleasedVersion: 3
-evidenceTag: dsh-v0.1.5-alpha.1
+latestReleasedVersion: 4
+evidenceTag: dsh-v0.2.0-rc.2
 ```
 
-Evidence: published product tag `dsh-v0.1.5-alpha.1`; tagged writer: `packages/core/session/src/types.ts`.
+Evidence: published product tag `dsh-v0.2.0-rc.2`; tagged writer: `packages/core/session/src/types.ts`.
 
 <a id="updating-the-record"></a>
 ## Updating the record

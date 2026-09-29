@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-17-session-graph-mode.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-17-session-graph-mode.md
-2026-08-17-session-graph-mode.md: 432d7dc381917ab184c934ae343d5b86521cc3b1
-2026-08-17-session-graph-mode.zh.md: 8463329334bbbef8aee65a2d6e28d42f75a6a3f8
+/agent-note-session-graph-mode:
+  en: 813319c6184b6ad4
+  zh: b4c2254d31ccc01b
+/agent-note-session-graph-mode/problem:
+  en: 3554e8736f811e77
+  zh: 2d2b52c0a7d481cd
+/agent-note-session-graph-mode/decision:
+  en: 4b771785a4298ebb
+  zh: e09c6c7a54cf5a21
+/agent-note-session-graph-mode/verification:
+  en: e243254110b40f06
+  zh: 7fa28b189e0eb1b0
+/agent-note-session-graph-mode/alternatives-considered:
+  en: 5cd7e85ee057f525
+  zh: 8cd3b38219e1b4c9
+/agent-note-session-graph-mode/consequences:
+  en: 91e62a412763c574
+  zh: 42183d3b744c2a46

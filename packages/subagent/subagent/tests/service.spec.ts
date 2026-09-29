@@ -23,7 +23,7 @@ import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 
 function fakeParent(id = 'parent-1'): Agent {
-  return { id: SessionId(id), options: {} } as unknown as Agent
+  return { id: SessionId(id), options: {} } as Agent
 }
 
 const ALL_CAPS: SubagentCapabilities = { agentOptions: true, outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
@@ -416,7 +416,7 @@ describe('subagent descriptors', () => {
   const event = (data: unknown): SessionEvent<'subagent/descriptor'> => ({
     type: 'subagent/descriptor',
     data,
-  } as unknown as SessionEvent<'subagent/descriptor'>)
+  } as SessionEvent<'subagent/descriptor'>)
 
   it('omits absent fields, recovers a complete payload, and rejects unsupported versions', () => {
     expect(foldSubagentDescriptor([])).toBeUndefined()
@@ -486,7 +486,7 @@ describe('subagent descriptors', () => {
       mode: 'continuable',
       provider: 'spawn',
       label: 'bad',
-      toolFilter: { deny: [Symbol('not-json')] as unknown as string[] },
+      toolFilter: { deny: [Symbol('not-json')] as never },
     })).toThrow('not losslessly JSON-serializable')
   })
 

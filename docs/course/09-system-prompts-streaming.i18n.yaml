@@ -1,6 +1,127 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 09-system-prompts-streaming.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/course/09-system-prompts-streaming.md
-09-system-prompts-streaming.md: 00397daf85b2385c1f70ec10156a24f6f0091ac6
-09-system-prompts-streaming.zh.md: c886e06ad129a9ae58dae2dcf476f921d03879d8
+/chapter-09-prompts-models-and-streaming-responses:
+  en: 1e0ea6a08d504cd7
+  zh: 0829e5e4bef93d5a
+/chapter-09-prompts-models-and-streaming-responses/1-mapping-systems-programming-concepts-to-llm-streaming:
+  en: a5d74ba9cbaf3e2e
+  zh: e71589a2c462f36c
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization:
+  en: a9d35b3fc8a57a78
+  zh: 5dbc7eb76c7dda69
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-1-llm-inference-bottlenecks-and-kv-cache-memory-accounting:
+  en: 8d154593c5bdd559
+  zh: 3454ebd2a4636364
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-1-llm-inference-bottlenecks-and-kv-cache-memory-accounting/deriving-gpu-memory-use:
+  en: f69d574c814c5c49
+  zh: d29607bc1d75e4e0
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-1-llm-inference-bottlenecks-and-kv-cache-memory-accounting/worked-comparison:
+  en: 7c1391c783535288
+  zh: e4a0e20c86c4c429
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-2-prefix-caching-and-cache-busting:
+  en: 42567bcd6a439094
+  zh: b3730702467621dd
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-2-prefix-caching-and-cache-busting/a-cache-busting-example:
+  en: cb9ee4ec19cf283c
+  zh: 194f07f0ed74bf56
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-3-assembly-architecture-stable-prefix-and-dynamic-runtime-context:
+  en: 2a721b2970a5bc63
+  zh: 6557e1d9b284d19a
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-4-how-the-systemprompt-service-works:
+  en: 8d4aac2f2a340c72
+  zh: 0b88f7cdb80c9d1c
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-4-how-the-systemprompt-service-works/1-ordering-and-scoped-shadowing:
+  en: 7617482833595df8
+  zh: dc73889f251d560c
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-4-how-the-systemprompt-service-works/2-strict-variable-interpolation:
+  en: 87b76aa263882ab1
+  zh: 8283733cb27b5624
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-4-how-the-systemprompt-service-works/3-canonical-ordering-of-tool-definitions:
+  en: 95ec63539a577e49
+  zh: e7018fe1e12f2ef0
+/chapter-09-prompts-models-and-streaming-responses/2-dynamic-system-prompt-assembly-and-prompt-cache-optimization/2-4-how-the-systemprompt-service-works/4-exclusive-complete-sections-and-waterfall-transformations:
+  en: ffde1b0eb351a775
+  zh: 6052ab6c99dbac4c
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters:
+  en: e10ca570565dfe7f
+  zh: 34a58bc0dc3bf79a
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-1-the-two-phase-prepared-call:
+  en: a13cfc041b149cca
+  zh: 7cbf33d67ecb85b8
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-2-deepseekadapter-direct-api-access-and-transport-resilience:
+  en: 5f60a735af43ebff
+  zh: 07123289d717501d
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-2-deepseekadapter-direct-api-access-and-transport-resilience/1-idle-timeout-watchdog:
+  en: 6cc9840701a27335
+  zh: 2c838d80b5363717
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-2-deepseekadapter-direct-api-access-and-transport-resilience/2-asynchronous-large-image-offloading-through-the-files-api:
+  en: 60384e5b6c449a4f
+  zh: 652ca0c757ec078d
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-3-the-pi-ai-adapter-and-general-model-gateways:
+  en: bca538440698f88f
+  zh: 6ac560d816687ccb
+/chapter-09-prompts-models-and-streaming-responses/3-the-llm-service-definition-and-multiple-provider-adapters/3-4-the-llm-stream-waterfall:
+  en: 1a5ca50f2aa2f8d9
+  zh: 48b665b19682a57e
+/chapter-09-prompts-models-and-streaming-responses/4-the-sse-state-machine-and-eventsource-parser-streaming-parser:
+  en: d2592c1f7ce3257f
+  zh: c6f3b93a1b3fd274
+/chapter-09-prompts-models-and-streaming-responses/4-the-sse-state-machine-and-eventsource-parser-streaming-parser/4-1-server-sent-events-sse-and-transport-boundaries:
+  en: db13b0cb749d0e73
+  zh: 4f24fa95fa0ac4ed
+/chapter-09-prompts-models-and-streaming-responses/4-the-sse-state-machine-and-eventsource-parser-streaming-parser/4-2-streaming-pipeline-architecture:
+  en: e7836dd84c154487
+  zh: a65e41f72bb824ca
+/chapter-09-prompts-models-and-streaming-responses/4-the-sse-state-machine-and-eventsource-parser-streaming-parser/4-3-state-machine-translation-with-translate-and-block-assembly:
+  en: 6fc918f5178e0362
+  zh: 64a8de8ba32aabda
+/chapter-09-prompts-models-and-streaming-responses/4-the-sse-state-machine-and-eventsource-parser-streaming-parser/4-3-state-machine-translation-with-translate-and-block-assembly/disjoint-token-accounting:
+  en: 1b1a73a480231146
+  zh: 5cfe53ebb6d70a6b
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded:
+  en: 3371e2576552abfe
+  zh: 087cc849aa7af3b7
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded/5-1-why-persist-each-assistant-chunk-immediately:
+  en: 642ea7f91974e079
+  zh: 6328e8815e3cac9d
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded/5-2-consequences-of-violating-the-invariant:
+  en: cfe018052819194f
+  zh: 7b7e113439e7e95b
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded/5-2-consequences-of-violating-the-invariant/1-split-brain-context-drift:
+  en: 9e1e50b95f7a2248
+  zh: 12e62a18beec7217
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded/5-2-consequences-of-violating-the-invariant/2-broken-idempotency-and-repeated-tool-calls:
+  en: 0770b18c3547606d
+  zh: b9759477e8b45a79
+/chapter-09-prompts-models-and-streaming-responses/5-core-invariant-model-visible-content-is-recorded/5-2-consequences-of-violating-the-invariant/3-privilege-violations-and-incomplete-security-audits:
+  en: 2951f4a8e6b8d296
+  zh: 22f696949036c7db
+/chapter-09-prompts-models-and-streaming-responses/6-complete-production-style-typescript-example:
+  en: 24d6e11340cb7fe9
+  zh: 3138b7da1d715fa0
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis:
+  en: ac71c7ed3880d506
+  zh: dc04105114d9d0ca
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis/failure-1-prompt-cache-hit-rate-collapses-and-ttft-spikes:
+  en: 2c7cca1507ec0e40
+  zh: c4aad2b63ff07443
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis/failure-2-packet-boundaries-cause-intermittent-sse-syntaxerror-failures:
+  en: a78c2c02d4fdc4a4
+  zh: 8500f78f15cfb801
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis/failure-3-cancellation-leaves-an-orphaned-tcp-request-and-continues-billing:
+  en: 936b6a1b0feb5b0d
+  zh: 91567ee9d8f4f3dd
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis/failure-4-overlapping-cache-accounting-produces-negative-input-tokens:
+  en: 5ff4d59ca09e54ed
+  zh: f4a8d5aad50a95d4
+/chapter-09-prompts-models-and-streaming-responses/7-production-failures-and-diagnosis/failure-5-model-metadata-drift-during-hmr:
+  en: e987a288f93b5035
+  zh: 4f4b0b7511ee1cde
+/chapter-09-prompts-models-and-streaming-responses/8-questions-and-hands-on-experiments:
+  en: 6b315282ef055455
+  zh: b7838059a7a3af2d
+/chapter-09-prompts-models-and-streaming-responses/9-chapter-summary-and-next-steps:
+  en: d7231ca3e85e620b
+  zh: 12ee0a1864142956
