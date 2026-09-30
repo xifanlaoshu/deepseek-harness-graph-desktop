@@ -9893,7 +9893,7 @@ Sources: [`packages/core/session/src/types.ts:228`](../packages/core/session/src
 
 SHA-256: `1753b65a00637f8e992b365fddfd75b073e21324bbff868da056be0b3d9812f4`
 
-Sources: [`packages/graph/graph-mode/src/index.ts:125`](../packages/graph/graph-mode/src/index.ts)
+Sources: [`packages/graph/graph-mode/src/index.ts:124`](../packages/graph/graph-mode/src/index.ts)
 
 | Property | Presence | Type |
 |---|---|---|

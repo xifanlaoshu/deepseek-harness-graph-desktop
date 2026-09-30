@@ -63,7 +63,9 @@ function parseManifest(value: unknown): LoopxManifest {
     files.push({ path, bytes: item.bytes as number, sha256: item.sha256, executable: item.executable })
   }
   if (!seen.has('launcher.py') || !files.some(file => file.path.startsWith('python-packages/'))
-    || !value.licenseFiles.every(path => seen.has(path))) throw new Error('desktop LoopX runtime: incomplete file inventory')
+    || !value.licenseFiles.every(path => seen.has(path.toLowerCase()))) {
+    throw new Error('desktop LoopX runtime: incomplete file inventory')
+  }
   return {
     schemaVersion: 1, release: value.release, sourceCommit: value.sourceCommit, license: value.license,
     launcher: 'launcher.py', packagesDirectory: 'python-packages', licenseFiles: value.licenseFiles, files,

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadDesktopPackageEnvironment, validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
+import { resolveNpmFetchTimeout } from '../scripts/desktop-release-environment.mjs'
 import { resolveWindowsPackageSettings } from '../scripts/windows-package-settings.mjs'
 
 const WINDOWS = { platform: 'win32', arch: 'x64' } as const
@@ -195,6 +196,28 @@ describe('Desktop local packaging configuration', () => {
         validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_REGISTRY: value }, WINDOWS, { unsigned: true })
       }).toThrow(/DSH_DESKTOP_NPM_REGISTRY/u)
     }
+  })
+
+  it('keeps the bundled runtime download deadline file-owned and validates its milliseconds', async () => {
+    await withDirectory(async (directory) => {
+      const release = { ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
+      await writeFile(join(directory, '.env.windows'), '')
+      const defaultEnvironment = loadDesktopPackageEnvironment('win32', {
+        ...release, DSH_DESKTOP_NPM_FETCH_TIMEOUT_MS: '1',
+      }, directory)
+      expect(resolveNpmFetchTimeout(defaultEnvironment)).toBe(900_000)
+      await writeFile(join(directory, '.env.windows'), 'DSH_DESKTOP_NPM_FETCH_TIMEOUT_MS=1200000\n')
+      const configured = loadDesktopPackageEnvironment('win32', release, directory)
+      expect(resolveNpmFetchTimeout(configured)).toBe(1_200_000)
+      expect(() => {
+        validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_FETCH_TIMEOUT_MS: '1200000' }, WINDOWS, { unsigned: true })
+      }).not.toThrow()
+      for (const value of ['0', '-1', '1.5', 'no-timeout', '9007199254740992']) {
+        expect(() => {
+          validateDesktopPackageEnvironment({ ...release, DSH_DESKTOP_NPM_FETCH_TIMEOUT_MS: value }, WINDOWS, { unsigned: true })
+        }).toThrow(/DSH_DESKTOP_NPM_FETCH_TIMEOUT_MS/u)
+      }
+    })
   })
 
   it('rejects incomplete macOS identity and credentials and checks referenced files without contacting Apple', async () => {

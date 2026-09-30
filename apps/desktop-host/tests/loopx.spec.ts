@@ -31,13 +31,19 @@ function fixture(): { primary: string; loopx: string } {
   mkdirSync(join(loopx, 'python-packages'), { recursive: true })
   writeFileSync(join(loopx, 'launcher.py'), 'launch')
   writeFileSync(join(loopx, 'python-packages', 'loopx.py'), 'wheel')
-  const files = ['launcher.py', 'python-packages/loopx.py'].map((path) => {
+  const licenseFiles = ['LICENSE', 'NOTICE', 'LICENSE-MIT'].map(name => `python-packages/loopx-1.2.3.dist-info/licenses/${name}`)
+  for (const path of licenseFiles) {
+    const file = join(loopx, ...path.split('/'))
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, path)
+  }
+  const files = ['launcher.py', 'python-packages/loopx.py', ...licenseFiles].map((path) => {
     const bytes = readFileSync(join(loopx, ...path.split('/')))
     return { path, bytes: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex'), executable: false }
   })
   writeFileSync(join(loopx, 'runtime.json'), JSON.stringify({
     schemaVersion: 1, release: '1.2.3', sourceCommit: 'a'.repeat(40), license: 'MIT',
-    launcher: 'launcher.py', packagesDirectory: 'python-packages', licenseFiles: ['python-packages/loopx.py'], files,
+    launcher: 'launcher.py', packagesDirectory: 'python-packages', licenseFiles, files,
   }))
   return { primary, loopx }
 }

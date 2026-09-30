@@ -1440,7 +1440,7 @@ export interface Config {
 
 - `inject`: `graphWorkers` · `llm` · `sessions` · `systemPrompt` · `tools`
 - `refs`: [`GraphEnvironmentCapability`](../packages/graph/graph/src/index.ts) · [`GraphModeConfig`](subsystems/graph.md) · [`GraphWorkspaceMode`](../packages/graph/graph-worker/src/index.ts) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/graph/graph-mode/src/index.ts:136`](../packages/graph/graph-mode/src/index.ts)
+- `source`: [`packages/graph/graph-mode/src/index.ts:135`](../packages/graph/graph-mode/src/index.ts)
 
 ```ts config-catalog
 /** Deployment choices for graph worker dispatch. */
@@ -1677,9 +1677,9 @@ export interface Config {
   /** Maximum bytes captured from one remote structured result. */
   readonly maxArtifactBytes: number
   /** Authenticated HTTP route; omission retains the out-of-process subagent adapter. */
-  readonly http?: HttpConfig
+  readonly http?: HttpConfig | undefined
   /** Authenticated inbound Worker service; required in server and both modes. */
-  readonly server?: HttpServerConfig
+  readonly server?: HttpServerConfig | undefined
 }
 
 /** Authenticated HTTP Worker route configuration. */

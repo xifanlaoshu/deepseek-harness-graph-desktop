@@ -24,6 +24,7 @@ import { writeDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.t
 import {
   resolveDesktopAppId,
   resolveMacOSSigningEnvironment,
+  resolveNpmFetchTimeout,
   resolveNpmRegistry,
 } from './desktop-release-environment.mjs'
 import {
@@ -71,6 +72,7 @@ function runPnpm(args: readonly string[]): Promise<void> {
     const [command, ...commandArgs] = args
     if (command === undefined) throw new Error('desktop runtime: pnpm command is required')
     const registry = resolveNpmRegistry(process.env)
+    const fetchTimeout = resolveNpmFetchTimeout(process.env)
     const config = join(PNPM_BUILD_STATE, 'config')
     const userConfig = join(config, 'npmrc')
     mkdirSync(config, { recursive: true })
@@ -83,6 +85,7 @@ function runPnpm(args: readonly string[]): Promise<void> {
       '--config.enable-global-virtual-store=false',
       `--config.userconfig=${userConfig}`,
       command,
+      `--fetch-timeout=${fetchTimeout}`,
       ...commandArgs,
     ], {
       cwd: BUILD_ROOT,

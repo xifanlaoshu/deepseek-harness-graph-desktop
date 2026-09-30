@@ -9895,7 +9895,7 @@ SHA-256: `ec8b5ff7c77ca6893ac7ba5a0c5b2aefeb52f12c64450b7359660c2a7e8a53d7`
 
 SHA-256: `1753b65a00637f8e992b365fddfd75b073e21324bbff868da056be0b3d9812f4`
 
-来源：[`packages/graph/graph-mode/src/index.ts:125`](../packages/graph/graph-mode/src/index.ts)
+来源：[`packages/graph/graph-mode/src/index.ts:124`](../packages/graph/graph-mode/src/index.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
